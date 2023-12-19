@@ -141,7 +141,7 @@ class ZenohUTransport : public UTransport {
         unordered_map<uuriKey, z_owned_publisher_t> pubHandleMap_;
         unordered_map<uuriKey, std::shared_ptr<ListenerContainer>> listenerMap_;  
         unordered_map<uuriKey, bool> authorized_;
-        unordered_map<uuidStr, const z_query_t *> queryMap_;
+        unordered_map<uuidStr, z_owned_query_t> queryMap_;
 
         std::mutex pubInitMutex_;
         std::mutex subInitMutex_;

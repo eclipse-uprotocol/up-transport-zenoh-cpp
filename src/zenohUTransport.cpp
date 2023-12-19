@@ -260,8 +260,8 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 }
 
 UCode ZenohUTransport::sendQueryable(const UUri &uri, 
-                                       const UPayload &payload,
-                                       const UAttributes &attributes) noexcept {
+                                     const UPayload &payload,
+                                     const UAttributes &attributes) noexcept {
 
     if (UMessageType::RESPONSE != attributes.type()) {
         spdlog::error("a Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
@@ -295,15 +295,17 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
         return UCode::INTERNAL;
     }
 
-    if (0 != z_query_reply(query, z_query_keyexpr(query), message.data(), message.size(), &options)) {
+    z_query_t lquery = z_loan(query);
+
+    if (0 != z_query_reply(&lquery, z_query_keyexpr(&lquery), message.data(), message.size(), &options)) {
         spdlog::error("z_query_reply failed");
         return UCode::INTERNAL;
     }
  
-    auto keyStr = z_keyexpr_to_string(z_query_keyexpr(query));
+    auto keyStr = z_keyexpr_to_string(z_query_keyexpr(&lquery));
 
     z_drop(z_move(keyStr));
-    
+    z_drop(z_move(query));
     /* once replied remove the uuid from the map , as it cannot be reused */
     queryMap_.erase(uuidStr);
 
@@ -525,6 +527,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query,
     auto instance = get<1>(*tuplePtr);
     auto listener = &get<2>(*tuplePtr);
 
+    z_owned_query_t oquery = z_query_clone(query);
     z_value_t payload_value = z_query_value(query);
 
     auto tlvVector = MessageParser::getAllTlv(payload_value.payload.start, payload_value.payload.len);
@@ -548,7 +551,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query,
 
     auto uuidStr = UuidSerializer::serializeToString(attributes->id());
 
-    instance->queryMap_[uuidStr] = query;
+    instance->queryMap_[uuidStr] = oquery;
 
     if (UMessageType::REQUEST != attributes.value().type()) {
         spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.value().type()).value());
