@@ -22,7 +22,7 @@ At first to make it working, you have to install zenoh-c , using the following i
 #### UPROTOCOL-CPP and UPROTOCOL-CORE-API dependencies
 ```
 $ git clone https://github.com/eclipse-uprotocol/uprotocol-cpp.git
-$ git clone https://github.com/eclipse-uprotocol/uprotocol-core-api
+$ git clone https://github.com/eclipse-uprotocol/uprotocol-core-api.git
 ```
 ### Setup main CMAKE file, build and test
 ```
