@@ -46,11 +46,14 @@ class ZenohUTransport : public UTransport {
 
     public:
 
+        ZenohUTransport(const ZenohUTransport&) = delete;
+        ZenohUTransport& operator=(const ZenohUTransport&) = delete;
+
         /**
         * The API provides an instance of the zenoh session
         * @return instance of ZenohUTransport
         */
-		static ZenohUTransport& instance(void) noexcept;
+	static ZenohUTransport& instance(void) noexcept;
 
         /**
         * init the zenohUTransport 
@@ -102,6 +105,8 @@ class ZenohUTransport : public UTransport {
                         const UAttributes &attributes) noexcept;
 
     private:
+
+	ZenohUTransport() {}
 
         static void OnSubscriberClose(void *arg);
 
