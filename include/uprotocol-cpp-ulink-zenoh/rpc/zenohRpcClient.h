@@ -39,6 +39,9 @@ class ZenohRpcClient : public RpcClient {
 
     public:
 
+        ZenohRpcClient(const ZenohRpcClient&) = delete;
+        ZenohRpcClient& operator=(const ZenohRpcClient&) = delete;
+
         /**
         * The API provides an instance of the zenoh RPC client
         * @return instance of ZenohUTransport
@@ -68,6 +71,8 @@ class ZenohRpcClient : public RpcClient {
                                            const UPayload &payload, 
                                            const UAttributes &attributes) noexcept;
     private:
+
+        ZenohRpcClient() {}
 
         static UPayload handleReply(z_owned_reply_channel_t *channel);
         
