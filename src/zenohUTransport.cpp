@@ -21,7 +21,7 @@
  * SPDX-FileCopyrightText: 2023 General Motors GTO LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-// 2nd Test push to fork
+
 #include <uprotocol-cpp-ulink-zenoh/message/messageBuilder.h>
 #include <uprotocol-cpp-ulink-zenoh/message/messageParser.h>
 #include <uprotocol-cpp-ulink-zenoh/transport/zenohUTransport.h>
@@ -153,10 +153,8 @@ UStatus ZenohUTransport::term() noexcept {
     return status;
 }
 
-UStatus ZenohUTransport::send(const UUri &uri, 
-                              const UPayload &payload,
+UStatus ZenohUTransport::send(const UPayload &payload,
                               const UAttributes &attributes) noexcept {
-
     UStatus status;
 
     if (0 == refCount_) {
@@ -171,7 +169,6 @@ UStatus ZenohUTransport::send(const UUri &uri,
         return status;
     }
     
-    /* determine according to the URI is the send is and RPC response or a regular publish */
     if (false == uri.getUResource().isRPCMethod()) {
         status.set_code(sendPublish(uri, payload, attributes));
     } else {
@@ -184,22 +181,26 @@ UStatus ZenohUTransport::send(const UUri &uri,
 UCode ZenohUTransport::sendPublish(const UUri &uri, 
                                    const UPayload &payload,
                                    const UAttributes &attributes) noexcept {
-
     UCode status;
 
     status = UCode::UNAVAILABLE;
-   
+
     do {
 
         if (UMessageType::PUBLISH != attributes.type()) {
-            
+
             spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
             return UCode::INVALID_ARGUMENT;
         }
 
+        auto header = MessageBuilder::buildHeader(attributes);
+
+        std::vector<uint8_t> completeMessage(header.begin(), header.end());
+        completeMessage.insert(completeMessage.end(), payload.data(), payload.data() + payload.size());
+
         /* get hash and check if the publisher for the URI is already exists */
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri)); 
-        auto handleInfo = pubHandleMap_.find(uriHash);    
+        auto handleInfo = pubHandleMap_.find(uriHash); 
     
         /* increment the number of pending send operations*/
         pendingSendRefCnt_.fetch_add(1);
@@ -208,7 +209,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 
         /* check if the publisher exists */
         if (handleInfo == pubHandleMap_.end()) {
-                     
+         
             std::lock_guard<std::mutex> lock(pubInitMutex_);
 
             if (handleInfo != pubHandleMap_.end()) {
@@ -258,7 +259,60 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 
     return status;
 }
+UCode ZenohUTransport::sendQueryable(const UUri &uri, 
+                                     const UPayload &payload,
+                                     const UAttributes &attributes) noexcept {
 
+    if (UMessageType::RESPONSE != attributes.type()) {
+        spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
+        return UCode::INVALID_ARGUMENT;
+    }
+
+    auto uuidStr = UuidSerializer::serializeToString(attributes.id());
+
+    if (queryMap_.find(uuidStr) == queryMap_.end()) {
+        spdlog::error("failed to find uid = {}", uuidStr);
+        return UCode::UNAVAILABLE;
+    }
+
+    auto query = queryMap_[uuidStr];
+
+    z_query_reply_options_t options = z_query_reply_options_default();
+
+    if (attributes.serializationHint().has_value()) {
+        if (UCode::OK != mapEncoding(attributes.serializationHint().value(), options.encoding)) {
+            spdlog::error("mapEncoding failure");
+            return UCode::INTERNAL;
+        }
+    } else {
+        options.encoding = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
+    }
+
+    auto header = MessageBuilder::buildHeader(attributes);
+
+    std::vector<uint8_t> completeMessage(header.begin(), header.end());
+    completeMessage.insert(completeMessage.end(), payload.data(), payload.data() + payload.size());
+
+    z_query_t lquery = z_loan(query);
+
+    if (0 != z_query_reply(&lquery, z_query_keyexpr(&lquery), completeMessage.data(), completeMessage.size(), &options)) {
+        spdlog::error("z_query_reply failed");
+        return UCode::INTERNAL;
+    }
+
+    auto keyStr = z_keyexpr_to_string(z_query_keyexpr(&lquery));
+
+    z_drop(z_move(keyStr));
+    z_drop(z_move(query));
+    /* once replied remove the uuid from the map , as it cannot be reused */
+    queryMap_.erase(uuidStr);
+
+    spdlog::debug("Replied on query with uid = {}", std::string(uuidStr));
+
+    return UCode::OK;
+}
+
+/*
 UCode ZenohUTransport::sendQueryable(const UUri &uri, 
                                      const UPayload &payload,
                                      const UAttributes &attributes) noexcept {
@@ -306,13 +360,14 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
 
     z_drop(z_move(keyStr));
     z_drop(z_move(query));
-    /* once replied remove the uuid from the map , as it cannot be reused */
+    /* once replied remove the uuid from the map , as it cannot be reused
     queryMap_.erase(uuidStr);
 
     spdlog::debug("replied on query with uid = {}", std::string(uuidStr));
 
     return UCode::OK;
 }
+*/
 
 UStatus ZenohUTransport::registerListener(const UUri &uri,
                                           const UListener &listener) noexcept {
@@ -483,7 +538,42 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
     status.set_code(UCode::OK);
     return status;
 }
+void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
+    UPayload payload{sample->payload.start, sample->payload.len, UPayloadType::REFERENCE};
 
+    if (sample == nullptr || arg == nullptr) {
+        spdlog::error("Invalid arguments for SubHandler");
+        return;
+    }
+
+    cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
+
+    // Extract the entire TLV map from the sample
+    auto allTlv = MessageParser::instance().getAllTlv(sample->payload.start, sample->payload.len);
+    if (!allTlv.has_value()) {
+        spdlog::error("MessageParser::getAllTlv failure");
+        return;
+    }
+
+    // Parse headers
+    auto headers = MessageParser::instance().getAttributes(allTlv.value());
+    if (!headers.has_value()) {
+        spdlog::error("getAttributes failure");
+        return;
+    }
+
+    // Retrieve URI, listener, and other necessary data from the tuple
+    auto uri = get<0>(*tuplePtr);
+    auto listener = &get<2>(*tuplePtr);
+
+    // Pass the parsed headers and payload to the listener's onReceive method
+    if (UCode::OK != listener->onReceive(uri, payload.value(), headers.value()).code()) {
+        spdlog::error("listener->onReceive failed");
+    }
+}
+
+/*
+// Original SubHandler method
 void ZenohUTransport::SubHandler(const z_sample_t* sample,
                                  void* arg) {
 
@@ -512,11 +602,12 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample,
     }
 
     if (UCode::OK != listener->onReceive(uri, payload.value(), attributes.value()).code()) {
-        /*TODO error handling*/
+        // TODO error handling
         spdlog::error("listener->onReceive failed");
         return;
     }
 }
+*/
 
 void ZenohUTransport::QueryHandler(const z_query_t *query, 
                                    void *arg) 

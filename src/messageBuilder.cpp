@@ -30,6 +30,57 @@
 
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
+std::vector<uint8_t> MessageBuilder::buildHeader(const UAttributes &attributes) {
+    std::vector<uint8_t> header;
+
+    // Mandatory attributes
+    auto idBytes = UuidSerializer::serializeToBytes(attributes.id());
+    addTag(header, Tag::ID, idBytes.data(), idBytes.size());
+
+    auto messageType = static_cast<uint8_t>(attributes.type());
+    addTag(header, Tag::TYPE, &messageType, sizeof(messageType));
+
+    auto priority = static_cast<uint8_t>(attributes.priority());
+    addTag(header, Tag::PRIORITY, &priority, sizeof(priority));
+
+    // Optional attributes
+    if (attributes.ttl().has_value()) {
+        int32_t ttl = attributes.ttl().value();
+        addTag(header, Tag::TTL, reinterpret_cast<uint8_t*>(&ttl), sizeof(ttl));
+    }
+
+    if (attributes.token().has_value()) {
+        const auto& token = attributes.token().value();
+        addTag(header, Tag::TOKEN, reinterpret_cast<const uint8_t*>(token.c_str()), token.size());
+    }
+
+    if (attributes.serializationHint().has_value()) {
+        auto hint = static_cast<uint8_t>(attributes.serializationHint().value());
+        addTag(header, Tag::HINT, &hint, sizeof(hint));
+    }
+
+    if (attributes.sink().has_value()) {
+        auto sinkUri = LongUriSerializer::serialize(attributes.sink().value());
+        addTag(header, Tag::SINK, reinterpret_cast<const uint8_t*>(sinkUri.c_str()), sinkUri.size());
+    }
+
+    if (attributes.plevel().has_value()) {
+        int32_t plevel = attributes.plevel().value();
+        addTag(header, Tag::PLEVEL, reinterpret_cast<uint8_t*>(&plevel), sizeof(plevel));
+    }
+
+    if (attributes.commstatus().has_value()) {
+        int32_t commstatus = attributes.commstatus().value();
+        addTag(header, Tag::COMMSTATUS, reinterpret_cast<uint8_t*>(&commstatus), sizeof(commstatus));
+    }
+
+    if (attributes.reqid().has_value()) {
+        auto reqIdBytes = UuidSerializer::serializeToBytes(attributes.reqid().value());
+        addTag(header, Tag::REQID, reqIdBytes.data(), reqIdBytes.size());
+    }
+
+    return header;
+}
 
 std::vector<uint8_t> MessageBuilder::build(const UAttributes &attributes, 
                                            const UPayload &payload) noexcept {
