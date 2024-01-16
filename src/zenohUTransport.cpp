@@ -69,7 +69,7 @@ UStatus ZenohUTransport::init() noexcept {
                 return status;
             }
         }
-
+        termPending_ = false;
         refCount_.fetch_add(1);
 
     } else {
@@ -370,8 +370,10 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
                 break;
             }
         }
+
+        UUri copyUri = uri;
         
-        arg = new cbArgumentType(uri, this, listener);
+        arg = new cbArgumentType(std::move(copyUri), this, listener);
         if (nullptr == arg) {
             spdlog::error("failed to allocate arguments for callback");
             status.set_code(UCode::INTERNAL);
