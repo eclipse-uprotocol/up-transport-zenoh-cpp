@@ -153,7 +153,8 @@ UStatus ZenohUTransport::term() noexcept {
     return status;
 }
 
-UStatus ZenohUTransport::send(const UPayload &payload,
+UStatus ZenohUTransport::send(const UUri &uri,
+                              const UPayload &payload,
                               const UAttributes &attributes) noexcept {
     UStatus status;
 
@@ -231,7 +232,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 
         z_publisher_put_options_t options = z_publisher_put_options_default();
 
-        if (true == attributes.serializationHint().has_value()) {
+        if (attributes.serializationHint().has_value()) {
             if (UCode::OK != mapEncoding(attributes.serializationHint().value(), options.encoding)) {
                 spdlog::error("mapEncoding failure");
                 break;
@@ -240,22 +241,27 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
             options.encoding = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
         }
 
-        auto message = MessageBuilder::build(attributes, payload);
-        if (0 == message.size()) {
-            spdlog::error("MessageBuilder::build failed");
-            break;
+        // Create and populate attachment map
+        z_owned_bytes_map_t map = z_bytes_map_new();
+        for (const auto& [key, value] : attachmentData) {
+            z_bytes_map_insert_by_alias(&map, z_bytes_new(key.c_str()), z_bytes_new(value.c_str()));
         }
-        
-        if (0 != z_publisher_put(z_loan(pub), message.data(), message.size(), &options)) {
+        options.attachment = z_bytes_map_as_attachment(&map);
+
+        // Publish the message with attachments
+        if (0 != z_publisher_put(z_loan(pub), completeMessage.data(), completeMessage.size(), &options)) {
             spdlog::error("z_publisher_put failed");
             break;
         }
-        
-       status = UCode::OK;
+
+        status = UCode::OK;
 
     } while(0);
-        
+
     pendingSendRefCnt_.fetch_sub(1);
+
+    // Clean up the attachment map
+    z_drop(z_move(map));
 
     return status;
 }
@@ -307,7 +313,7 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
     /* once replied remove the uuid from the map , as it cannot be reused */
     queryMap_.erase(uuidStr);
 
-    spdlog::debug("Replied on query with uid = {}", std::string(uuidStr));
+    spdlog::debug("replied on query with uid = {}", std::string(uuidStr));
 
     return UCode::OK;
 }
@@ -561,7 +567,13 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
         spdlog::error("getAttributes failure");
         return;
     }
-
+    // Attachment handling
+    if (z_check(sample->attachment)) {
+        z_attachment_iterate(sample->attachment, [](z_bytes_t key, z_bytes_t val, void *ctx) {
+            spdlog::info("Attachment: key = %.*s, value = '%.*s'", (int)key.len, key.start, (int)val.len, val.start);
+            return 0;
+        }, nullptr);
+    }
     // Retrieve URI, listener, and other necessary data from the tuple
     auto uri = get<0>(*tuplePtr);
     auto listener = &get<2>(*tuplePtr);
