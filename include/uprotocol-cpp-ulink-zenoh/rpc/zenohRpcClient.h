@@ -28,7 +28,7 @@
 #include <uprotocol-cpp/rpc/RpcClient.h>
 #include <uprotocol-cpp-ulink-zenoh/utils/ThreadPool.h>
 #include <zenoh.h>
-#include <src/main/proto/ustatus.pb.h>
+#include <uprotocol/ustatus.pb.h>
 
 using namespace std;
 using namespace uprotocol::utransport;

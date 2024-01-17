@@ -32,7 +32,7 @@
 #include <uprotocol-cpp/transport/datamodel/UPayload.h>
 #include <uprotocol-cpp/transport/datamodel/UAttributes.h>
 #include <uprotocol-cpp-ulink-zenoh/message/messageCommon.h>
-#include <src/main/proto/ustatus.pb.h>
+#include <uprotocol/ustatus.pb.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uri;

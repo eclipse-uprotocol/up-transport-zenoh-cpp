@@ -26,7 +26,7 @@
 #include <csignal>
 #include <uprotocol-cpp-ulink-zenoh/transport/zenohUTransport.h>
 #include <uprotocol-cpp/uuid/serializer/UuidSerializer.h>
-#include <src/main/proto/ustatus.pb.h>
+#include <uprotocol/ustatus.pb.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;

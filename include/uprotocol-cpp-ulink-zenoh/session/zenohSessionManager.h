@@ -29,7 +29,7 @@
 #include <zenoh.h>
 #include <uprotocol-cpp/transport/datamodel/UPayload.h>
 #include <uprotocol-cpp/transport/datamodel/UAttributes.h>
-#include <src/main/proto/ustatus.pb.h>
+#include <uprotocol/ustatus.pb.h>
 
 using namespace std;
 using namespace uprotocol::utransport;
