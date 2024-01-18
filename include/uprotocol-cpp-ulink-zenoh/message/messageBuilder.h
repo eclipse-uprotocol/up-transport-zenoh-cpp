@@ -50,8 +50,9 @@ class MessageBuilder
         static std::vector<uint8_t> build(const UAttributes &attributes, 
                                           const UPayload &payload) noexcept;
 
-        std::optional <std::tuple<std::vector<uint8_t>, std::vector<uint8_t>> buildHeader(const UAttributes &attributes);
-        
+        //std::optional <std::tuple<std::vector<uint8_t>, std::vector<uint8_t>> buildHeader(const UAttributes &attributes);
+        static std::vector<uint8_t> buildHeader(const UAttributes &attributes);
+
     private:
 
         static size_t calculateSize(const UAttributes &attributes, 
