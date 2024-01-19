@@ -211,20 +211,17 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 
         /* check if the publisher exists */
         if (handleInfo == pubHandleMap_.end()) {
-
             std::lock_guard<std::mutex> lock(pubInitMutex_);
 
             if (handleInfo != pubHandleMap_.end()) {
                 pub = handleInfo->second;
             } else {
-                
                 pub = z_declare_publisher(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), nullptr);
               
                 if (false == z_check(pub)) {
                     spdlog::error("Unable to declare Publisher for key expression!");
                     break;
                 }
-
                 pubHandleMap_[uriHash] = pub;
             }
         } else {
@@ -257,7 +254,6 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
             spdlog::error("z_publisher_put failed");
             break;
         }
-
         status = UCode::OK;
 
     } while(0);
