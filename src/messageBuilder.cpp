@@ -82,59 +82,6 @@ std::vector<uint8_t> MessageBuilder::buildHeader(const UAttributes &attributes) 
     return header;
 }
 
-std::vector<uint8_t> MessageBuilder::build(const UAttributes &attributes, 
-                                           const UPayload &payload) noexcept {
-
-    size_t messageSize = calculateSize(attributes, payload);
-
-    spdlog::debug("total message size = {}", messageSize);
-
-    std::vector<uint8_t> message(messageSize);
-
-    size_t pos = 0;
-
-    pos = addTag(message, Tag::ID, UuidSerializer::serializeToBytes(attributes.id()), pos);       
-
-    pos = addTag(message, Tag::TYPE, attributes.type(), pos); 
-                 
-    pos = addTag(message, Tag::PRIORITY, attributes.priority(), pos);
-
-    if (attributes.ttl().has_value()) {
-        pos = addTag(message, Tag::TTL, attributes.ttl().value(), pos);
-    }
-
-    if (attributes.token().has_value()) {
-        pos = addTag(message, Tag::TOKEN, attributes.token().value(), pos);
-    }
-
-    if (attributes.serializationHint().has_value()) {
-        pos = addTag(message, Tag::HINT, attributes.serializationHint().value(), pos);
-    }
-
-    if (attributes.sink().has_value()) {
-
-        auto sinkBase64 = uprotocol::tools::Base64::encode(LongUriSerializer::serialize(attributes.sink().value()));
-
-        pos = addTag(message, Tag::SINK, sinkBase64, pos);
-    }
-
-    if (attributes.plevel().has_value()) {
-        pos = addTag(message, Tag::PLEVEL, attributes.plevel().value(), pos);
-    }
-
-    if (attributes.commstatus().has_value()) {
-        pos = addTag(message, Tag::COMMSTATUS, attributes.commstatus().value(), pos);
-    }
-    
-    if (attributes.reqid().has_value()) {
-         pos = addTag(message, Tag::REQID, UuidSerializer::serializeToBytes(attributes.reqid().value()), pos);
-    }
-
-    pos = addTag(message, Tag::PAYLOAD, payload.data(), payload.size(), pos);
-
-    return message;
-}
-
 size_t MessageBuilder::addTag(std::vector<uint8_t>& buffer, 
                               Tag tag, 
                               const uint8_t* data, 

@@ -49,8 +49,6 @@ struct TLV {
 class MessageParser
 {
     public:
-        static MessageParser& instance() noexcept;
-
         static std::optional<std::unordered_map<Tag,TLV>> getAllTlv(const uint8_t *data, 
                                                                     size_t size) noexcept;
 
@@ -60,7 +58,6 @@ class MessageParser
 
     private:
         MessageParser() = default;
-        static MessageParser instance_;
         static bool isValidTag(Tag value);
 };
 

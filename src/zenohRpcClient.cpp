@@ -137,9 +137,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
     z_owned_bytes_map_t map = z_bytes_map_new();
 
     z_bytes_t headerBytes = {.len = header.size(), .start = header.data()};
-    z_bytes_t payloadBytes = {.len = payload.size(), .start = payload.data()};
     z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), headerBytes);
-    z_bytes_map_insert_by_alias(&map, z_bytes_new("payload"), payloadBytes);
 
     z_owned_reply_channel_t *channel = new z_owned_reply_channel_t;
     *channel = zc_reply_fifo_new(16);
@@ -178,10 +176,10 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
                 z_bytes_t index = z_attachment_get(sample.attachment, z_bytes_new("header"));
                 if (z_check(index)) {
                     spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
-                    allTlv = MessageParser::instance().getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
+                    allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
                 }
             } else {
-                allTlv = MessageParser::instance().getAllTlv(reinterpret_cast<const uint8_t*>(sample.payload.start), sample.payload.len);
+                allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(sample.payload.start), sample.payload.len);
             }
 
             if (!allTlv.has_value()) {
@@ -189,18 +187,18 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
                 continue;
             }
 
-            auto header = MessageParser::instance().getAttributes(allTlv.value());
+            auto header = MessageParser::getAttributes(allTlv.value());
             if (!header.has_value()) {
                 spdlog::error("getAttributes failure");
                 continue;
             }
 
-            auto respOpt = MessageParser::getPayload(allTlv.value());
-            if (respOpt.has_value()) {
-                response = std::move(respOpt.value());
+            if (sample.payload.len > 0 && sample.payload.start != nullptr) {
+                response = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
             } else {
-                spdlog::error("getPayload failure");
+                spdlog::error("Payload is empty");
             }
+            
         } else {
             spdlog::error("error received");
             break;

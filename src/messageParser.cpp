@@ -35,12 +35,6 @@ using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
 
-MessageParser MessageParser::instance_;
-
-MessageParser& MessageParser::instance() noexcept {
-    return instance_;
-}
-
 std::optional<std::unordered_map<Tag,TLV>> MessageParser::getAllTlv(const uint8_t *data, 
                                                                     size_t size) noexcept {
     if (nullptr == data) {
