@@ -21,5 +21,5 @@ add_library(
     src/zenohSessionManager.cpp
     src/messageBuilder.cpp
     src/messageParser.cpp
-    /usr/local/lib64/libzenohc.so)
+    ${ZENOH_LIB})
 
