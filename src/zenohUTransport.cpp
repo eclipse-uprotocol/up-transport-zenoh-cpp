@@ -186,8 +186,6 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 
     status = UCode::UNAVAILABLE;
 
-    z_owned_bytes_map_t map = z_bytes_map_new();
-
     do {
 
         if (UMessageType::PUBLISH != attributes.type()) {
@@ -230,6 +228,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
             pub = handleInfo->second;
         }
 
+    z_owned_bytes_map_t map = z_bytes_map_new();
     z_publisher_put_options_t options = z_publisher_put_options_default();
     options.attachment = z_bytes_map_as_attachment(&map);
 
@@ -243,6 +242,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
         if (attributes.serializationHint().has_value()) {
             if (UCode::OK != mapEncoding(attributes.serializationHint().value(), options.encoding)) {
                 spdlog::error("mapEncoding failure");
+                z_drop(z_move(map));
                 break;
             }
         } else {
@@ -252,13 +252,16 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
         // Publish the message
         if (0 != z_publisher_put(z_loan(pub), payload.data(), payload.size(), &options)) {
             spdlog::error("z_publisher_put failed");
+            z_drop(z_move(map));
             break;
         }
+
+        z_drop(z_move(map));
+
         status = UCode::OK;
 
     } while(0);
     
-    z_drop(z_move(map));
     pendingSendRefCnt_.fetch_sub(1);
 
     return status;
@@ -299,13 +302,12 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
     z_owned_bytes_map_t map = z_bytes_map_new();
     options.attachment = z_bytes_map_as_attachment(&map);
 
-
     z_bytes_t headerBytes = {.len = headerLength, .start = headerPointer};
     z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), headerBytes);
 
     z_query_t lquery = z_loan(query);
 
-    if (0 != z_query_reply(&lquery, z_query_keyexpr(&lquery), nullptr, 0, &options)) {
+    if (0 != z_query_reply(&lquery, z_query_keyexpr(&lquery), payload.data(), payload.size(), &options)) {
         spdlog::error("z_query_reply failed");
         z_drop(z_move(map));
         return UCode::INTERNAL;

@@ -171,17 +171,27 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
             z_sample_t sample = z_reply_ok(&reply);
 
             // Attachment handling and TLV extraction
-            std::optional<std::unordered_map<Tag, TLV>> allTlv;
-            if (z_check(sample.attachment)) {
-                z_bytes_t index = z_attachment_get(sample.attachment, z_bytes_new("header"));
-                if (z_check(index)) {
-                    spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
-                    allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
-                }
+            if (sample.payload.len > 0 && sample.payload.start != nullptr) {
+                response = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
             } else {
-                allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(sample.payload.start), sample.payload.len);
+                spdlog::error("Payload is empty");
             }
 
+            if (!z_check(sample.attachment)) {
+                spdlog::error("No attachment found in the reply");
+                continue;
+            }
+
+            z_bytes_t index = z_attachment_get(sample.attachment, z_bytes_new("header"));
+
+            if (!z_check(index)) {
+                spdlog::error("Header not found in the attachment");
+                continue;
+            }
+
+            spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
+
+            auto allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
             if (!allTlv.has_value()) {
                 spdlog::error("MessageParser::getAllTlv failure");
                 continue;
@@ -191,12 +201,6 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
             if (!header.has_value()) {
                 spdlog::error("getAttributes failure");
                 continue;
-            }
-
-            if (sample.payload.len > 0 && sample.payload.start != nullptr) {
-                response = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
-            } else {
-                spdlog::error("Payload is empty");
             }
             
         } else {
