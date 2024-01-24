@@ -26,6 +26,7 @@
 #include <uprotocol-cpp-ulink-zenoh/transport/zenohUTransport.h>
 #include <uprotocol-cpp/uuid/factory/Uuidv8Factory.h>
 #include <uprotocol/ustatus.pb.h>
+#include <unistd.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
