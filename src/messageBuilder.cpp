@@ -36,48 +36,48 @@ std::vector<uint8_t> MessageBuilder::buildHeader(const UAttributes &attributes) 
 
     // Mandatory attributes
     auto idBytes = UuidSerializer::serializeToBytes(attributes.id());
-    pos = addTag(header, Tag::ID, idBytes.data(), idBytes.size());
+    pos = addTag(header, Tag::ID, idBytes.data(), idBytes.size(), pos);
 
     auto messageType = static_cast<uint8_t>(attributes.type());
-    pos = addTag(header, Tag::TYPE, &messageType, sizeof(messageType));
+    pos = addTag(header, Tag::TYPE, &messageType, sizeof(messageType), pos);
 
     auto priority = static_cast<uint8_t>(attributes.priority());
-    pos = addTag(header, Tag::PRIORITY, &priority, sizeof(priority));
+    pos = addTag(header, Tag::PRIORITY, &priority, sizeof(priority), pos);
 
     // Optional attributes
     if (attributes.ttl().has_value()) {
         int32_t ttl = attributes.ttl().value();
-        pos = addTag(header, Tag::TTL, reinterpret_cast<uint8_t*>(&ttl), sizeof(ttl));
+        pos = addTag(header, Tag::TTL, reinterpret_cast<uint8_t*>(&ttl), sizeof(ttl), pos);
     }
 
     if (attributes.token().has_value()) {
         const auto& token = attributes.token().value();
-        pos = addTag(header, Tag::TOKEN, reinterpret_cast<const uint8_t*>(token.c_str()), token.size());
+        pos = addTag(header, Tag::TOKEN, reinterpret_cast<const uint8_t*>(token.c_str()), token.size(), pos);
     }
 
     if (attributes.serializationHint().has_value()) {
         auto hint = static_cast<uint8_t>(attributes.serializationHint().value());
-        pos = addTag(header, Tag::HINT, &hint, sizeof(hint));
+        pos = addTag(header, Tag::HINT, &hint, sizeof(hint)), pos;
     }
 
     if (attributes.sink().has_value()) {
         auto sinkUri = LongUriSerializer::serialize(attributes.sink().value());
-        pos = addTag(header, Tag::SINK, reinterpret_cast<const uint8_t*>(sinkUri.c_str()), sinkUri.size());
+        pos = addTag(header, Tag::SINK, reinterpret_cast<const uint8_t*>(sinkUri.c_str()), sinkUri.size(), pos);
     }
 
     if (attributes.plevel().has_value()) {
         int32_t plevel = attributes.plevel().value();
-        pos = addTag(header, Tag::PLEVEL, reinterpret_cast<uint8_t*>(&plevel), sizeof(plevel));
+        pos = addTag(header, Tag::PLEVEL, reinterpret_cast<uint8_t*>(&plevel), sizeof(plevel), pos);
     }
 
     if (attributes.commstatus().has_value()) {
         int32_t commstatus = attributes.commstatus().value();
-        pos = addTag(header, Tag::COMMSTATUS, reinterpret_cast<uint8_t*>(&commstatus), sizeof(commstatus));
+        pos = addTag(header, Tag::COMMSTATUS, reinterpret_cast<uint8_t*>(&commstatus), sizeof(commstatus), pos);
     }
 
     if (attributes.reqid().has_value()) {
         auto reqIdBytes = UuidSerializer::serializeToBytes(attributes.reqid().value());
-        pos = addTag(header, Tag::REQID, reqIdBytes.data(), reqIdBytes.size());
+        pos = addTag(header, Tag::REQID, reqIdBytes.data(), reqIdBytes.size(), pos);
     }
 
     return header;
