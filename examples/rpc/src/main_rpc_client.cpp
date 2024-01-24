@@ -27,6 +27,7 @@
 #include <uprotocol-cpp/uuid/factory/Uuidv8Factory.h>
 #include <chrono>
 #include <csignal>
+#include <unistd.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
