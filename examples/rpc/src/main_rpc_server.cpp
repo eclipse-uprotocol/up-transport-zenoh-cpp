@@ -24,6 +24,7 @@
 
 #include <csignal>
 #include <uprotocol-cpp-ulink-zenoh/transport/zenohUTransport.h>
+#include <unistd.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::v1;
