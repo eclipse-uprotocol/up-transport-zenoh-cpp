@@ -195,6 +195,10 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
         }
 
         auto header = MessageBuilder::buildHeader(attributes);
+        if (header.empty()) {
+        spdlog::error("Failed to build header");
+        return UCode::INTERNAL;
+        }
 
         // Header length and pointer
         size_t headerLength = header.size();
@@ -295,6 +299,10 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
     }
 
     auto header = MessageBuilder::buildHeader(attributes);
+    if (header.empty()) {
+        spdlog::error("Failed to build header");
+        return UCode::INTERNAL;
+    }
 
     size_t headerLength = header.size();
     const uint8_t* headerPointer = header.data();
@@ -499,7 +507,6 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
 void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
 
     if (sample == nullptr || arg == nullptr) {
-
         spdlog::error("Invalid arguments for SubHandler");
         return;
     }

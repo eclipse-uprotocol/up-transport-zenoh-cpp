@@ -132,7 +132,12 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
     }
 
     auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
+
     auto header = MessageBuilder::buildHeader(attributes);
+    if (header.empty()) {
+        spdlog::error("Failed to build header");
+        return std::move(future);
+    }
 
     z_owned_bytes_map_t map = z_bytes_map_new();
 
