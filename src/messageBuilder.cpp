@@ -30,58 +30,57 @@
 
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
-
-std::vector<uint8_t> MessageBuilder::build(const UAttributes &attributes, 
-                                           const UPayload &payload) noexcept {
-
-    size_t messageSize = calculateSize(attributes, payload);
-
-    spdlog::debug("total message size = {}", messageSize);
-
-    std::vector<uint8_t> message(messageSize);
-
+std::vector<uint8_t> MessageBuilder::buildHeader(const UAttributes &attributes) {
+    std::vector<uint8_t> header;
     size_t pos = 0;
 
-    pos = addTag(message, Tag::ID, UuidSerializer::serializeToBytes(attributes.id()), pos);       
+    // Mandatory attributes
+    auto idBytes = UuidSerializer::serializeToBytes(attributes.id());
+    pos = addTag(header, Tag::ID, idBytes.data(), idBytes.size(), pos);
 
-    pos = addTag(message, Tag::TYPE, attributes.type(), pos); 
-                 
-    pos = addTag(message, Tag::PRIORITY, attributes.priority(), pos);
+    auto messageType = static_cast<uint8_t>(attributes.type());
+    pos = addTag(header, Tag::TYPE, &messageType, sizeof(messageType), pos);
 
+    auto priority = static_cast<uint8_t>(attributes.priority());
+    pos = addTag(header, Tag::PRIORITY, &priority, sizeof(priority), pos);
+
+    // Optional attributes
     if (attributes.ttl().has_value()) {
-        pos = addTag(message, Tag::TTL, attributes.ttl().value(), pos);
+        int32_t ttl = attributes.ttl().value();
+        pos = addTag(header, Tag::TTL, reinterpret_cast<uint8_t*>(&ttl), sizeof(ttl), pos);
     }
 
     if (attributes.token().has_value()) {
-        pos = addTag(message, Tag::TOKEN, attributes.token().value(), pos);
+        const auto& token = attributes.token().value();
+        pos = addTag(header, Tag::TOKEN, reinterpret_cast<const uint8_t*>(token.c_str()), token.size(), pos);
     }
 
     if (attributes.serializationHint().has_value()) {
-        pos = addTag(message, Tag::HINT, attributes.serializationHint().value(), pos);
+        auto hint = static_cast<uint8_t>(attributes.serializationHint().value());
+        pos = addTag(header, Tag::HINT, &hint, sizeof(hint)), pos;
     }
 
     if (attributes.sink().has_value()) {
-
-        auto sinkBase64 = uprotocol::tools::Base64::encode(LongUriSerializer::serialize(attributes.sink().value()));
-
-        pos = addTag(message, Tag::SINK, sinkBase64, pos);
+        auto sinkUri = LongUriSerializer::serialize(attributes.sink().value());
+        pos = addTag(header, Tag::SINK, reinterpret_cast<const uint8_t*>(sinkUri.c_str()), sinkUri.size(), pos);
     }
 
     if (attributes.plevel().has_value()) {
-        pos = addTag(message, Tag::PLEVEL, attributes.plevel().value(), pos);
+        int32_t plevel = attributes.plevel().value();
+        pos = addTag(header, Tag::PLEVEL, reinterpret_cast<uint8_t*>(&plevel), sizeof(plevel), pos);
     }
 
     if (attributes.commstatus().has_value()) {
-        pos = addTag(message, Tag::COMMSTATUS, attributes.commstatus().value(), pos);
+        int32_t commstatus = attributes.commstatus().value();
+        pos = addTag(header, Tag::COMMSTATUS, reinterpret_cast<uint8_t*>(&commstatus), sizeof(commstatus), pos);
     }
-    
+
     if (attributes.reqid().has_value()) {
-         pos = addTag(message, Tag::REQID, UuidSerializer::serializeToBytes(attributes.reqid().value()), pos);
+        auto reqIdBytes = UuidSerializer::serializeToBytes(attributes.reqid().value());
+        pos = addTag(header, Tag::REQID, reqIdBytes.data(), reqIdBytes.size(), pos);
     }
 
-    pos = addTag(message, Tag::PAYLOAD, payload.data(), payload.size(), pos);
-
-    return message;
+    return header;
 }
 
 size_t MessageBuilder::addTag(std::vector<uint8_t>& buffer, 

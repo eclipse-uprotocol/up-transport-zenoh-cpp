@@ -115,8 +115,7 @@ UStatus ZenohRpcClient::term() noexcept {
     status.set_code(UCode::OK);
 
     return status;
-} 
-
+}
 std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri, 
                                                    const UPayload &payload, 
                                                    const UAttributes &attributes) noexcept {
@@ -126,90 +125,99 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
         spdlog::error("ZenohRpcClient is not initialized");
         return std::move(future);
     }
-    
+
     if (UMessageType::REQUEST != attributes.type()) {
         spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
         return std::move(future);
     }
-    
+
     auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
 
-    if (UMessageType::REQUEST != attributes.type()) {
-        spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
+    auto header = MessageBuilder::buildHeader(attributes);
+    if (header.empty()) {
+        spdlog::error("Failed to build header");
         return std::move(future);
     }
-  
-    auto message = MessageBuilder::build(attributes, payload);
-    if (0 == message.size()) {
-        spdlog::error("MessageBuilder failure");
-        return std::move(future);
-    }
+
+    z_owned_bytes_map_t map = z_bytes_map_new();
+
+    z_bytes_t headerBytes = {.len = header.size(), .start = header.data()};
+    z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), headerBytes);
 
     z_owned_reply_channel_t *channel = new z_owned_reply_channel_t;
-
-   *channel = zc_reply_fifo_new(16);
+    *channel = zc_reply_fifo_new(16);
 
     z_get_options_t opts = z_get_options_default();
-
     opts.timeout_ms = requestTimeoutMs_;
-
-    opts.value.payload = (z_bytes_t){.len =  message.size(), .start = (uint8_t *)message.data()};
-
-    auto uuidStr = UuidSerializer::serializeToString(attributes.id());
+    opts.attachment = z_bytes_map_as_attachment(&map);
 
     if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
         spdlog::error("z_get failure");
+        z_drop(&map);
         return std::move(future);
-    }  
-    
+    }
+
     future = threadPool_->submit(handleReply, channel);
 
-    if (false == future.valid()) {
+    if (!future.valid()) {
         spdlog::error("failed to invoke method");
     }
-   
+
+    z_drop(&map);
     return future; 
 }
 
 UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
-
     z_owned_reply_t reply = z_reply_null();
-    UPayload response (nullptr, 0, UPayloadType::VALUE);
-        
-    for (z_call(channel->recv, &reply); z_check(reply); z_call(channel->recv, &reply)) {
+    UPayload response(nullptr, 0, UPayloadType::VALUE);
 
+    for (z_call(channel->recv, &reply); z_check(reply); z_call(channel->recv, &reply)) {
         if (z_reply_is_ok(&reply)) {
             z_sample_t sample = z_reply_ok(&reply);
-            z_owned_str_t keystr = z_keyexpr_to_string(sample.keyexpr);
 
-            z_drop(z_move(keystr));
-
-            auto tlvVector = MessageParser::getAllTlv(sample.payload.start, sample.payload.len);
-     
-            if (false == tlvVector.has_value()) {
-
-                spdlog::error("getAllTlv failure");
-                return response;
+            // Attachment handling and TLV extraction
+            if (sample.payload.len > 0 && sample.payload.start != nullptr) {
+                response = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
+            } else {
+                spdlog::error("Payload is empty");
             }
 
-            auto respOpt = MessageParser::getPayload(tlvVector.value());    
-            if (false == respOpt.has_value()) {
-                spdlog::error("getPayload failure");
-                return response;
+            if (!z_check(sample.attachment)) {
+                spdlog::error("No attachment found in the reply");
+                continue;
             }
 
-            response = std::move(respOpt.value());
+            z_bytes_t index = z_attachment_get(sample.attachment, z_bytes_new("header"));
+
+            if (!z_check(index)) {
+                spdlog::error("Header not found in the attachment");
+                continue;
+            }
+
+            spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
+
+            auto allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
+            if (!allTlv.has_value()) {
+                spdlog::error("MessageParser::getAllTlv failure");
+                continue;
+            }
+
+            auto header = MessageParser::getAttributes(allTlv.value());
+            if (!header.has_value()) {
+                spdlog::error("getAttributes failure");
+                continue;
+            }
+            
         } else {
-
             spdlog::error("error received");
-            z_drop(z_move(reply));
-            z_drop((channel)); 
+            break;
         }
+
+        z_drop(z_move(reply));
     }
 
     z_drop(z_move(reply));
-    z_drop((channel));    
-
+    z_drop((channel));
     delete channel;
 
     return response;

@@ -49,14 +49,14 @@ struct TLV {
 class MessageParser
 {
     public:
-        
+
         static std::optional<std::unordered_map<Tag,TLV>> getAllTlv(const uint8_t *data, 
                                                                     size_t size) noexcept;
 
         static std::optional<UAttributes> getAttributes(std::unordered_map<Tag,TLV> &map) noexcept;
-        
+
         static std::optional<UPayload> getPayload(std::unordered_map<Tag,TLV> &map) noexcept;       
-    
+
     private:
 
         static bool isValidTag(Tag value);

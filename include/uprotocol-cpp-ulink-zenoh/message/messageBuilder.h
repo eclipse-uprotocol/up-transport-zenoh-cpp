@@ -42,13 +42,12 @@ class MessageBuilder
     public:
 
         /**
-        * build the message to be send over the transport
+        * build the header to be send over the transport
         * @param attributes Metadata for the method invocation (i.e. priority, timeout, etc.)
-        * @param payload The request message to be sent to the server.
-        * @return returns a buffer ready to be sent
+        * @return returns a header ready to be sent
         */
-        static std::vector<uint8_t> build(const UAttributes &attributes, 
-                                          const UPayload &payload) noexcept;
+        static std::vector<uint8_t> buildHeader(const UAttributes &attributes);
+
     private:
 
         static size_t calculateSize(const UAttributes &attributes, 
