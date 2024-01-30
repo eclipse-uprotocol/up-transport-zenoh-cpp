@@ -22,10 +22,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
  
-#include <uprotocol-cpp-ulink-zenoh/message/messageBuilder.h>
-#include <uprotocol-cpp/tools/base64.h>
-#include <uprotocol-cpp/uuid/serializer/UuidSerializer.h>
-#include <uprotocol-cpp/uri/serializer/LongUriSerializer.h>
+#include <up-client-zenoh-cpp/message/messageBuilder.h>
+#include <up-cpp/tools/base64.h>
+#include <up-cpp/uuid/serializer/UuidSerializer.h>
+#include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <spdlog/spdlog.h>
 
 using namespace uprotocol::uri;

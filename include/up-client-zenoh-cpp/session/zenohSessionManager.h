@@ -27,8 +27,8 @@
 
 #include <atomic>
 #include <zenoh.h>
-#include <uprotocol-cpp/transport/datamodel/UPayload.h>
-#include <uprotocol-cpp/transport/datamodel/UAttributes.h>
+#include <up-cpp/transport/datamodel/UPayload.h>
+#include <up-cpp/transport/datamodel/UAttributes.h>
 #include <uprotocol/ustatus.pb.h>
 
 using namespace std;

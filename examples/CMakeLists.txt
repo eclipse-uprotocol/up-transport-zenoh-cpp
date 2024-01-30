@@ -10,6 +10,7 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/../lib)
 
 find_package(spdlog REQUIRED)
 find_library(ZENOH_LIB zenohc)
+find_library(UPCPP_LIB up-cpp)
 
 add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
@@ -20,8 +21,8 @@ add_executable(
 
 target_link_libraries(
     demo_server 
-    uprotocol-cpp-ulink-zenoh 
-    uprotocol-cpp
+    up-client-zenoh-cpp
+    ${UPCPP_LIB}
     ${ZENOH_LIB}
     fmt
     spdlog::spdlog)
@@ -33,8 +34,8 @@ add_executable(
 
 target_link_libraries(
     demo_client 
-    uprotocol-cpp-ulink-zenoh 
-    uprotocol-cpp
+    up-client-zenoh-cpp
+    ${UPCPP_LIB}
     ${ZENOH_LIB}
     fmt
     spdlog::spdlog)
@@ -46,8 +47,8 @@ add_executable(
 
 target_link_libraries(
     demo_rpc_server 
-    uprotocol-cpp-ulink-zenoh 
-    uprotocol-cpp
+    up-client-zenoh-cpp
+    ${UPCPP_LIB}
     ${ZENOH_LIB}
     fmt
     spdlog::spdlog)
@@ -59,8 +60,8 @@ add_executable(
 
 target_link_libraries(
     demo_rpc_client
-    uprotocol-cpp-ulink-zenoh 
-    uprotocol-cpp
+    up-client-zenoh-cpp
+    ${UPCPP_LIB}
     ${ZENOH_LIB}
     fmt
     spdlog::spdlog)

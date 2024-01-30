@@ -29,7 +29,7 @@
 #include <unordered_map>
 #include <atomic>
 #include <zenoh.h>
-#include <uprotocol-cpp/transport/UTransport.h>
+#include <up-cpp/transport/UTransport.h>
 
 using namespace uprotocol::v1;
 using namespace std;

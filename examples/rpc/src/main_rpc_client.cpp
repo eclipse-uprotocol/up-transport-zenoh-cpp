@@ -22,9 +22,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <uprotocol-cpp-ulink-zenoh/transport/zenohUTransport.h>
-#include <uprotocol-cpp-ulink-zenoh/rpc/zenohRpcClient.h>
-#include <uprotocol-cpp/uuid/factory/Uuidv8Factory.h>
+#include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
+#include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <chrono>
 #include <csignal>
 #include <unistd.h>
@@ -84,7 +84,7 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    auto rpcUri = UUri(UAuthority::local(), UEntity::longFormat("test_rpc.app"), UResource::forRpcRequest("getTime"));
+    auto rpcUri = LongUriSerializer::deserialize("/test_rpc.app/1/rpc.milliseconds");
 
     while (!gTerminate) {
 

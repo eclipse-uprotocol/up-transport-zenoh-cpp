@@ -22,7 +22,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
  
-#include "uprotocol-cpp-ulink-zenoh/session/zenohSessionManager.h"
+#include "up-client-zenoh-cpp/session/zenohSessionManager.h"
 #include <spdlog/spdlog.h>
 
 ZenohSessionManager& ZenohSessionManager::instance(void) noexcept {

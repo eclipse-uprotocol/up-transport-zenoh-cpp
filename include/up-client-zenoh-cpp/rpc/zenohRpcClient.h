@@ -25,14 +25,14 @@
 #ifndef _ZENOH_RPC_CLIENT_H_
 #define _ZENOH_RPC_CLIENT_H_
 
-#include <uprotocol-cpp/rpc/RpcClient.h>
-#include <uprotocol-cpp-ulink-zenoh/utils/ThreadPool.h>
+#include <up-cpp/rpc/RpcClient.h>
+#include <up-client-zenoh-cpp/utils/ThreadPool.h>
 #include <zenoh.h>
 #include <uprotocol/ustatus.pb.h>
+#include <uprotocol/uri.pb.h>
 
 using namespace std;
 using namespace uprotocol::utransport;
-using namespace uprotocol::uri;
 using namespace uprotocol::v1;
 
 class ZenohRpcClient : public RpcClient {

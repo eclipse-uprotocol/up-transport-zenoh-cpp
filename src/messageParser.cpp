@@ -22,17 +22,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <uprotocol-cpp-ulink-zenoh/message/messageParser.h>
-#include <uprotocol-cpp/tools/base64.h>
-#include <uprotocol-cpp/uri/datamodel/UUri.h>
-#include <uprotocol-cpp/transport/datamodel/UPayload.h>
-#include <uprotocol-cpp/transport/datamodel/UAttributes.h>
-#include <uprotocol-cpp/uri/serializer/LongUriSerializer.h>
-#include <uprotocol-cpp/uuid/serializer/UuidSerializer.h>
+#include <up-client-zenoh-cpp/message/messageParser.h>
+#include <up-cpp/tools/base64.h>
+#include <up-cpp/transport/datamodel/UPayload.h>
+#include <up-cpp/transport/datamodel/UAttributes.h>
+#include <up-cpp/uri/serializer/LongUriSerializer.h>
+#include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <spdlog/spdlog.h>
+#include <uprotocol/uri.pb.h>
 
 using namespace uprotocol::utransport;
-using namespace uprotocol::uri;
+using namespace uprotocol::v1;
 using namespace uprotocol::uuid;
 
 std::optional<std::unordered_map<Tag,TLV>> MessageParser::getAllTlv(const uint8_t *data, 

@@ -27,15 +27,15 @@
 
 #include <cstdint>
 #include <cstring>
-#include <uprotocol-cpp/tools/base64.h>
-#include <uprotocol-cpp/uri/datamodel/UUri.h>
-#include <uprotocol-cpp/transport/datamodel/UPayload.h>
-#include <uprotocol-cpp/transport/datamodel/UAttributes.h>
-#include <uprotocol-cpp-ulink-zenoh/message/messageCommon.h>
+#include <up-cpp/tools/base64.h>
+#include <up-cpp/transport/datamodel/UPayload.h>
+#include <up-cpp/transport/datamodel/UAttributes.h>
+#include <up-client-zenoh-cpp/message/messageCommon.h>
 #include <uprotocol/ustatus.pb.h>
+#include <uprotocol/uri.pb.h>
 
 using namespace uprotocol::utransport;
-using namespace uprotocol::uri;
+using namespace uprotocol::v1;
 
 class MessageBuilder 
 {

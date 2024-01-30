@@ -22,14 +22,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
+#include <up-cpp/uuid/factory/Uuidv8Factory.h>
+#include <up-cpp/uri/serializer/LongUriSerializer.h>
+#include <chrono>
 #include <csignal>
-#include <uprotocol-cpp-ulink-zenoh/transport/zenohUTransport.h>
-#include <unistd.h>
 
 using namespace uprotocol::utransport;
+using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
+using namespace uprotocol::uri;
 
-using RpcRequest = std::pair<std::unique_ptr<UUri>, std::unique_ptr<UAttributes>>;
 
 bool gTerminate = false; 
 
@@ -40,44 +44,33 @@ void signalHandler(int signal) {
     }
 }
 
-class RpcListener : public UListener {
+UPayload sendRPC(UUri &uri) {
 
-    UStatus onReceive(const UUri &uri, 
-                      const UPayload &payload, 
-                      const UAttributes &attributes) const {
+    auto uuid = Uuidv8Factory::create(); 
 
-        
-        auto currentTime = std::chrono::system_clock::now();
-        auto duration = currentTime.time_since_epoch();
-        
-        auto timeMilli = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+    UAttributesBuilder builder(uuid, UMessageType::REQUEST, UPriority::STANDARD);
 
-        static uint8_t buf[8];
+    UAttributes attributes = builder.build();
 
-        memcpy(buf, &timeMilli, sizeof(timeMilli));
+    uint8_t buffer[1];
 
-        UPayload response(buf, sizeof(buf), UPayloadType::VALUE);
+    UPayload payload(buffer, sizeof(buffer), UPayloadType::VALUE);
 
-        auto type = UMessageType::RESPONSE;
-        auto priority = UPriority::STANDARD;
+    std::future<UPayload> result = ZenohRpcClient::instance().invokeMethod(uri, payload, attributes);
 
-        UAttributesBuilder builder(attributes.id(), type, priority);
-
-        ZenohUTransport::instance().send(uri, response, builder.build());
-
-        UStatus status;
-        status.set_code(UCode::OK);
-
-        return status;
+    if (false == result.valid()) {
+        spdlog::error("future is invalid");
+        return UPayload(nullptr, 0, UPayloadType::UNDEFINED);   
     }
-    
-};
+
+    result.wait();
+
+    return result.get();
+}
 
 int main(int argc, char **argv)
 {
     signal(SIGINT, signalHandler);
-
-    RpcListener rpcListener;
 
     if (1 < argc) {
         if (0 == strcmp("-d", argv[1])) {
@@ -85,29 +78,31 @@ int main(int argc, char **argv)
         }
     }
 
-    if (UCode::OK != ZenohUTransport::instance().init().code()) {
-        spdlog::error("ZenohRpcServer::instance().init failed");
+    if (UCode::OK != ZenohRpcClient::instance().init().code())
+    {
+        spdlog::error("ZenohRpcClient::instance().init failed");
         return -1;
     }
 
-    auto rpcUri = UUri(UAuthority::local(), UEntity::longFormat("test_rpc.app"), UResource::forRpcRequest("getTime"));;
-
-    if (UCode::OK != ZenohUTransport::instance().registerListener(rpcUri, rpcListener).code()) {
-        spdlog::error("ZenohRpcServer::instance().registerListener failed");
-        return -1;
-    }
+    auto rpcUri = LongUriSerializer::deserialize("/test_rpc.app/1/rpc.milliseconds");
 
     while (!gTerminate) {
+
+        auto response = sendRPC(rpcUri);
+
+        uint64_t milliseconds;
+
+        if (nullptr != response.data()) {
+
+            memcpy(&milliseconds, response.data(), response.size());
+
+            spdlog::info("received = {}", milliseconds);
+        }
         sleep(1);
     }
 
-    if (UCode::OK != ZenohUTransport::instance().unregisterListener(rpcUri, rpcListener).code()) {
-        spdlog::error("ZenohRpcServer::instance().unregisterListener failed");
-        return -1;
-    }
-
-    if (UCode::OK != ZenohUTransport::instance().term().code()) {
-        spdlog::error("ZenohUTransport::instance().term failed");
+    if (UCode::OK != ZenohRpcClient::instance().term().code()) {
+        spdlog::error("ZenohRpcClient::instance().term() failed");
         return -1;
     }
 

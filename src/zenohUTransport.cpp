@@ -22,12 +22,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <uprotocol-cpp-ulink-zenoh/message/messageBuilder.h>
-#include <uprotocol-cpp-ulink-zenoh/message/messageParser.h>
-#include <uprotocol-cpp-ulink-zenoh/transport/zenohUTransport.h>
-#include <uprotocol-cpp-ulink-zenoh/session/zenohSessionManager.h>
-#include <uprotocol-cpp/uuid/serializer/UuidSerializer.h>
-#include <uprotocol-cpp/uri/serializer/LongUriSerializer.h>
+#include <up-client-zenoh-cpp/message/messageBuilder.h>
+#include <up-client-zenoh-cpp/message/messageParser.h>
+#include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/session/zenohSessionManager.h>
+#include <up-cpp/uuid/serializer/UuidSerializer.h>
+#include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
 
@@ -170,7 +170,7 @@ UStatus ZenohUTransport::send(const UUri &uri,
         return status;
     }
     
-    if (false == uri.getUResource().isRPCMethod()) {
+    if (false == isRPCMethod(uri.resource())) {
         status.set_code(sendPublish(uri, payload, attributes));
     } else {
         status.set_code(sendQueryable(uri, payload, attributes));
@@ -402,7 +402,7 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
         }
 
         /* listener for a regular pub-sub*/
-        if (false == uri.getUResource().isRPCMethod()) {
+        if (false == isRPCMethod(uri.resource())) {
 
             z_owned_closure_sample_t callback = z_closure(SubHandler, OnSubscriberClose, arg);
 
@@ -418,7 +418,7 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
         }
 
          /* listener for a RPC*/
-        if (true == uri.getUResource().isRPCMethod()) {
+        if (false == isRPCMethod(uri.resource())) {
 
             z_owned_closure_query_t callback = z_closure(QueryHandler, OnQueryClose, arg);
         

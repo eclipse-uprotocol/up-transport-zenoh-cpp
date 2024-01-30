@@ -22,14 +22,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <uprotocol-cpp-ulink-zenoh/rpc/zenohRpcClient.h>
-#include <uprotocol-cpp-ulink-zenoh/message/messageBuilder.h>
-#include <uprotocol-cpp-ulink-zenoh/message/messageParser.h>
-#include <uprotocol-cpp-ulink-zenoh/session/zenohSessionManager.h>
-#include <uprotocol-cpp/uuid/serializer/UuidSerializer.h>
-#include <uprotocol-cpp/uri/serializer/LongUriSerializer.h>
-#include <uprotocol-cpp/transport/datamodel/UPayload.h>
-#include <uprotocol-cpp/transport/datamodel/UAttributes.h>
+#include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
+#include <up-client-zenoh-cpp/message/messageBuilder.h>
+#include <up-client-zenoh-cpp/message/messageParser.h>
+#include <up-client-zenoh-cpp/session/zenohSessionManager.h>
+#include <up-cpp/uuid/serializer/UuidSerializer.h>
+#include <up-cpp/uri/serializer/LongUriSerializer.h>
+#include <up-cpp/transport/datamodel/UPayload.h>
+#include <up-cpp/transport/datamodel/UAttributes.h>
 #include <uprotocol/ustatus.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
