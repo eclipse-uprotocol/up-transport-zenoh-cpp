@@ -30,6 +30,8 @@
 
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
+using namespace uprotocol::tools;
+
 std::vector<uint8_t> MessageBuilder::buildHeader(const UAttributes &attributes) {
     std::vector<uint8_t> header;
     size_t pos = 0;

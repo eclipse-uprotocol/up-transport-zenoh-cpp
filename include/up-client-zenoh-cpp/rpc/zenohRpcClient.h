@@ -28,8 +28,8 @@
 #include <up-cpp/rpc/RpcClient.h>
 #include <up-client-zenoh-cpp/utils/ThreadPool.h>
 #include <zenoh.h>
-#include <uprotocol/ustatus.pb.h>
-#include <uprotocol/uri.pb.h>
+#include <up-core-api/ustatus.pb.h>
+#include <up-core-api/uri.pb.h>
 
 using namespace std;
 using namespace uprotocol::utransport;

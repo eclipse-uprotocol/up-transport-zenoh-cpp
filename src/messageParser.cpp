@@ -29,11 +29,12 @@
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <spdlog/spdlog.h>
-#include <uprotocol/uri.pb.h>
+#include <up-core-api/uri.pb.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::v1;
 using namespace uprotocol::uuid;
+using namespace uprotocol::tools;
 
 std::optional<std::unordered_map<Tag,TLV>> MessageParser::getAllTlv(const uint8_t *data, 
                                                                     size_t size) noexcept {

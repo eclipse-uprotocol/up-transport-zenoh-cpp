@@ -1,5 +1,9 @@
 project(demo LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+
+include(${CMAKE_BINARY_DIR}/conan_paths.cmake)
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../uprotocol-cpp/include)
@@ -10,7 +14,7 @@ link_directories(${CMAKE_CURRENT_BINARY_DIR}/../lib)
 
 find_package(spdlog REQUIRED)
 find_library(ZENOH_LIB zenohc)
-find_library(UPCPP_LIB up-cpp)
+find_package(up-cpp REQUIRED)
 
 add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
@@ -20,10 +24,11 @@ add_executable(
     send-receive/src/main_server.cpp)
 
 target_link_libraries(
-    demo_server 
-    up-client-zenoh-cpp
-    ${UPCPP_LIB}
+    demo_server
+    up-cpp::up-cpp
     ${ZENOH_LIB}
+    up-client-zenoh-cpp
+    ${PROTOBUF_LIBRARIES} 
     fmt
     spdlog::spdlog)
 
@@ -34,9 +39,9 @@ add_executable(
 
 target_link_libraries(
     demo_client 
-    up-client-zenoh-cpp
-    ${UPCPP_LIB}
+    up-cpp::up-cpp
     ${ZENOH_LIB}
+    up-client-zenoh-cpp
     fmt
     spdlog::spdlog)
 
@@ -47,9 +52,10 @@ add_executable(
 
 target_link_libraries(
     demo_rpc_server 
-    up-client-zenoh-cpp
-    ${UPCPP_LIB}
+    up-cpp::up-cpp
     ${ZENOH_LIB}
+    up-client-zenoh-cpp
+    ${PROTOBUF_LIBRARIES}
     fmt
     spdlog::spdlog)
 
@@ -60,8 +66,9 @@ add_executable(
 
 target_link_libraries(
     demo_rpc_client
-    up-client-zenoh-cpp
-    ${UPCPP_LIB}
+    up-cpp::up-cpp
     ${ZENOH_LIB}
+    up-client-zenoh-cpp
+    ${PROTOBUF_LIBRARIES}
     fmt
     spdlog::spdlog)

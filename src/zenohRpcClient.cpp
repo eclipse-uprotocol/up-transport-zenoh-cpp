@@ -30,7 +30,7 @@
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/datamodel/UAttributes.h>
-#include <uprotocol/ustatus.pb.h>
+#include <up-core-api/ustatus.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
 #include <uuid/uuid.h>
@@ -194,7 +194,7 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
                 continue;
             }
 
-            spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
+           // spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
 
             auto allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
             if (!allTlv.has_value()) {

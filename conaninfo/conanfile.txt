@@ -1,10 +1,10 @@
 [requires]
-up-cpp/0.1@up-cpp/0.1
+up-cpp/0.1
  
 [generators]
 cmake_paths
 cmake_find_package
 
 [imports]
-uprotocol, *.h -> ./uprotocol
+up-core-api, *.h -> ./up-core-api
 include, *.h -> ./include

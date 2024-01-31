@@ -25,6 +25,7 @@
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
+#include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <chrono>
 #include <csignal>
 #include <unistd.h>
@@ -32,6 +33,7 @@
 using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
+using namespace uprotocol::uri;
 
 bool gTerminate = false; 
 

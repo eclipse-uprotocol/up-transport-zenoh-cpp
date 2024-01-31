@@ -76,7 +76,7 @@ UStatus ZenohUTransport::init() noexcept {
         refCount_.fetch_add(1);
     }
     
-    spdlog::info("ZenohUTransport init done refCount = {}", refCount_);
+//    spdlog::info("ZenohUTransport init done refCount = {}", refCount_);
 
     status.set_code(UCode::OK);
 
@@ -528,7 +528,7 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
         return;
     }
 
-    spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
+    //spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
 
     // TLV extraction
     auto allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);

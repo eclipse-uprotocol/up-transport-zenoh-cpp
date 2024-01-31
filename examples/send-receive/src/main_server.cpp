@@ -26,8 +26,8 @@
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
-#include <uprotocol/ustatus.pb.h>
-#include <uprotocol/uri.pb.h>
+#include <up-core-api/ustatus.pb.h>
+#include <up-core-api/uri.pb.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
