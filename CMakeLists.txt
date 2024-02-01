@@ -1,10 +1,12 @@
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.22)
 project(up-client-zenoh-cpp LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 # Using the "cmake_find_package" and "cmake_paths" generators
 include(${CMAKE_BINARY_DIR}/conan_paths.cmake)
- 
+
 find_package(up-cpp REQUIRED)
+add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
+add_compile_definitions(GLIBCXX_USE_CXX11_ABI=0)
 
 include_directories(include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -22,13 +24,12 @@ add_definitions(-DSPDLOG_FMT_EXTERNAL)
 add_subdirectory(examples)
 
 add_library(
-    ${PROJECT_NAME} SHARED 
+    ${PROJECT_NAME} SHARED
     src/zenohUTransport.cpp
     src/zenohRpcClient.cpp
     src/zenohSessionManager.cpp
     src/messageBuilder.cpp
     src/messageParser.cpp
-    ${ZENOH_LIB})
+)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE  up-cpp::up-cpp)
-
+target_link_libraries(${PROJECT_NAME} PRIVATE up-cpp::up-cpp ${ZENOH_LIB})

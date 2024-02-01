@@ -33,7 +33,7 @@
 #include <up-core-api/ustatus.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
-#include <uuid/uuid.h>
+//#include <uuid/uuid.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;

@@ -20,7 +20,7 @@ add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
 #send-receive server
 add_executable(
-    demo_server 
+    demo_server
     send-receive/src/main_server.cpp)
 
 target_link_libraries(
@@ -28,17 +28,17 @@ target_link_libraries(
     up-cpp::up-cpp
     ${ZENOH_LIB}
     up-client-zenoh-cpp
-    ${PROTOBUF_LIBRARIES} 
+    ${PROTOBUF_LIBRARIES}
     fmt
     spdlog::spdlog)
 
 #send-receive client
 add_executable(
-    demo_client 
+    demo_client
     send-receive/src/main_client.cpp)
 
 target_link_libraries(
-    demo_client 
+    demo_client
     up-cpp::up-cpp
     ${ZENOH_LIB}
     up-client-zenoh-cpp
@@ -47,11 +47,11 @@ target_link_libraries(
 
 #rpc server
 add_executable(
-    demo_rpc_server 
+    demo_rpc_server
     rpc/src/main_rpc_server.cpp)
 
 target_link_libraries(
-    demo_rpc_server 
+    demo_rpc_server
     up-cpp::up-cpp
     ${ZENOH_LIB}
     up-client-zenoh-cpp
@@ -61,7 +61,7 @@ target_link_libraries(
 
 #rpc client
 add_executable(
-    demo_rpc_client 
+    demo_rpc_client
     rpc/src/main_rpc_client.cpp)
 
 target_link_libraries(
