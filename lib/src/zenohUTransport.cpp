@@ -236,7 +236,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
         z_bytes_t bytes;
     
         bytes.len = header.size();
-        bytes.start = reinterpret_cast<const uint8_t*>(header.data());
+        bytes.start = header.data();
         
         z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), bytes);
 
@@ -302,14 +302,15 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
         return UCode::INTERNAL;
     }
 
-    size_t headerLength = header.size();
-    const uint8_t* headerPointer = header.data();
-
     z_owned_bytes_map_t map = z_bytes_map_new();
     options.attachment = z_bytes_map_as_attachment(&map);
 
-    z_bytes_t headerBytes = {.len = headerLength, .start = headerPointer};
-    z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), headerBytes);
+    z_bytes_t bytes;
+
+    bytes.len = header.size();
+    bytes.start = header.data();
+    
+    z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), bytes);
 
     z_query_t lquery = z_loan(query);
 
