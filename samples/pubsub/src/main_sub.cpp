@@ -47,8 +47,6 @@ class TimeListener : public UListener {
     UStatus onReceive(const UUri &uri, 
                       const UPayload &payload, 
                       const UAttributes &attributes) const {
-                        
-        (void)uri;
 
         uint64_t timeInMilliseconds;
       
@@ -70,8 +68,6 @@ class RandomListener : public UListener {
                       const UPayload &payload, 
                       const UAttributes &attributes) const {
 
-        (void)uri;
-
         uint32_t random;
 
         memcpy(&random, payload.data(), payload.size());
@@ -91,8 +87,6 @@ class CounterListener : public UListener {
     UStatus onReceive(const UUri &uri, 
                       const UPayload &payload, 
                       const UAttributes &attributes) const {
-
-        (void)uri;
 
         uint8_t counter;
 
