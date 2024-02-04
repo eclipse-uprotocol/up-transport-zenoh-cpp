@@ -232,6 +232,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
             spdlog::error("Failed to build header");
             return UCode::INTERNAL;
         }
+       
         z_bytes_t bytes;
     
         bytes.len = header.size();
@@ -412,10 +413,7 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
             
             listenerContainer->subVector_.push_back(sub);
             listenerContainer->listenerVector_.push_back(&listener);
-        }
-
-         /* listener for a RPC*/
-        if (false == isRPCMethod(uri.resource())) {
+        } else {
 
             z_owned_closure_query_t callback = z_closure(QueryHandler, OnQueryClose, arg);
         
@@ -526,7 +524,7 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
     }
 
     // TLV extraction
-    auto allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
+    auto allTlv = MessageParser::getAllTlv(index.start, index.len);
     if (!allTlv.has_value()) {
         spdlog::error("MessageParser::getAllTlv failure");
         return;
@@ -549,9 +547,22 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
 }
 
 void ZenohUTransport::QueryHandler(const z_query_t *query, 
-                                   void *arg)
-{
+                                   void *arg) {
+
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
+
+    z_attachment_t attachment = z_query_attachment(query);
+    if (false == z_check(attachment)) {
+        spdlog::error("z_query_attachment does not exists");
+        return;
+    }
+
+    z_bytes_t index = z_attachment_get(attachment, z_bytes_new("header"));
+
+    if (index.len == 0 || index.start == nullptr) {
+        spdlog::error("Header attachment not found");
+        return;
+    }
 
     auto uri = get<0>(*tuplePtr);
     auto instance = get<1>(*tuplePtr);
@@ -560,8 +571,8 @@ void ZenohUTransport::QueryHandler(const z_query_t *query,
     z_owned_query_t oquery = z_query_clone(query);
     z_value_t payload_value = z_query_value(query);
 
-    auto tlvVector = MessageParser::getAllTlv(payload_value.payload.start, payload_value.payload.len);
-     
+    auto tlvVector = MessageParser::getAllTlv(index.start, index.len);
+
     if (false == tlvVector.has_value()) {
         spdlog::error("getAllTlv failure");
         return;
@@ -573,11 +584,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query,
         return;
     }
 
-    auto payload = MessageParser::getPayload(tlvVector.value());    
-    if (false == payload.has_value()) {
-        spdlog::error("getPayload failure");
-        return;
-    }
+    UPayload payload(payload_value.payload.start, payload_value.payload.len, UPayloadType::REFERENCE);
 
     auto uuidStr = UuidSerializer::serializeToString(attributes->id());
 
@@ -588,7 +595,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query,
         return;
     }
   
-    if (UCode::OK != listener->onReceive(*uri, payload.value(), attributes.value()).code()) {
+    if (UCode::OK != listener->onReceive(*uri, payload, attributes.value()).code()) {
        /*TODO error handling*/
        spdlog::error("onReceive failure");
        return;

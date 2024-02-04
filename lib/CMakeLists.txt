@@ -8,9 +8,6 @@ if (EXISTS ${CMAKE_BINARY_DIR}/conan_paths.cmake)
     include(${CMAKE_BINARY_DIR}/conan_paths.cmake)
 endif()
 
-add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
-add_compile_definitions(GLIBCXX_USE_CXX11_ABI=0)
-
 include_directories(include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 

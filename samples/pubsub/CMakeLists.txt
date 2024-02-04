@@ -3,9 +3,6 @@ project(demo LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
-add_compile_definitions(GLIBCXX_USE_CXX11_ABI=0)
-
 include(${CMAKE_BINARY_DIR}/conan_paths.cmake)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)

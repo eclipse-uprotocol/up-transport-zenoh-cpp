@@ -138,17 +138,22 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
         return std::move(future);
     }
 
-    z_owned_bytes_map_t map = z_bytes_map_new();
+    z_bytes_t bytes;
 
-    z_bytes_t headerBytes = {.len = header.size(), .start = header.data()};
-    z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), headerBytes);
+    bytes.len = header.size();
+    bytes.start = reinterpret_cast<const uint8_t*>(header.data());
 
     z_owned_reply_channel_t *channel = new z_owned_reply_channel_t;
     *channel = zc_reply_fifo_new(16);
 
     z_get_options_t opts = z_get_options_default();
+    z_owned_bytes_map_t map = z_bytes_map_new();
+
     opts.timeout_ms = requestTimeoutMs_;
     opts.attachment = z_bytes_map_as_attachment(&map);
+    opts.value.payload = (z_bytes_t){.len =  payload.size(), .start = (uint8_t *)payload.data()};
+
+    z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), bytes);
 
     if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
         spdlog::error("z_get failure");
@@ -163,6 +168,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
     }
 
     z_drop(&map);
+
     return future; 
 }
 
