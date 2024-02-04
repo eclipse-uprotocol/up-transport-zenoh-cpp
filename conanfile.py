@@ -4,15 +4,14 @@ from conans import ConanFile, CMake
 from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout
 import shutil
 
-class up_core_api(ConanFile):
+class up_client_zenog_cpp(ConanFile):
     name = "up-client-zenoh-cpp"
     version = "0.1"
 
     # Optional metadata
-    license = "<Put the package license here>"
-    author = "<Put your name here> <And your email here>"
-    url = "https://github.com/eclipse-uprotocol/up-cpp-api"
-    description = "This project contains the core data models (UUri, UAttributes, etc..) and core services definitions (uDiscovery, uSubscription, uTwin) of uProtocol."
+    license = "Apache-2.0 license"
+    url = "https://github.com/eclipse-uprotocol/up-client-zenoh-cpp"
+    description = "C++ uLink Library for zenoh transport"
 
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
@@ -51,4 +50,3 @@ class up_core_api(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = ["up-client-zenoh-cpp"]
-        #self.cpp_info.system_libs = ["protobuf::protobuf"]

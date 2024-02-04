@@ -1,0 +1,10 @@
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/CMakeFiles/rebuild_cache.dir
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/CMakeFiles/edit_cache.dir
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/pubsub/CMakeFiles/edit_cache.dir
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/pubsub/CMakeFiles/rebuild_cache.dir
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/pubsub/CMakeFiles/pub.dir
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/pubsub/CMakeFiles/sub.dir
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/rpc/CMakeFiles/rebuild_cache.dir
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/rpc/CMakeFiles/edit_cache.dir
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/rpc/CMakeFiles/rpc_client.dir
+/home/xz62px/projects_dev_sdv/uSpace/conan_sandbox/up-client-zenoh-cpp/samples/build/rpc/CMakeFiles/rpc_server.dir
