@@ -154,7 +154,7 @@ class ZenohUTransport : public UTransport {
         static constexpr auto termMaxRetries_ = size_t(10);
         static constexpr auto termRetryTimeout_ = std::chrono::milliseconds(100);
 
-        using cbArgumentType = std::tuple<const UUri&, ZenohUTransport*, const UListener&>;
+        using cbArgumentType = std::tuple<std::shared_ptr<UUri>, ZenohUTransport*, const UListener&>;
 };
 
 #endif /*_ZENOH_UTRANSPORT_*/

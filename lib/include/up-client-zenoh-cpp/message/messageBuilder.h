@@ -50,8 +50,7 @@ class MessageBuilder
 
     private:
 
-        static size_t calculateSize(const UAttributes &attributes, 
-                                    const UPayload &payload) noexcept;
+        static size_t calculateSize(const UAttributes &attributes) noexcept;
         
         template <typename T>
         static void updateSize(const T &value, 

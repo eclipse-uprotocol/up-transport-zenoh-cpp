@@ -76,7 +76,7 @@ UStatus ZenohUTransport::init() noexcept {
         refCount_.fetch_add(1);
     }
     
-//    spdlog::info("ZenohUTransport init done refCount = {}", refCount_);
+    spdlog::info("ZenohUTransport init done refCount = {}", refCount_.load());
 
     status.set_code(UCode::OK);
 
@@ -194,16 +194,6 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
             return UCode::INVALID_ARGUMENT;
         }
 
-        auto header = MessageBuilder::buildHeader(attributes);
-        if (header.empty()) {
-        spdlog::error("Failed to build header");
-        return UCode::INTERNAL;
-        }
-
-        // Header length and pointer
-        size_t headerLength = header.size();
-        const uint8_t* headerPointer = header.data();
-
         /* get hash and check if the publisher for the URI is already exists */
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri)); 
         auto handleInfo = pubHandleMap_.find(uriHash); 
@@ -232,16 +222,23 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
             pub = handleInfo->second;
         }
 
-    z_owned_bytes_map_t map = z_bytes_map_new();
-    z_publisher_put_options_t options = z_publisher_put_options_default();
-    options.attachment = z_bytes_map_as_attachment(&map);
+        z_publisher_put_options_t options = z_publisher_put_options_default();
+    
+        z_owned_bytes_map_t map = z_bytes_map_new();
+        options.attachment = z_bytes_map_as_attachment(&map);
 
-    // add some value
-    z_bytes_t bytes;
- 
-    bytes.len = headerLength;
-    bytes.start = reinterpret_cast<const uint8_t*>(headerPointer);
-    z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), bytes);
+        auto header = MessageBuilder::buildHeader(attributes);
+        if (header.empty()) {
+            spdlog::error("Failed to build header");
+            return UCode::INTERNAL;
+        }
+        z_bytes_t bytes;
+    
+        bytes.len = header.size();
+        bytes.start = reinterpret_cast<const uint8_t*>(header.data());
+        
+        z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), bytes);
+
         // Set encoding based on serialization hint
         if (attributes.serializationHint().has_value()) {
             if (UCode::OK != mapEncoding(attributes.serializationHint().value(), options.encoding)) {
@@ -392,9 +389,9 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
             }
         }
 
-        UUri copyUri = uri;
+        std::shared_ptr<UUri> copyUri = make_shared<UUri>(uri);
         
-        arg = new cbArgumentType(std::move(copyUri), this, listener);
+        arg = new cbArgumentType(copyUri, this, listener);
         if (nullptr == arg) {
             spdlog::error("failed to allocate arguments for callback");
             status.set_code(UCode::INTERNAL);
@@ -528,8 +525,6 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
         return;
     }
 
-    //spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
-
     // TLV extraction
     auto allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
     if (!allTlv.has_value()) {
@@ -548,7 +543,7 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
     auto listener = &get<2>(*tuplePtr);
 
     // Pass the parsed headers and payload to the listener's onReceive method
-    if (UCode::OK != listener->onReceive(uri, payload, header.value()).code()) {
+    if (UCode::OK != listener->onReceive(*uri, payload, header.value()).code()) {
         spdlog::error("listener->onReceive failed");
     }
 }
@@ -593,7 +588,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query,
         return;
     }
   
-    if (UCode::OK != listener->onReceive(uri, payload.value(), attributes.value()).code()) {
+    if (UCode::OK != listener->onReceive(*uri, payload.value(), attributes.value()).code()) {
        /*TODO error handling*/
        spdlog::error("onReceive failure");
        return;

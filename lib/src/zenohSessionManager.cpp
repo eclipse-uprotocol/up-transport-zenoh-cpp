@@ -72,7 +72,7 @@ UCode ZenohSessionManager::init(ZenohSessionManagerConfig &sessionConfig) noexce
         refCount_.fetch_add(1);
     }
     
-   // spdlog::info("ZenohSessionManager::init done , ref count {}", refCount_);
+    spdlog::info("ZenohSessionManager::init done , ref count {}", refCount_.load());
     
     return UCode::OK;
 }

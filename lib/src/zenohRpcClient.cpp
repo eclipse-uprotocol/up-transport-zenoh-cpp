@@ -33,7 +33,6 @@
 #include <up-core-api/ustatus.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
-//#include <uuid/uuid.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
@@ -193,8 +192,6 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
                 spdlog::error("Header not found in the attachment");
                 continue;
             }
-
-           // spdlog::info("Attachment: value = '%.*s'", (int)index.len, index.start);
 
             auto allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
             if (!allTlv.has_value()) {
