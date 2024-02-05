@@ -11,34 +11,24 @@ This module contains the implementation for pub-sub and RPC API`s defined in the
 ## Getting Started
 ### Requirements:
 - Compiler: GCC/G++ 11 or Clang 13
-- vcpkg
 - Ubuntu 22.04
-- cgreen testing library
+- conan : 1.59
 
 #### Zenoh dependencies
 
 At first to make it working, you have to install zenoh-c , using the following instructions https://github.com/eclipse-zenoh/zenoh-c/tree/master
 
-#### UPROTOCOL-CPP and UPROTOCOL-CORE-API dependencies
 ```
-$ git clone https://github.com/eclipse-uprotocol/uprotocol-cpp.git
-$ git clone https://github.com/eclipse-uprotocol/uprotocol-core-api.git
+$ git clone https://github.com/eclipse-uprotocol/up-client-zenoh-cpp.git
 ```
-### Setup main CMAKE file, build and test
-```
-project(uprotocol LANGUAGES C CXX)
 
-# add your repository or module
-add_subdirectory(uprotocol-core-api)
-add_subdirectory(uprotocol-cpp)
-add_subdirectory(uprotocol-cpp-ulink-zenoh)
-```
 ### compile
 ```
 mkdir build
 cd build
+conan install ../conaninfo
 cmake ../
-make
+make -j
 ```
 ## Show your support
 
