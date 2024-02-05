@@ -118,6 +118,7 @@ UStatus ZenohRpcClient::term() noexcept {
 std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri, 
                                                    const UPayload &payload, 
                                                    const UAttributes &attributes) noexcept {
+    UStatus status;                                                    
     std::future<UPayload> future;
 
     if (0 == refCount_) {
@@ -161,10 +162,14 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
         return std::move(future);
     }
 
-    future = threadPool_->submit(handleReply, channel);
+    bool isFull;
 
-    if (!future.valid()) {
-        spdlog::error("failed to invoke method");
+    future = threadPool_->submit(handleReply, isFull, channel);
+
+    if (true == isFull) {
+        spdlog::error("submit queue is full");
+        status.set_code(UCode::RESOURCE_EXHAUSTED);
+        return std::move(future); 
     }
 
     z_drop(&map);

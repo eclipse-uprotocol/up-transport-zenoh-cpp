@@ -21,6 +21,8 @@
  * SPDX-FileCopyrightText: 2023 General Motors GTO LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+#ifndef THREADPOOL_H
+#define THREADPOOL_H
 
 #include <functional>
 #include <future>
@@ -83,7 +85,9 @@ class ThreadPool
 
         // Submit a function to be executed asynchronously by the pool
         template<typename F, typename...Args>
-        auto submit(F&& f, Args&&... args) -> std::future<decltype(f(args...))> {
+        auto submit(F&& f, bool &isFull, Args&&... args) -> std::future<decltype(f(args...))> {
+
+            isFull = false; 
             // Create a function with bounded parameters ready to execute
             std::function<decltype(f(args...))()> func = std::bind(std::forward<F>(f), 
                                                                    std::forward<Args>(args)...);
@@ -98,8 +102,10 @@ class ThreadPool
 
             if (true == queue_.isFull()) {
                 spdlog::error("queue is full");
+                isFull = true;
                 return std::future<typename std::result_of<F(Args...)>::type>();
             }
+            //TODO - no need for queue , spawn thread instead
             // Enqueue generic wrapper function
             if (false == queue_.push(wrapper_func)) {
                 spdlog::error("failed to push to queue");
@@ -119,3 +125,5 @@ class ThreadPool
 
     static constexpr auto timeout_ = 100;
 };
+
+#endif //THREADPOOL_H

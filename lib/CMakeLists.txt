@@ -8,16 +8,18 @@ if (EXISTS ${CMAKE_BINARY_DIR}/conan_paths.cmake)
     include(${CMAKE_BINARY_DIR}/conan_paths.cmake)
 endif()
 
-include_directories(include)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-
 find_library(ZENOH_LIB zenohc)
 find_package(up-cpp REQUIRED)
+
+include_directories(include)
+include_directories(${up-cpp_INCLUDE_DIRS})
+include_directories(${up-cpp_INCLUDE_DIRS}/up-core-api)
 
 add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
 add_library(
     up-client-zenoh-cpp SHARED
+    src/uSubscriptionClient.cpp
     src/zenohUTransport.cpp
     src/zenohRpcClient.cpp
     src/zenohSessionManager.cpp
