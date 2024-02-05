@@ -22,14 +22,23 @@ At first to make it working, you have to install zenoh-c , using the following i
 $ git clone https://github.com/eclipse-uprotocol/up-client-zenoh-cpp.git
 ```
 
-### compile
+#### Building locally 
 ```
-mkdir build
-cd build
-conan install ../conaninfo
-cmake ../
-make -j
+$ cd up-cpp-client-zenoh
+$ mkdir build
+$ cd build
+$ conan install ../conaninfo
+$ cmake ../
+$ make -j 
 ```
+
+#### Creating conan package locally 
+ensure that the conan profile is configured to use ABI 11 (libstdc++11: New ABI.) standards according to https://docs.conan.io/en/1.60/howtos/manage_gcc_abi.html
+```
+$ cd up-cpp-client-zenoh
+$ conan create . --build=missing
+```
+
 ## Show your support
 
 Give a ⭐️ if this project helped you!
