@@ -61,7 +61,6 @@ $ conan create .
 ```
 $ cd up-cpp-client-zenoh
 $ conan install samples/conaninfo/  --output-folder=.
-$ mkdir build
 $ cd build/Release
 $ cmake ../../ -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
 $ make -j
