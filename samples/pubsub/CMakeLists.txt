@@ -31,7 +31,7 @@ target_include_directories(sub PRIVATE
 add_executable(
     pub
     src/main_pub.cpp)
-
+  
 target_link_libraries(
     pub
     up-client-zenoh-cpp::up-client-zenoh-cpp
