@@ -8,6 +8,7 @@ find_package(up-cpp REQUIRED)
 find_package(up-client-zenoh-cpp REQUIRED)
 find_package(fmt REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(Protobuf REQUIRED)
 
 add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
@@ -19,11 +20,14 @@ target_link_libraries(
     sub
     up-client-zenoh-cpp::up-client-zenoh-cpp
     up-cpp::up-cpp
-    ${ZENOH_LIB}
-    fmt
-    spdlog::spdlog)
+    fmt::fmt
+    spdlog::spdlog
+    ${ZENOH_LIB})
 
-#rpc client
+target_include_directories(sub PRIVATE 
+                           ${up-client-zenoh-cpp_INCLUDE_DIR}
+                           ${spdlog_INCLUDE_DIR})
+
 add_executable(
     pub
     src/main_pub.cpp)
@@ -32,6 +36,10 @@ target_link_libraries(
     pub
     up-client-zenoh-cpp::up-client-zenoh-cpp
     up-cpp::up-cpp
-    ${ZENOH_LIB}
-    fmt
-    spdlog::spdlog)
+    fmt::fmt
+    spdlog::spdlog
+    ${ZENOH_LIB})
+
+target_include_directories(pub PRIVATE 
+                           ${up-client-zenoh-cpp_INCLUDE_DIR}
+                           ${spdlog_INCLUDE_DIR})

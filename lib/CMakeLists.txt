@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 find_library(ZENOH_LIB zenohc)
 find_package(up-cpp REQUIRED)
 find_package(Protobuf REQUIRED)
+find_package(spdlog REQUIRED)
 
 add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
