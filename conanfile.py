@@ -1,35 +1,39 @@
-from conan import ConanFile, tools
-from conans import ConanFile, CMake
+from conan import ConanFile
+from conan.tools.cmake import CMake, CMakeToolchain, cmake_layout
+from conan.tools.files import apply_conandata_patches, copy, export_conandata_patches, get, replace_in_file, rm, rmdir
+import os
 
-from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout
-import shutil
-
-class up_client_zenog_cpp(ConanFile):
+class UpClientZenoh(ConanFile):
     name = "up-client-zenoh-cpp"
-    version = "0.1"
-
-    # Optional metadata
+    package_type = "library"
     license = "Apache-2.0 license"
-    url = "https://github.com/eclipse-uprotocol/up-client-zenoh-cpp"
+    homepage = "https://github.com/eclipse-uprotocol"
+    url = "https://github.com/conan-io/conan-center-index"
     description = "C++ uLink Library for zenoh transport"
-
+    topics = ("ulink client", "transport")
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
-    options = {"shared": [True, False], "fPIC": [False, False]}
-    default_options = {"shared": True, "fPIC": False}
-
-    # Sources are located in the same place as this recipe, copy them to the recipe
-    exports_sources = "CMakeLists.txt", "lib/*"
-    requires = [
-        "up-cpp/0.1"
-    ]
+    options = {"shared": [True, False], "fPIC": [True, False]}
+    conan_version = None
     generators = "CMakeDeps"
+    version = "0.1"
+    exports_sources = "CMakeLists.txt", "lib/*"
+
+    options = {
+        "shared": [True, False],
+        "fPIC": [True, False],
+    }
+
+    default_options = {
+        "shared": False,
+        "fPIC": False,
+    }
 
     def requirements(self):
         self.requires("up-cpp/0.1")
-
-    def layout(self):
-        cmake_layout(self)
+        self.requires("spdlog/1.13.0")
+        self.requires("fmt/10.2.1")
+        self.requires("protobuf/3.21.12")
 
     def generate(self):
         tc = CMakeToolchain(self)
