@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
-project(demo LANGUAGES CXX)
+project(pubsub LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
-
-include(${CMAKE_BINARY_DIR}/conan_paths.cmake)
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 find_library(ZENOH_LIB zenohc)
 find_package(up-cpp REQUIRED)

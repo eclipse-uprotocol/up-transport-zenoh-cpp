@@ -1,10 +1,11 @@
 [requires]
 up-cpp/0.1
- 
-[generators]
-cmake_paths
-cmake_find_package
+protobuf/3.21.12
+spdlog/1.13.0
 
-[imports]
-up-core-api, *.h -> ./up-core-api
-include, *.h -> ./include
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout
