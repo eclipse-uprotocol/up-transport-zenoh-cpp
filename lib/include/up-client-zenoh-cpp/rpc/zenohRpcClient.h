@@ -26,13 +26,14 @@
 #define _ZENOH_RPC_CLIENT_H_
 
 #include <up-cpp/rpc/RpcClient.h>
-#include <up-client-zenoh-cpp/utils/ThreadPool.h>
-#include <zenoh.h>
+#include <up-cpp/utils/ThreadPool.h>
 #include <up-core-api/ustatus.pb.h>
 #include <up-core-api/uri.pb.h>
+#include <zenoh.h>
 
 using namespace std;
 using namespace uprotocol::utransport;
+using namespace uprotocol::utils;
 using namespace uprotocol::v1;
 
 class ZenohRpcClient : public RpcClient {
@@ -85,7 +86,8 @@ class ZenohRpcClient : public RpcClient {
         std::shared_ptr<ThreadPool> threadPool_;
 
         static constexpr auto requestTimeoutMs_ = 5000;
-        static constexpr auto threadPoolSize_ = size_t(10);
+        static constexpr auto threadPoolSize_ = size_t(20);
+        static constexpr auto maxNumOfCuncurrentRequests = size_t(2);
 
 };
 

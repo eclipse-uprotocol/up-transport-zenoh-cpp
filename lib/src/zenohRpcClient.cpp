@@ -30,6 +30,7 @@
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/datamodel/UAttributes.h>
+#include <up-cpp/utils/ThreadPool.h>
 #include <up-core-api/ustatus.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
@@ -38,6 +39,7 @@ using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
 using namespace uprotocol::uri;
 using namespace uprotocol::v1;
+using namespace uprotocol::utils;
 
 ZenohRpcClient& ZenohRpcClient::instance(void) noexcept {
     
@@ -71,15 +73,12 @@ UStatus ZenohRpcClient::init() noexcept {
                 return status;
             }
 
-            threadPool_ = make_shared<ThreadPool>(threadPoolSize_);
+            threadPool_ = make_shared<ThreadPool>(threadPoolSize_, maxNumOfCuncurrentRequests);
             if (nullptr == threadPool_) {
                 spdlog::error("failed to create thread pool");
                 status.set_code(UCode::UNAVAILABLE);
                 return status;
             }
-
-            threadPool_->init();
-
         }
         refCount_.fetch_add(1);
 
@@ -101,8 +100,6 @@ UStatus ZenohRpcClient::term() noexcept {
     refCount_.fetch_sub(1);
 
     if (0 == refCount_) {
-
-        threadPool_->term();
 
         if (UCode::OK != ZenohSessionManager::instance().term()) {
             spdlog::error("zenohSessionManager::instance().term() failed");
@@ -163,15 +160,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
         return std::move(future);
     }
 
-    bool isFull;
-
-    future = threadPool_->submit(handleReply, isFull, channel);
-
-    if (true == isFull) {
-        spdlog::error("submit queue is full");
-        status.set_code(UCode::RESOURCE_EXHAUSTED);
-        return std::move(future); 
-    }
+    future = threadPool_->submit(handleReply, channel);
 
     z_drop(&map);
 
@@ -180,54 +169,54 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
 
 UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
     z_owned_reply_t reply = z_reply_null();
-    UPayload response(nullptr, 0, UPayloadType::VALUE);
+    UPayload retPayload(nullptr, 0, UPayloadType::VALUE);
 
     for (z_call(channel->recv, &reply); z_check(reply); z_call(channel->recv, &reply)) {
-        if (z_reply_is_ok(&reply)) {
-            z_sample_t sample = z_reply_ok(&reply);
-
-            // Attachment handling and TLV extraction
-            if (sample.payload.len > 0 && sample.payload.start != nullptr) {
-                response = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
-            } else {
-                spdlog::error("Payload is empty");
-            }
-
-            if (!z_check(sample.attachment)) {
-                spdlog::error("No attachment found in the reply");
-                continue;
-            }
-
-            z_bytes_t index = z_attachment_get(sample.attachment, z_bytes_new("header"));
-
-            if (!z_check(index)) {
-                spdlog::error("Header not found in the attachment");
-                continue;
-            }
-
-            auto allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
-            if (!allTlv.has_value()) {
-                spdlog::error("MessageParser::getAllTlv failure");
-                continue;
-            }
-
-            auto header = MessageParser::getAttributes(allTlv.value());
-            if (!header.has_value()) {
-                spdlog::error("getAttributes failure");
-                continue;
-            }
-            
-        } else {
+        
+        if (!z_reply_is_ok(&reply)) {
             spdlog::error("error received");
             break;
         }
+           
+        z_sample_t sample = z_reply_ok(&reply);
 
+        if ((sample.payload.len) > 0 && (sample.payload.start != nullptr)) {
+            spdlog::error("Payload is empty");
+            break;
+        }
+               
+        if (!z_check(sample.attachment)) {
+            spdlog::error("No attachment found in the reply");
+            break;
+        }       
+
+        z_bytes_t index = z_attachment_get(sample.attachment, z_bytes_new("header"));
+
+        if (!z_check(index)) {
+            spdlog::error("Header not found in the attachment");
+            break;
+        }
+
+        auto allTlv = MessageParser::getAllTlv(reinterpret_cast<const uint8_t*>(index.start), index.len);
+        if (!allTlv.has_value()) {
+            spdlog::error("MessageParser::getAllTlv failure");
+            break;
+        }
+
+        auto header = MessageParser::getAttributes(allTlv.value());
+        if (!header.has_value()) {
+            spdlog::error("getAttributes failure");
+            break;
+        }
+
+        auto response = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
+        
+        retPayload = response;
         z_drop(z_move(reply));
     }
 
-    z_drop(z_move(reply));
     z_drop((channel));
     delete channel;
 
-    return response;
+    return retPayload;
 }
