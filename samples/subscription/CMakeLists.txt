@@ -27,5 +27,3 @@ target_link_libraries(
     fmt
     spdlog::spdlog)
 
-include_directories(${up-cpp_INCLUDE_DIRS})
-include_directories(${up-cpp_INCLUDE_DIRS}/up-core-api)
