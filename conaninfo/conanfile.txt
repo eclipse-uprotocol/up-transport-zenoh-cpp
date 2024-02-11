@@ -2,9 +2,9 @@
 up-cpp/0.1
  
 [generators]
-cmake_paths
-cmake_find_package
+CMakeDeps
+CMakeToolchain
 
-[imports]
-up-core-api, *.h -> ./up-core-api
-include, *.h -> ./include
+[layout]
+cmake_layout
+
