@@ -24,8 +24,6 @@ target_link_libraries(
     spdlog::spdlog
     ${ZENOH_LIB})
 
-message("MICHAEL ${up-client-zenoh-cpp_INCLUDE_DIR}")
-
 target_include_directories(sub PRIVATE 
                            ${up-client-zenoh-cpp_INCLUDE_DIR}
                            ${spdlog_INCLUDE_DIR})
