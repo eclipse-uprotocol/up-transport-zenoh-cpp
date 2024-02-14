@@ -28,6 +28,7 @@
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <ustatus.pb.h>
+#include <gtest/gtest.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
@@ -35,123 +36,130 @@ using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
 using namespace uprotocol::uSubscription;
 
-bool gTerminate = false; 
+class uSubTestSuite : public ::testing::Test {
 
-void signalHandler(int signal) {
-    if (signal == SIGINT) {
-        std::cout << "Ctrl+C received. Exiting..." << std::endl;
-        gTerminate = true; 
-    }
-}
+    public:
 
-class TimeListener : public UListener {
-    
-    UStatus onReceive(const UUri &uri, 
-                      const UPayload &payload, 
-                      const UAttributes &attributes) const {
-        UStatus status;
+        template <typename T>
+        T buildTopicRequest(UUri &uri) {
 
-        status.set_code(UCode::OK);
+            T request;
 
-        return status;
-    }
+            auto topic = request.mutable_topic();
+
+            topic->CopyFrom(uri);
+
+            return std::move(request);
+        }
+
+        template <typename T>
+        T buildSubscriptionRequest(UUri &topicToSubscribe, 
+                                   UUri &appIdentity) {
+            T request;
+
+            // topic to subscribe too 
+            auto topic = request.mutable_topic();
+            auto uri = request.mutable_subscriber()->mutable_uri();
+
+            topic->CopyFrom(topicToSubscribe);
+            uri->CopyFrom(appIdentity);
+
+            return std::move(request);
+        }
+
+    public:
+        // SetUpTestSuite() is called before all tests in the test suite
+        static void SetUpTestSuite() {
+
+            if (UCode::OK != ZenohUTransport::instance().init().code()) {
+                spdlog::error("ZenohUTransport::instance().init failed");
+                return;
+            }
+
+            if (UCode::OK != uSubscriptionClient::instance().init().code()) {
+                spdlog::error("uSubscriptionClient::instance().init() failed");
+                return;
+            }
+        }
+
+        // TearDownTestSuite() is called after all tests in the test suite
+        static void TearDownTestSuite() {
+            if (UCode::OK != uSubscriptionClient::instance().term().code()) {
+                spdlog::error("uSubscriptionClient::instance().term() failed");
+                return;
+            }
+
+            if (UCode::OK != ZenohUTransport::instance().term().code()) {
+                spdlog::error("ZenohUTransport::instance().term() failed");
+                return;
+            }
+        }
+
+        UUri topic = LongUriSerializer::deserialize("/producer.app/1/milliseconds");
+        UUri appIdentityV1 = LongUriSerializer::deserialize("/consumer.app/1/");
+        UUri appIdentityV2 = LongUriSerializer::deserialize("/consumer.app/2/");
 };
 
-CreateTopicRequest buildCreateTopicRequest(UUri &uri) {
 
-    CreateTopicRequest request;
-
-    auto topic = request.mutable_topic();
-
-    topic = &uri;
-
-    return std::move(request);
-}
-
-DeprecateTopicRequest buildDeprecateTopicRequest(UUri &uri) {
-
-    DeprecateTopicRequest request;
-
-    auto topic = request.mutable_topic();
-
-    topic = &uri;
+// /* Calling subscribe before topic is created*/
+TEST_F(uSubTestSuite, subscribeBeforeCreateTopic) {
     
-    return std::move(request);
+    SubscriptionRequest request = buildSubscriptionRequest<SubscriptionRequest>(topic, appIdentityV1);
+    
+    auto response = uSubscriptionClient::instance().subscribe(request);
+
+    EXPECT_NE(response, std::nullopt);
+
+    EXPECT_NE(response.value().status().state(), SubscriptionStatus_State::SubscriptionStatus_State_SUBSCRIBED);
 }
 
-UnsubscribeRequest buildUnsubscribeRequest(UUri &uri) {
+/* Calling subscribe after topic is created*/
+TEST_F(uSubTestSuite, subscribe) {
+    
+    CreateTopicRequest topicRequest = buildTopicRequest<CreateTopicRequest>(topic);
+    SubscriptionRequest subRequest = buildSubscriptionRequest<SubscriptionRequest>(topic, appIdentityV1);
+    
+    UStatus createResponse = uSubscriptionClient::instance().createTopic(topicRequest);
 
-    UnsubscribeRequest request;
+    EXPECT_EQ(createResponse.code(), UCode::OK);
 
-    auto topic = request.mutable_topic();
+    auto response = uSubscriptionClient::instance().subscribe(subRequest);
 
-    topic = &uri;
+    EXPECT_NE(response, std::nullopt);
 
-    return std::move(request);
+    EXPECT_EQ(response.value().status().state(), SubscriptionStatus_State::SubscriptionStatus_State_SUBSCRIBED);
 }
 
-SubscriptionRequest buildSubscriptionRequest(UUri &uri) {
+/* Calling subscribe after topic is created*/
+TEST_F(uSubTestSuite, deprecateTopicAndSubscribe) {
+    
+    DeprecateTopicRequest topicRequest = buildTopicRequest<DeprecateTopicRequest>(topic);
+    SubscriptionRequest subRequest = buildSubscriptionRequest<SubscriptionRequest>(topic, appIdentityV2);
+    
+    auto deprecateResponse = uSubscriptionClient::instance().deprecateTopic(topicRequest);
 
-    SubscriptionRequest request;
+    EXPECT_EQ(deprecateResponse.code(), UCode::OK);
 
-    auto topic = request.mutable_topic();
+    auto response = uSubscriptionClient::instance().subscribe(subRequest);
 
-    topic->CopyFrom(uri);
+    EXPECT_NE(response, std::nullopt);
 
-    return std::move(request);
+    EXPECT_EQ(response.value().status().state(), SubscriptionStatus_State::SubscriptionStatus_State_UNSUBSCRIBED);
 }
+
+/* Calling subscribe after topic is created*/
+TEST_F(uSubTestSuite, unSubscribe) {
+    
+    UnsubscribeRequest subRequest = buildSubscriptionRequest<UnsubscribeRequest>(topic, appIdentityV1);
+    
+    auto response = uSubscriptionClient::instance().unSubscribe(subRequest);
+
+    EXPECT_EQ(response.code(), UCode::OK);
+}
+
+//unsubscribe from non existane topic 
 
 int main(int argc, char **argv) {
-
-    TimeListener listener;
-    std::string userInput;
-
-    signal(SIGINT, signalHandler);
-
-    if (1 < argc) {
-        if (0 == strcmp("-d", argv[1])) {
-            spdlog::set_level(spdlog::level::debug);
-        }
-    }
-
-    ZenohUTransport *transport = &ZenohUTransport::instance();
-    uSubscriptionClient *uSubClient = &uSubscriptionClient::instance();
-
-    if (UCode::OK != transport->init().code()) {
-        spdlog::error("ZenohUTransport::instance().init failed");
-        return -1;
-    }
-
-    if (UCode::OK != uSubClient->init().code()) {
-        spdlog::error("uSubscriptionClient::instance().init() failed");
-        return -1;
-    }
-
-    auto realUri = LongUriSerializer::deserialize("/real.app/1/milliseconds");
-    auto demoUri = LongUriSerializer::deserialize("/demo.app/1/milliseconds");
-
-    auto req1 = buildCreateTopicRequest(realUri);
-    auto req2 = buildCreateTopicRequest(demoUri);
-    auto req3 = buildSubscriptionRequest(realUri);
-    auto req5 = buildSubscriptionRequest(demoUri);
-
-    auto req4 = buildUnsubscribeRequest(realUri);
-
-
-    // uSubClient->createTopic(req1);
-    // uSubClient->createTopic(req2);
-    uSubClient->subscribe(req3);
-    uSubClient->subscribe(req5);
-
-    if (UCode::OK != uSubClient->term().code()) {
-        spdlog::error("uSubscriptionClient::instance().term() failed");
-        return -1;
-    }
-
-    if (UCode::OK != transport->term().code()) {
-        spdlog::error("ZenohUTransport::instance().term() failed");
-        return -1;
-    }
-
-    return 0;
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

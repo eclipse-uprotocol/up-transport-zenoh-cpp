@@ -73,7 +73,7 @@ UStatus ZenohRpcClient::init() noexcept {
                 return status;
             }
 
-            threadPool_ = make_shared<ThreadPool>(threadPoolSize_, maxNumOfCuncurrentRequests);
+            threadPool_ = make_shared<ThreadPool>(queueSize_, maxNumOfCuncurrentRequests_);
             if (nullptr == threadPool_) {
                 spdlog::error("failed to create thread pool");
                 status.set_code(UCode::UNAVAILABLE);
@@ -180,7 +180,7 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
            
         z_sample_t sample = z_reply_ok(&reply);
 
-        if ((sample.payload.len) > 0 && (sample.payload.start != nullptr)) {
+        if ((sample.payload.len) == 0 || (sample.payload.start == nullptr)) {
             spdlog::error("Payload is empty");
             break;
         }

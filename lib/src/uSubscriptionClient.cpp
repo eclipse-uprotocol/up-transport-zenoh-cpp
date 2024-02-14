@@ -1,9 +1,10 @@
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
 #include <up-client-zenoh-cpp/usubscription/uSubscriptionClient.h>
-#include <up-client-zenoh-cpp/usubscription/common/uSubscriptionCommon.h>
+#include <up-client-zenoh-cpp/usubscription/uSubscriptionCommon.h>
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <core/usubscription/v3/usubscription.pb.h>
+#include <../include_internal/usubscription/uSubscriptionLocalManager.h>
 #include <google/protobuf/message.h>
 #include <ustatus.pb.h>
 
@@ -12,36 +13,6 @@ using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
 using namespace uprotocol::uSubscription;
-
-class SubscriptionStatusLocal {
-
-    public:
-
-        SubscriptionStatusLocal(const SubscriptionStatusLocal&) = delete;
-         
-        SubscriptionStatusLocal& operator=(const SubscriptionStatusLocal&) = delete;
-
-        static SubscriptionStatusLocal& instance() noexcept;
-               
-        UStatus init();
-
-        UStatus term();
-       
-        template<typename T>
-        UStatus setStatus(UUri uri, 
-                          T status);
-
-        SubscriptionStatus_State getSubscriptionStatus(const UUri &uri);
-
-        UCode getPublisherStatus(const UUri &uri);
-        
-    private:
-    
-        SubscriptionStatusLocal() {};
-
-        unordered_map<std::string, UCode> pubStatusMap_;
-        unordered_map<std::string, SubscriptionStatus_State> subStatusMap_;
-};
 
 uSubscriptionClient& uSubscriptionClient::instance() noexcept {
     
@@ -56,8 +27,8 @@ UStatus uSubscriptionClient::init() {
 
     do {
 
-        if (UCode::OK != SubscriptionStatusLocal::instance().init().code()) {
-            spdlog::error("SubscriptionStatusLocal::instance().init() failed");
+        if (UCode::OK != SubscriptionLocalManager::instance().init().code()) {
+            spdlog::error("SubscriptionLocalManager::instance().init() failed");
             status.set_code(UCode::INTERNAL);
             break;
         }
@@ -81,8 +52,8 @@ UStatus uSubscriptionClient::term() {
 
     do {
         
-        if (UCode::OK != SubscriptionStatusLocal::instance().term().code()) {
-            spdlog::error("SubscriptionStatusLocal::instance().term() failed");
+        if (UCode::OK != SubscriptionLocalManager::instance().term().code()) {
+            spdlog::error("SubscriptionLocalManager::instance().term() failed");
             status.set_code(UCode::INTERNAL);
             break;
         }
@@ -105,9 +76,9 @@ UStatus uSubscriptionClient::createTopic(CreateTopicRequest &request) {
     UStatus status;
 
     do {
-        SubscriptionStatusLocal::instance().setStatus(request.topic(), UCode::UNKNOWN);
+        SubscriptionLocalManager::instance().setStatus(request.topic(), UCode::UNKNOWN);
 
-        UPayload payload = sendRequest(request);
+        auto payload = sendRequest(request);
         if (0 == payload.size()) {
             spdlog::error("payload size is 0");
             status.set_code(UCode::UNKNOWN);
@@ -120,7 +91,11 @@ UStatus uSubscriptionClient::createTopic(CreateTopicRequest &request) {
             break;
         }
 
-        SubscriptionStatusLocal::instance().setStatus(request.topic(), status.code());
+        // if (UCode::ALREADY_EXISTS ==  status.code()){
+        //     status.set_code(UCode::OK);
+        // }
+
+        SubscriptionLocalManager::instance().setStatus(request.topic(), status.code());
 
     } while(0);
 
@@ -138,9 +113,9 @@ UStatus uSubscriptionClient::deprecateTopic(const DeprecateTopicRequest &request
     
     UStatus status;
 
-    UPayload payload = sendRequest(request);
-
     status.set_code(UCode::INTERNAL);
+
+    auto payload = sendRequest(request);
 
     if (0 == payload.size()) {
         spdlog::error("payload size is 0");
@@ -152,6 +127,8 @@ UStatus uSubscriptionClient::deprecateTopic(const DeprecateTopicRequest &request
         return status;
     }
 
+    SubscriptionLocalManager::instance().setStatus(request.topic(), status.code());
+    
     return status;
 }
 
@@ -171,7 +148,7 @@ std::optional<SubscriptionResponse> uSubscriptionClient::subscribe(const Subscri
         return std::nullopt;
     }
     
-    SubscriptionStatusLocal::instance().setStatus(request.topic(), resp.status().state());
+    SubscriptionLocalManager::instance().setStatus(request.topic(), resp.status().state());
     
     return resp;
 }
@@ -198,7 +175,7 @@ UStatus uSubscriptionClient::unSubscribe(const UnsubscribeRequest &request) {
         }
 
         if (UCode::OK == resp.code()) {
-            SubscriptionStatusLocal::instance().setStatus(request.topic(), SubscriptionStatus_State_UNSUBSCRIBED);
+            SubscriptionLocalManager::instance().setStatus(request.topic(), SubscriptionStatus_State_UNSUBSCRIBED);
         } else {
             /* TODO */
         }
@@ -258,14 +235,14 @@ UPayload uSubscriptionClient::sendRequest(const T &request) noexcept {
     return retPayload;
 }
 
-SubscriptionStatusLocal& SubscriptionStatusLocal::instance() noexcept {
+SubscriptionLocalManager& SubscriptionLocalManager::instance() noexcept {
 
-    static SubscriptionStatusLocal instance;
+    static SubscriptionLocalManager instance;
 
     return instance;
 }
 
-UStatus SubscriptionStatusLocal::init() { 
+UStatus SubscriptionLocalManager::init() { 
     
     UStatus status;
 
@@ -274,7 +251,7 @@ UStatus SubscriptionStatusLocal::init() {
     return status;
 };
 
-UStatus SubscriptionStatusLocal::term() {
+UStatus SubscriptionLocalManager::term() {
     
     UStatus status;
 
@@ -284,7 +261,7 @@ UStatus SubscriptionStatusLocal::term() {
 };
 
 template<typename T>
-UStatus SubscriptionStatusLocal::setStatus(UUri uri, 
+UStatus SubscriptionLocalManager::setStatus(UUri uri, 
                                            T status) {
 
     std::string serUri;
@@ -314,7 +291,7 @@ UStatus SubscriptionStatusLocal::setStatus(UUri uri,
     return retStatus;
 }
 
-SubscriptionStatus_State SubscriptionStatusLocal::getSubscriptionStatus(const UUri &uri) {
+SubscriptionStatus_State SubscriptionLocalManager::getSubscriptionStatus(const UUri &uri) {
 
     std::string serUri;
 
@@ -330,7 +307,7 @@ SubscriptionStatus_State SubscriptionStatusLocal::getSubscriptionStatus(const UU
     }            
 }
 
-UCode SubscriptionStatusLocal::getPublisherStatus(const UUri &uri) {
+UCode SubscriptionLocalManager::getPublisherStatus(const UUri &uri) {
     
     std::string serUri;
     if (!uri.SerializeToString(&serUri)) {
@@ -345,9 +322,9 @@ UCode SubscriptionStatusLocal::getPublisherStatus(const UUri &uri) {
 }
 
 UCode getPublisherStatus(const UUri &uri) {
-   return SubscriptionStatusLocal::instance().getPublisherStatus(uri);
+   return SubscriptionLocalManager::instance().getPublisherStatus(uri);
 }
 
 SubscriptionStatus_State getSubscriberStatus(const UUri &uri) {
-    return SubscriptionStatusLocal::instance().getSubscriptionStatus(uri);
+    return SubscriptionLocalManager::instance().getSubscriptionStatus(uri);
 }

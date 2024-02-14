@@ -86,8 +86,8 @@ class ZenohRpcClient : public RpcClient {
         std::shared_ptr<ThreadPool> threadPool_;
 
         static constexpr auto requestTimeoutMs_ = 5000;
-        static constexpr auto threadPoolSize_ = size_t(20);
-        static constexpr auto maxNumOfCuncurrentRequests = size_t(2);
+        static constexpr auto queueSize_ = size_t(20);
+        static constexpr auto maxNumOfCuncurrentRequests_ = size_t(2);
 
 };
 

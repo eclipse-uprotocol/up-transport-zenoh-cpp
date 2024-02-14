@@ -28,6 +28,7 @@
 #include <up-client-zenoh-cpp/session/zenohSessionManager.h>
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
+#include <../include_internal/usubscription/uSubscriptionLocalManager.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
 
@@ -187,6 +188,11 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
     status = UCode::UNAVAILABLE;
 
     do {
+
+        if (UCode::OK != SubscriptionLocalManager::instance().getPublisherStatus(uri)) {
+            spdlog::error("URI state is not OK");
+            return UCode::INVALID_ARGUMENT;
+        }
 
         if (UMessageType::PUBLISH != attributes.type()) {
 
@@ -352,6 +358,14 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
         spdlog::error("ZenohUTransport is marked for termination");
         status.set_code(UCode::UNAVAILABLE);
         return status;
+    }
+
+    if (false == isRPCMethod(uri.resource())) {
+        if (SubscriptionStatus_State::SubscriptionStatus_State_UNSUBSCRIBED != SubscriptionLocalManager::instance().getSubscriptionStatus(uri)) {
+            spdlog::error("URI state is not OK");
+            status.set_code(UCode::UNAVAILABLE);
+            return status;
+        }
     }
 
     do {

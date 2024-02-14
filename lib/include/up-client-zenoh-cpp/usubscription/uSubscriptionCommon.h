@@ -35,8 +35,5 @@ static std::unordered_map<std::string, Request> requestStrToNum = {
 
 //core.usubscription.subscribe
 static UUri uSubRequestsUri = LongUriSerializer::deserialize("/core.usubscription/1/rpc.subscribe"); 
-//uSub->streamer - rpc regex 
-static UUri uSubRemoteRequestsUri; 
-/* URI for sending usubscription updates */ 
-static UUri uSubUpdatesUri; 
+
 #endif /* _USUBSCRIPTION_COMMON_H_ */
