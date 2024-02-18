@@ -23,14 +23,14 @@
  */
  
 #include <up-client-zenoh-cpp/message/messageBuilder.h>
-#include <up-cpp/utils/base64.h>
+#include <up-cpp/tools/base64.h>
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <spdlog/spdlog.h>
 
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
-using namespace uprotocol::utils;
+using namespace uprotocol::tools;
 
 std::vector<uint8_t> MessageBuilder::buildHeader(const UAttributes &attributes) {
     
@@ -161,7 +161,7 @@ size_t MessageBuilder::calculateSize(const UAttributes &attributes) noexcept {
     }
 
     if (attributes.sink().has_value()) {    
-        updateSize(Base64::encode(LongUriSerializer::serialize(attributes.sink().value())), msgSize);
+        updateSize(uprotocol::tools::Base64::encode(LongUriSerializer::serialize(attributes.sink().value())), msgSize);
     }
 
     if (attributes.plevel().has_value()) {

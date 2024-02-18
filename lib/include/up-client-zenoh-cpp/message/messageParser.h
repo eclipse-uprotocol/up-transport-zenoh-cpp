@@ -28,15 +28,14 @@
 #include <unordered_map>
 #include <vector>
 #include <up-client-zenoh-cpp/message/messageCommon.h>
-#include <up-cpp/utils/base64.h>
+#include <up-cpp/tools/base64.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/datamodel/UAttributes.h>
 #include <up-core-api/uri.pb.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::v1;
-using namespace uprotocol::utils;
-
+using namespace uprotocol::tools;
 struct TLV {
     Tag type;
     size_t length;

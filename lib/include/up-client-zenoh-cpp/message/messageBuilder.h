@@ -27,7 +27,7 @@
 
 #include <cstdint>
 #include <cstring>
-#include <up-cpp/utils/base64.h>
+#include <up-cpp/tools/base64.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/datamodel/UAttributes.h>
 #include <up-client-zenoh-cpp/message/messageCommon.h>
@@ -35,7 +35,6 @@
 #include <up-core-api/uri.pb.h>
 
 using namespace uprotocol::utransport;
-using namespace uprotocol::utils;
 using namespace uprotocol::v1;
 
 class MessageBuilder 
