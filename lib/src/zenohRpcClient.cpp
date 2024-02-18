@@ -168,6 +168,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
 }
 
 UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
+   
     z_owned_reply_t reply = z_reply_null();
     UPayload retPayload(nullptr, 0, UPayloadType::VALUE);
 

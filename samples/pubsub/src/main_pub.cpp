@@ -24,6 +24,7 @@
 
 #include <csignal>
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/usubscription/uSubscriptionClient.h>
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-core-api/ustatus.pb.h>
@@ -33,6 +34,7 @@ using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
+using namespace uprotocol::uSubscription;
 
 bool gTerminate = false; 
 
@@ -95,6 +97,17 @@ UCode sendMessage(UUri &uri,
     return UCode::OK;
 }
 
+CreateTopicRequest buildTopicRequest(UUri &uri) {
+
+    CreateTopicRequest request;
+
+    auto topic = request.mutable_topic();
+
+    topic->CopyFrom(uri);
+
+    return std::move(request);
+}
+
 int main(int argc, char **argv) {
 
     signal(SIGINT, signalHandler);
@@ -110,10 +123,33 @@ int main(int argc, char **argv) {
         return -1;
     }
     
-    //  /entity/
-    auto timeUri = LongUriSerializer::deserialize("/test.app/1/milliseconds");
-    auto randomUri = LongUriSerializer::deserialize("/test.app/1/32bit"); 
-    auto counterUri = LongUriSerializer::deserialize("/test.app/1/counter");
+    if (UCode::OK != uSubscriptionClient::instance().init().code()) {
+        spdlog::error("uSubscriptionClient::instance().init() failed");
+        return -1;
+    }
+
+    auto timeUri = LongUriSerializer::deserialize("/producer.app/1/milliseconds");
+    auto randomUri = LongUriSerializer::deserialize("/producer.app/1/32bit"); 
+    auto counterUri = LongUriSerializer::deserialize("/producer.app/1/counter");
+
+    auto timeTopicCreateRequest = buildTopicRequest(timeUri);
+    auto randomTopicCreateRequest = buildTopicRequest(randomUri);
+    auto counterTopicCreateRequest = buildTopicRequest(counterUri);
+
+    if (UCode::OK != uSubscriptionClient::instance().createTopic(timeTopicCreateRequest).code()) {
+        spdlog::error("uSubscriptionClient::instance().createTopic failed");
+        return -1;
+    }
+
+    if (UCode::OK != uSubscriptionClient::instance().createTopic(randomTopicCreateRequest).code()) {
+        spdlog::error("uSubscriptionClient::instance().createTopic failed");
+        return -1;
+    }
+
+    if (UCode::OK != uSubscriptionClient::instance().createTopic(counterTopicCreateRequest).code()) {
+        spdlog::error("uSubscriptionClient::instance().createTopic failed");
+        return -1;
+    }
 
     while (!gTerminate) {
 
@@ -133,6 +169,11 @@ int main(int argc, char **argv) {
          }
 
          sleep(1);
+    }
+
+    if (UCode::OK != uSubscriptionClient::instance().term().code()) {
+        spdlog::error("uSubscriptionClient::instance().term() failed");
+        return -1;
     }
 
     if (UCode::OK != ZenohUTransport::instance().term().code()) {

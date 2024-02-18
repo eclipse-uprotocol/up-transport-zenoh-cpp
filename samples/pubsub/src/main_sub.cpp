@@ -25,6 +25,7 @@
 
 #include <csignal>
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/usubscription/uSubscriptionClient.h>
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 
@@ -32,6 +33,7 @@ using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
 using namespace uprotocol::uri;
+using namespace uprotocol::uSubscription;
 
 bool gTerminate = false; 
 
@@ -102,6 +104,20 @@ class CounterListener : public UListener {
     }
 };
 
+SubscriptionRequest buildSubscriptionRequest(UUri &topicToSubscribe, 
+                                             UUri &appIdentity) {
+    SubscriptionRequest request;
+
+    // topic to subscribe too 
+    auto topic = request.mutable_topic();
+    auto uri = request.mutable_subscriber()->mutable_uri();
+
+    topic->CopyFrom(topicToSubscribe);
+    uri->CopyFrom(appIdentity);
+
+    return std::move(request);
+}
+
 int main(int argc, char **argv) {
 
     signal(SIGINT, signalHandler);
@@ -121,9 +137,35 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    auto timeUri = LongUriSerializer::deserialize("/test.app/1/milliseconds");
-    auto randomUri = LongUriSerializer::deserialize("/test.app/1/32bit"); 
-    auto counterUri = LongUriSerializer::deserialize("/test.app/1/counter");
+    if (UCode::OK != uSubscriptionClient::instance().init().code()) {
+        spdlog::error("uSubscriptionClient::instance().init() failed");
+        return -1;
+    }
+
+    auto uEUri = LongUriSerializer::deserialize("/subscriber.app/1/");
+    auto timeUri = LongUriSerializer::deserialize("/producer.app/1/milliseconds");
+    auto randomUri = LongUriSerializer::deserialize("/producer.app/1/32bit"); 
+    auto counterUri = LongUriSerializer::deserialize("/producer.app/1/counter");
+
+    auto subRequestTime = buildSubscriptionRequest(timeUri, uEUri);
+    auto subRequestRand = buildSubscriptionRequest(randomUri, uEUri);
+    auto subRequestCounter = buildSubscriptionRequest(counterUri, uEUri);
+
+    if (UCode::OK != uSubscriptionClient::instance().subscribe(subRequestTime).value().status().code()) {
+        spdlog::error("uSubscriptionClient::instance().subscribe failed");
+        return -1;
+    }
+
+    if (UCode::OK != uSubscriptionClient::instance().subscribe(subRequestRand).value().status().code()) {
+        spdlog::error("uSubscriptionClient::instance().subscribe failed");
+        return -1;
+    }
+
+    if (UCode::OK != uSubscriptionClient::instance().subscribe(subRequestCounter).value().status().code()) {
+        spdlog::error("uSubscriptionClient::instance().subscribe failed");
+        return -1;
+    }
+
 
     if (UCode::OK != ZenohUTransport::instance().registerListener(timeUri, timeListener).code()) {
 
@@ -164,6 +206,12 @@ int main(int argc, char **argv) {
         spdlog::error("ZenohUTransport::instance().unregisterListener failed");
         return -1;
     }
+
+    if (UCode::OK != uSubscriptionClient::instance().term().code()) {
+        spdlog::error("uSubscriptionClient::instance().term() failed");
+        return -1;
+    }
+
 
     if (UCode::OK != ZenohUTransport::instance().term().code()) {
         spdlog::error("ZenohUTransport::instance().term failed");

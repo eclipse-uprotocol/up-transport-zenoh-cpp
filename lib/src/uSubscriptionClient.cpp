@@ -76,7 +76,12 @@ UStatus uSubscriptionClient::createTopic(CreateTopicRequest &request) {
     UStatus status;
 
     do {
-        SubscriptionLocalManager::instance().setStatus(request.topic(), UCode::UNKNOWN);
+        
+        if (UCode::OK != SubscriptionLocalManager::instance().setStatus(request.topic(), UCode::UNKNOWN).code()) {
+            spdlog::error("setStatus failed");
+            status.set_code(UCode::INTERNAL);
+            break;
+        }
 
         auto payload = sendRequest(request);
         if (0 == payload.size()) {
@@ -91,11 +96,15 @@ UStatus uSubscriptionClient::createTopic(CreateTopicRequest &request) {
             break;
         }
 
-        // if (UCode::ALREADY_EXISTS ==  status.code()){
-        //     status.set_code(UCode::OK);
-        // }
+        if (UCode::ALREADY_EXISTS == status.code()) {
+            status.set_code(UCode::OK);
+        }
 
-        SubscriptionLocalManager::instance().setStatus(request.topic(), status.code());
+        if (UCode::OK != SubscriptionLocalManager::instance().setStatus(request.topic(), status.code()).code()) {
+            spdlog::error("setStatus failed");
+            status.set_code(UCode::INTERNAL);
+            break;
+        }
 
     } while(0);
 
@@ -127,8 +136,13 @@ UStatus uSubscriptionClient::deprecateTopic(const DeprecateTopicRequest &request
         return status;
     }
 
-    SubscriptionLocalManager::instance().setStatus(request.topic(), status.code());
+    if (UCode::OK != SubscriptionLocalManager::instance().setStatus(request.topic(), status.code()).code()) {
+        spdlog::error("setStatus failed");
+        return status;
+    }
     
+    status.set_code(UCode::OK);
+
     return status;
 }
 
@@ -148,7 +162,10 @@ std::optional<SubscriptionResponse> uSubscriptionClient::subscribe(const Subscri
         return std::nullopt;
     }
     
-    SubscriptionLocalManager::instance().setStatus(request.topic(), resp.status().state());
+    if (UCode::OK != SubscriptionLocalManager::instance().setStatus(request.topic(), resp.status().state()).code()) {
+        spdlog::error("setStatus failed");
+        return std::nullopt;
+    }
     
     return resp;
 }
@@ -175,13 +192,22 @@ UStatus uSubscriptionClient::unSubscribe(const UnsubscribeRequest &request) {
         }
 
         if (UCode::OK == resp.code()) {
-            SubscriptionLocalManager::instance().setStatus(request.topic(), SubscriptionStatus_State_UNSUBSCRIBED);
+            if (UCode::OK != SubscriptionLocalManager::instance().setStatus(request.topic(), SubscriptionStatus_State_UNSUBSCRIBED).code()) {
+                spdlog::error("setStatus failed");
+                status.set_code(UCode::INTERNAL);
+                break;
+            }
+            status.set_code(UCode::OK);
         } else {
-            /* TODO */
+            /* TODO - what should be the behavior in case of an error */
+            if (UCode::OK != SubscriptionLocalManager::instance().setStatus(request.topic(), SubscriptionStatus_State_UNSUBSCRIBED).code()) {
+                spdlog::error("setStatus failed");
+                status.set_code(UCode::INTERNAL);
+                break;
+            }
+            status.set_code(UCode::INTERNAL);
         }
-
-        status.set_code(UCode::OK);
-
+        
     } while(0);
     
     return status;
@@ -301,8 +327,11 @@ SubscriptionStatus_State SubscriptionLocalManager::getSubscriptionStatus(const U
     }
 
     if (subStatusMap_.find(serUri) != subStatusMap_.end()) {
+
         return subStatusMap_[serUri];
+
     } else {
+
         return SubscriptionStatus_State_UNSUBSCRIBED;
     }            
 }

@@ -25,6 +25,8 @@ target_link_libraries(
     ${ZENOH_LIB})
 
 target_include_directories(sub PRIVATE 
+                           ${up-cpp_INCLUDE_DIR}
+                           ${up-cpp_INCLUDE_DIRS}/up-core-api
                            ${up-client-zenoh-cpp_INCLUDE_DIR}
                            ${spdlog_INCLUDE_DIR})
 
@@ -41,5 +43,7 @@ target_link_libraries(
     ${ZENOH_LIB})
 
 target_include_directories(pub PRIVATE 
+                           ${up-cpp_INCLUDE_DIR}
+                           ${up-cpp_INCLUDE_DIRS}/up-core-api
                            ${up-client-zenoh-cpp_INCLUDE_DIR}
                            ${spdlog_INCLUDE_DIR})
