@@ -14,9 +14,7 @@ add_library(
     ${PROJECT_NAME} SHARED
     src/zenohUTransport.cpp
     src/zenohRpcClient.cpp
-    src/zenohSessionManager.cpp
-    src/messageBuilder.cpp
-    src/messageParser.cpp)
+    src/zenohSessionManager.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
                            ${up-cpp_INCLUDE_DIR}
