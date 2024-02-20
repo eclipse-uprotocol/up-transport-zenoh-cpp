@@ -22,18 +22,26 @@ class UpClientZenoh(ConanFile):
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
+        "build_testing": [True, False],
+        "build_unbundled": [True, False],
+        "build_cross_compiling": [True, False],
     }
 
     default_options = {
         "shared": False,
         "fPIC": False,
+        "build_testing": False,
+        "build_unbundled": False,
+        "build_cross_compiling": False,
     }
 
     def requirements(self):
-        self.requires("up-cpp/0.1")
-        self.requires("spdlog/1.13.0")
-        self.requires("fmt/10.2.1")
-        self.requires("protobuf/3.21.12")
+        if self.options.build_unbundled:
+            self.requires("up-cpp/1.5.1")
+            self.requires("zenohc/cci.20240213")
+        if self.options.build_testing:
+            self.requires("gtest/1.14.0")
+
 
     def generate(self):
         tc = CMakeToolchain(self)
