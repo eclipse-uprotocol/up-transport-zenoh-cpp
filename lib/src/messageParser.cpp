@@ -23,7 +23,7 @@
  */
 
 #include <up-client-zenoh-cpp/message/messageParser.h>
-#include <up-cpp/tools/base64.h>
+#include <up-cpp/utils/base64.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/datamodel/UAttributes.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
@@ -34,7 +34,7 @@
 using namespace uprotocol::utransport;
 using namespace uprotocol::v1;
 using namespace uprotocol::uuid;
-using namespace uprotocol::tools;
+using namespace uprotocol::utils;
 
 std::optional<std::unordered_map<Tag,TLV>> MessageParser::getAllTlv(const uint8_t *data, 
                                                                     size_t size) noexcept {

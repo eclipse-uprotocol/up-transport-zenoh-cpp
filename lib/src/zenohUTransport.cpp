@@ -190,7 +190,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
     do {
 
         if (UCode::OK != SubscriptionLocalManager::instance().getPublisherStatus(uri)) {
-            spdlog::error("URI state is not OK");
+            spdlog::error("URI state is not CREATED");
             return UCode::INVALID_ARGUMENT;
         }
 

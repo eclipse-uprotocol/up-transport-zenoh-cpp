@@ -166,7 +166,6 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-
     if (UCode::OK != ZenohUTransport::instance().registerListener(timeUri, timeListener).code()) {
 
         spdlog::error("ZenohUTransport::instance().registerListener failed");
@@ -211,7 +210,6 @@ int main(int argc, char **argv) {
         spdlog::error("uSubscriptionClient::instance().term() failed");
         return -1;
     }
-
 
     if (UCode::OK != ZenohUTransport::instance().term().code()) {
         spdlog::error("ZenohUTransport::instance().term failed");

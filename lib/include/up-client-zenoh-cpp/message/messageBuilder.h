@@ -27,7 +27,7 @@
 
 #include <cstdint>
 #include <cstring>
-#include <up-cpp/tools/base64.h>
+#include <up-cpp/utils/base64.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/datamodel/UAttributes.h>
 #include <up-client-zenoh-cpp/message/messageCommon.h>

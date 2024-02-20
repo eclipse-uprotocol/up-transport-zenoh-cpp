@@ -141,8 +141,6 @@ UStatus uSubscriptionClient::deprecateTopic(const DeprecateTopicRequest &request
         return status;
     }
     
-    status.set_code(UCode::OK);
-
     return status;
 }
 
