@@ -39,9 +39,10 @@ class UpClientZenoh(ConanFile):
         if self.options.build_unbundled:
             self.requires("up-cpp/1.5.1")
             self.requires("zenohc/cci.20240213")
-        if self.options.build_testing:
-            self.requires("gtest/1.14.0")
-
+        else:
+            self.requires("up-cpp/0.1")
+            self.requires("spdlog/1.13.0")
+            self.requires("protobuf/3.21.12")
 
     def generate(self):
         tc = CMakeToolchain(self)
