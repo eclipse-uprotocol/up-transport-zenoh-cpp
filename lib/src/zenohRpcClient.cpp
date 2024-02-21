@@ -123,6 +123,11 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
         return std::move(future);
     }
 
+    if (false == isRPCMethod(uri.resource())) {
+        spdlog::error("URI is not of RPC type");
+        return std::move(future);
+    }
+
     if (UMessageType::REQUEST != attributes.type()) {
         spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
         return std::move(future);
