@@ -29,7 +29,6 @@
 #include <zenoh.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-core-api/ustatus.pb.h>
-#include <up-core-api/uattributes.pb.h>
 
 using namespace std;
 using namespace uprotocol::utransport;

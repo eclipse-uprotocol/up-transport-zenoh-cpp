@@ -189,20 +189,6 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
             return UCode::INVALID_ARGUMENT;
         }
 
-        // Serializing UAttributes
-        size_t attrSize = attributes.ByteSizeLong();
-        std::vector<uint8_t> serializedAttributes(attrSize);
-        if (!attributes.SerializeToArray(serializedAttributes.data(), attrSize)) {
-            spdlog::error("SerializeToArray failure");
-            return UCode::INTERNAL;
-        }
-
-        z_owned_bytes_map_t map = z_bytes_map_new();
-        z_bytes_t bytes;
-        bytes.len = serializedAttributes.size();
-        bytes.start = serializedAttributes.data();
-        z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), bytes);
-
         /* get hash and check if the publisher for the URI is already exists */
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
         auto handleInfo = pubHandleMap_.find(uriHash);
@@ -225,7 +211,20 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 
         z_publisher_put_options_t options = z_publisher_put_options_default();
         options.attachment = z_bytes_map_as_attachment(&map);
-        options.encoding = z_encoding(Z_ENCODING_PREFIX_APP_PROTOBUF, nullptr);
+
+        // Serializing UAttributes
+        size_t attrSize = attributes.ByteSizeLong();
+        std::vector<uint8_t> serializedAttributes(attrSize);
+        if (!attributes.SerializeToArray(serializedAttributes.data(), attrSize)) {
+            spdlog::error("SerializeToArray failure");
+            return UCode::INTERNAL;
+        }
+
+        z_owned_bytes_map_t map = z_bytes_map_new();
+        z_bytes_t bytes;
+        bytes.len = serializedAttributes.size();
+        bytes.start = serializedAttributes.data();
+        z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), bytes);
 
         // Publish the message
         if (0 != z_publisher_put(z_loan(pub), payload.data(), payload.size(), &options)) {
@@ -287,6 +286,11 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
         z_drop(z_move(map));
         return UCode::INTERNAL;
     }
+
+    auto keyStr = z_keyexpr_to_string(z_query_keyexpr(&lquery));
+
+    z_drop(z_move(keyStr));
+    z_drop(z_move(query));
 
     spdlog::debug("replied on query with uid = {}", uuidStr);
     /* once replied remove the uuid from the map, as it cannot be reused */

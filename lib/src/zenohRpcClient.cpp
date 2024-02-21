@@ -134,23 +134,25 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri, const UPaylo
         return std::move(future);
     }
 
-    z_owned_bytes_map_t map = z_bytes_map_new();
-    z_bytes_t attrBytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
-    z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), attrBytes);
-
-    z_bytes_t payloadBytes = {.len = payload.size(), .start = reinterpret_cast<uint8_t*>(payload.data())};
-    z_bytes_map_insert_by_alias(&map, z_bytes_new("payload"), payloadBytes);
+    auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
 
     z_owned_reply_channel_t *channel = new z_owned_reply_channel_t;
     *channel = zc_reply_fifo_new(16);
+
     z_get_options_t opts = z_get_options_default();
-    opts.attachment = z_bytes_map_as_attachment(&map);
     opts.timeout_ms = requestTimeoutMs_;
 
-    auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
-    if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
-        spdlog::error("z_get failure");
+    z_owned_bytes_map_t map = z_bytes_map_new();
+    z_bytes_t bytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
+    z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), bytes);
+
+    opts.attachment = z_bytes_map_as_attachment(&map);
+
+    if (0 != z_put(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), 
+                   payload.data(), payload.size(), &opts)) {
+        spdlog::error("z_put failure");
         z_drop(&map);
+        delete channel;
         return std::move(future);
     }
 
