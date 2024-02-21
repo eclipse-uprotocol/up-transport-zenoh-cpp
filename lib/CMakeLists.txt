@@ -40,7 +40,7 @@ set(SRC_FILES
     src/messageParser.cpp
     )
 
-add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
+add_library(${PROJECT_NAME} ${SRC_FILES})
 add_library(up-client-zenoh-cpp::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 if(BUILD_UNBUNDLED)
