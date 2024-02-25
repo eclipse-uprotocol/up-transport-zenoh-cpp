@@ -22,7 +22,6 @@ project(up-client-zenoh-cpp VERSION 0.1.0 LANGUAGES CXX)
 if(BUILD_UNBUNDLED)
     find_package(up-cpp REQUIRED)
     find_package(zenohc REQUIRED)
-    find_package(spdlog REQUIRED)
 else()
     find_library(ZENOH_LIB zenohc)
     find_package(up-cpp REQUIRED)
@@ -40,7 +39,7 @@ set(SRC_FILES
     src/messageParser.cpp
     )
 
-add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
+add_library(${PROJECT_NAME} ${SRC_FILES})
 add_library(up-client-zenoh-cpp::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 if(BUILD_UNBUNDLED)
@@ -53,10 +52,8 @@ if(BUILD_UNBUNDLED)
     )
     target_link_libraries(${PROJECT_NAME} 
         PRIVATE 
-            up-cpp::up-cpp 
+            up-cpp::up-cpp
             zenohc::lib 
-            spdlog::spdlog 
-            up-client-zenoh-cpp::up-core-api-protos
     )
 else()
     target_include_directories(${PROJECT_NAME} 

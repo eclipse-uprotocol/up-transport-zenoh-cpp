@@ -34,7 +34,6 @@ else()
     # message(STATUS "This is NOT the root CMakeLists.txt file; We should get project wide settings from project root.")
 endif()
     
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/up-core-api-protos.cmake)
 add_subdirectory(lib)
 
 if(BUILD_SAMPLES)

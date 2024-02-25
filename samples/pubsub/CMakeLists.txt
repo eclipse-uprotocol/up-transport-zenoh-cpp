@@ -23,7 +23,6 @@ project(pubsub VERSION 0.1.0 LANGUAGES CXX)
 if(BUILD_UNBUNDLED)
     find_package(up-cpp REQUIRED)
     find_package(zenohc REQUIRED)
-    find_package(spdlog REQUIRED)
 else()
     find_library(ZENOH_LIB zenohc)
     find_package(up-cpp REQUIRED)
@@ -42,7 +41,6 @@ if(BUILD_UNBUNDLED)
         PRIVATE
             up-cpp::up-cpp
             up-client-zenoh-cpp::up-client-zenoh-cpp
-            up-client-zenoh-cpp::up-core-api-protos
             zenohc::lib)
 else()
     target_link_libraries(
@@ -68,7 +66,6 @@ if(BUILD_UNBUNDLED)
         PRIVATE
             up-cpp::up-cpp
             up-client-zenoh-cpp::up-client-zenoh-cpp
-            up-client-zenoh-cpp::up-core-api-protos
             zenohc::lib)
 
 else()

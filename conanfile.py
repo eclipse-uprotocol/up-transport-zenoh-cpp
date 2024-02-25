@@ -35,6 +35,9 @@ class UpClientZenoh(ConanFile):
         "build_cross_compiling": False,
     }
 
+    # def configure(self):
+    #     self.options["up-cpp"].shared = True
+
     def requirements(self):
         if self.options.build_unbundled:
             self.requires("up-cpp/1.5.1")
