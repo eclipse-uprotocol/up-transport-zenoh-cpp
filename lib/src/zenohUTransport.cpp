@@ -170,7 +170,7 @@ UStatus ZenohUTransport::send(const UUri &uri,
         return status;
     }
     
-    if ((0 == payload.size()) || (nullptr == payload.data()) {
+    if ((0 == payload.size()) || (nullptr == payload.data())) {
         spdlog::error("invalid paylooad");
         status.set_code(UCode::UNAVAILABLE);
         return status;
