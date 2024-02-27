@@ -29,6 +29,9 @@ else()
     find_package(spdlog REQUIRED)
 endif()
 
+# Support pulling headers outside of /usr/local
+include_directories(${CMAKE_INSTALL_PREFIX}/include)
+
 add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
 set(SRC_FILES         
