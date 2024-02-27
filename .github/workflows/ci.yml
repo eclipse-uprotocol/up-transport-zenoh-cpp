@@ -45,7 +45,7 @@ jobs:
           git clone https://github.com/eclipse-zenoh/zenoh-c.git
           cd zenoh-c && mkdir -p build && cd build 
           cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/local
-          cmake --build . --target install --config Release
+          cmake --build . --target install --config Release -- -j
 
       - name: Build && install up-client-zenoh-cpp
         shell: bash
@@ -53,7 +53,7 @@ jobs:
           conan install conaninfo/ --output-folder=.
           cd build/Release
           cmake ../../ -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/local
-          make -j
+          cmake --build . --target install --config Release -- -j
 
 
   
