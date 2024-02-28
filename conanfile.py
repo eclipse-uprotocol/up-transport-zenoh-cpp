@@ -25,8 +25,34 @@ class up_client_zenog_cpp(ConanFile):
     ]
     generators = "CMakeDeps"
 
+    options = {
+        "shared": [True, False],
+        "fPIC": [True, False],
+        "build_testing": [True, False],
+        "build_unbundled": [True, False],
+        "build_cross_compiling": [True, False],
+    }
+
+    default_options = {
+        "shared": False,
+        "fPIC": False,
+        "build_testing": False,
+        "build_unbundled": False,
+        "build_cross_compiling": False,
+    }
+
+    # def configure(self):
+    #     self.options["up-cpp"].shared = True
+
     def requirements(self):
-        self.requires("up-cpp/0.1")
+        if self.options.build_unbundled:
+            self.requires("up-cpp/1.5.1")
+            self.requires("zenohc/cci.20240213")
+            self.requires("protobuf/3.21.12" + ("@cross/cross" if self.options.build_cross_compiling else ""))
+        else:
+            self.requires("up-cpp/0.1")
+            self.requires("spdlog/1.13.0")
+            self.requires("protobuf/3.21.12")
 
     def layout(self):
         cmake_layout(self)

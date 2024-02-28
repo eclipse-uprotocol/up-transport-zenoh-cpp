@@ -35,6 +35,7 @@
 #include <up-core-api/uri.pb.h>
 
 using namespace uprotocol::utransport;
+using namespace uprotocol::utils;
 using namespace uprotocol::v1;
 
 class MessageBuilder 

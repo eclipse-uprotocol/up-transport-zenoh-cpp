@@ -123,6 +123,11 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
         return std::move(future);
     }
 
+    if (false == isRPCMethod(uri.resource())) {
+        spdlog::error("URI is not of RPC type");
+        return std::move(future);
+    }
+
     if (UMessageType::REQUEST != attributes.type()) {
         spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
         return std::move(future);
@@ -151,6 +156,11 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
     opts.attachment = z_bytes_map_as_attachment(&map);
     opts.value.payload.len =  payload.size();
     opts.value.payload.start = payload.data();
+
+    if ((0 != payload.size()) && (nullptr == payload.data())) {
+        opts.value.payload.len =  payload.size();
+        opts.value.payload.start = payload.data();
+    }
 
     z_bytes_map_insert_by_alias(&map, z_bytes_new("header"), bytes);
 
