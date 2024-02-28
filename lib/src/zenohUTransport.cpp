@@ -22,14 +22,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <uprotocol-cpp-ulink-zenoh/transport/zenohUTransport.h>
-#include <uprotocol-cpp-ulink-zenoh/session/zenohSessionManager.h>
-#include <uprotocol-cpp/uuid/serializer/UuidSerializer.h>
-#include <uprotocol-cpp/uri/serializer/LongUriSerializer.h>
+#include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/session/zenohSessionManager.h>
+#include <up-cpp/uuid/serializer/UuidSerializer.h>
+#include <up-cpp/uri/serializer/LongUriSerializer.h>
+#include <up-cpp/transport/datamodel/UPayload.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
-#include <src/main/proto/uattributes.pb.h>
-#include <src/main/proto/umessage.pb.h>
+#include <up-core-api/uattributes.pb.h>
+#include <up-core-api/umessage.pb.h>
 
 using namespace std;
 using namespace uprotocol::uri;
@@ -154,7 +155,7 @@ UStatus ZenohUTransport::term() noexcept {
 }
 
 UStatus ZenohUTransport::send(const UUri &uri,
-                              const UPayload &payload,
+                              const upayload &payload,
                               const UAttributes &attributes) noexcept {
     UStatus status;
 
@@ -170,6 +171,12 @@ UStatus ZenohUTransport::send(const UUri &uri,
         return status;
     }
     
+    if ((0 == payload.size()) || (nullptr == payload.data())) {
+        spdlog::error("invalid paylooad");
+        status.set_code(UCode::UNAVAILABLE);
+        return status;
+    }
+
     if (false == isRPCMethod(uri.resource())) {
         status.set_code(sendPublish(uri, payload, attributes));
     } else {
@@ -179,12 +186,12 @@ UStatus ZenohUTransport::send(const UUri &uri,
     return status;
 }
 UCode ZenohUTransport::sendPublish(const UUri &uri, 
-                                   const UPayload &payload,
+                                   const upayload &payload,
                                    const UAttributes &attributes) noexcept {
     UCode status = UCode::UNAVAILABLE;
 
     do {
-        if (UMessageType::PUBLISH != attributes.type()) {
+        if (UMessageType::UMESSAGE_TYPE_PUBLISH != attributes.type()) {
             spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
             return UCode::INVALID_ARGUMENT;
         }
@@ -242,9 +249,9 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
     return status;
 }
 UCode ZenohUTransport::sendQueryable(const UUri &uri, 
-                                     const UPayload &payload,
+                                     const upayload &payload,
                                      const UAttributes &attributes) noexcept {
-    if (UMessageType::RESPONSE != attributes.type()) {
+    if (UMessageType::UMESSAGE_TYPE_RESPONSE != attributes.type()) {
         spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
         return UCode::INVALID_ARGUMENT;
     }
@@ -259,14 +266,14 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
 
     z_query_reply_options_t options = z_query_reply_options_default();
 
-    if (attributes.serializationHint().has_value()) {
-        if (UCode::OK != mapEncoding(attributes.serializationHint().value(), options.encoding)) {
-            spdlog::error("mapEncoding failure");
-            return UCode::INTERNAL;
-        }
-    } else {
-        options.encoding = z_encoding(Z_ENCODING_PREFIX_APP_PROTOBUF, nullptr);
-    }
+    // if (attributes.serializationHint().has_value()) {
+    //     if (UCode::OK != mapEncoding(attributes.serializationHint().value(), options.encoding)) {
+    //         spdlog::error("mapEncoding failure");
+    //         return UCode::INTERNAL;
+    //     }
+    // } else {
+    //     options.encoding = z_encoding(Z_ENCODING_PREFIX_APP_PROTOBUF, nullptr);
+    // }
 
     // Serialize the UAttributes
     size_t attrSize = attributes.ByteSizeLong();
@@ -480,7 +487,7 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
         return;
     }
 
-    UPayload payload{sample->payload.start, sample->payload.len, UPayloadType::REFERENCE};
+    upayload payload{sample->payload.start, sample->payload.len, upayloadType::REFERENCE};
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
 
     // Attachment handling and TLV extraction
@@ -491,17 +498,17 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
     }
 
     // TLV extraction
-    auto allTlv = MessageParser::getAllTlv(index.start, index.len);
-    if (!allTlv.has_value()) {
-        spdlog::error("MessageParser::getAllTlv failure");
-        return;
-    }
+    // auto allTlv = MessageParser::getAllTlv(index.start, index.len);
+    // if (!allTlv.has_value()) {
+    //     spdlog::error("MessageParser::getAllTlv failure");
+    //     return;
+    // }
 
-    auto header = MessageParser::getAttributes(allTlv.value());
-    if (!header.has_value()) {
-        spdlog::error("getAttributes failure");
-        return;
-    }
+    // auto header = MessageParser::getAttributes(allTlv.value());
+    // if (!header.has_value()) {
+    //     spdlog::error("getAttributes failure");
+    //     return;
+    // }
 
     // Retrieve URI, listener, and other necessary data from the tuple
     auto uri = get<0>(*tuplePtr);
@@ -551,13 +558,13 @@ void ZenohUTransport::QueryHandler(const z_query_t *query,
         return;
     }
 
-    UPayload payload(payload_value.payload.start, payload_value.payload.len, UPayloadType::REFERENCE);
+    upayload payload(payload_value.payload.start, payload_value.payload.len, upayloadType::REFERENCE);
 
     auto uuidStr = UuidSerializer::serializeToString(attributes->id());
 
     instance->queryMap_[uuidStr] = oquery;
 
-    if (UMessageType::REQUEST != attributes.value().type()) {
+    if (UMessageType::UMESSAGE_TYPE_REQUEST != attributes.value().type()) {
         spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.value().type()).value());
         return;
     }
@@ -569,37 +576,37 @@ void ZenohUTransport::QueryHandler(const z_query_t *query,
     }                                 
 }
 
-UCode ZenohUTransport::mapEncoding(const USerializationHint &encodingIn, 
-                                   z_encoding_t &encodingOut) noexcept {
+// UCode ZenohUTransport::mapEncoding(const USerializationHint &encodingIn, 
+//                                    z_encoding_t &encodingOut) noexcept {
 
-    switch (encodingIn) {
-        case USerializationHint::PROTOBUF: {
-            encodingOut = z_encoding(Z_ENCODING_PREFIX_APP_OCTET_STREAM, nullptr);
-        }
-        break;
-        case USerializationHint::JSON: {
-            encodingOut = z_encoding(Z_ENCODING_PREFIX_APP_JSON, nullptr);
-        }
-        break;
-        case USerializationHint::SOMEIP: {
-            encodingOut = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
-        }
-        break;
-        case USerializationHint::RAW: {
-            encodingOut = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
-        }
-        break;
-        case USerializationHint::UNKNOWN: 
-        default: {
-            return UCode::UNAVAILABLE; 
-        }
-    }
+//     switch (encodingIn) {
+//         case USerializationHint::PROTOBUF: {
+//             encodingOut = z_encoding(Z_ENCODING_PREFIX_APP_OCTET_STREAM, nullptr);
+//         }
+//         break;
+//         case USerializationHint::JSON: {
+//             encodingOut = z_encoding(Z_ENCODING_PREFIX_APP_JSON, nullptr);
+//         }
+//         break;
+//         case USerializationHint::SOMEIP: {
+//             encodingOut = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
+//         }
+//         break;
+//         case USerializationHint::RAW: {
+//             encodingOut = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
+//         }
+//         break;
+//         case USerializationHint::UNKNOWN: 
+//         default: {
+//             return UCode::UNAVAILABLE; 
+//         }
+//     }
 
-    return UCode::OK;
-}
+//     return UCode::OK;
+// }
 
 UStatus ZenohUTransport::receive(const UUri &uri, 
-                                 const UPayload &payload, 
+                                 const upayload &payload, 
                                  const UAttributes &attributes) noexcept {
 
     UStatus status;

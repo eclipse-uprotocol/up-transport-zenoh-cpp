@@ -44,7 +44,7 @@ void signalHandler(int signal) {
     }
 }
 
-UPayload sendRPC(UUri &uri) {
+upayload sendRPC(UUri &uri) {
 
     auto uuid = Uuidv8Factory::create(); 
     auto type = UMessageType::REQUEST;
@@ -56,13 +56,13 @@ UPayload sendRPC(UUri &uri) {
 
     uint8_t buffer[1];
 
-    UPayload payload(buffer, sizeof(buffer), UPayloadType::VALUE);
+    upayload payload(buffer, sizeof(buffer), upayloadType::VALUE);
 
-    std::future<UPayload> result = ZenohRpcClient::instance().invokeMethod(uri, payload, attributes);
+    std::future<upayload> result = ZenohRpcClient::instance().invokeMethod(uri, payload, attributes);
 
     if (false == result.valid()) {
         spdlog::error("future is invalid");
-        return UPayload(nullptr, 0, UPayloadType::UNDEFINED);   
+        return upayload(nullptr, 0, upayloadType::UNDEFINED);   
     }
 
     result.wait();

@@ -47,7 +47,7 @@ void signalHandler(int signal) {
 class RpcListener : public UListener {
 
     UStatus onReceive(const UUri &uri, 
-                      const UPayload &payload, 
+                      const upayload &payload, 
                       const UAttributes &attributes) const {
         
         auto currentTime = std::chrono::system_clock::now();
@@ -59,7 +59,7 @@ class RpcListener : public UListener {
 
         memcpy(buf, &timeMilli, sizeof(timeMilli));
 
-        UPayload response(buf, sizeof(buf), UPayloadType::VALUE);
+        upayload response(buf, sizeof(buf), upayloadType::VALUE);
 
         UAttributesBuilder builder(attributes.id(), UMessageType::RESPONSE, UPriority::STANDARD);
 
@@ -73,7 +73,7 @@ class RpcListener : public UListener {
     
 };
 
-UPayload sendRPC(UUri &uri) {
+upayload sendRPC(UUri &uri) {
 
     auto uuid = Uuidv8Factory::create(); 
 
@@ -83,13 +83,13 @@ UPayload sendRPC(UUri &uri) {
 
     uint8_t buffer[1];
 
-    UPayload payload(buffer, sizeof(buffer), UPayloadType::VALUE);
+    upayload payload(buffer, sizeof(buffer), upayloadType::VALUE);
 
-    std::future<UPayload> result = ZenohRpcClient::instance().invokeMethod(uri, payload, attributes);
+    std::future<upayload> result = ZenohRpcClient::instance().invokeMethod(uri, payload, attributes);
 
     if (false == result.valid()) {
         spdlog::error("future is invalid");
-        return UPayload(nullptr, 0, UPayloadType::UNDEFINED);   
+        return upayload(nullptr, 0, upayloadType::UNDEFINED);   
     }
 
     result.wait();

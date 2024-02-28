@@ -68,7 +68,7 @@ class ZenohUTransport : public UTransport {
         UStatus term() noexcept; 
 
         /**
-        * Transmit UPayload to the topic using the attributes defined in UTransportAttributes.
+        * Transmit upayload to the topic using the attributes defined in UTransportAttributes.
         * @param topic Resolved UUri topic to send the payload to.
         * @param payload Actual payload.
         * @param attributes Additional transport attributes.
@@ -76,11 +76,11 @@ class ZenohUTransport : public UTransport {
         * returns FAILSTATUS with the appropriate failure.
         */
         UStatus send(const UUri &uri, 
-                     const UPayload &payload,
+                     const upayload &payload,
                      const UAttributes &attributes) noexcept;
 
         /**
-        * Register listener to be called when UPayload is received for the specific topic.
+        * Register listener to be called when upayload is received for the specific topic.
         * @param topic Resolved UUri for where the message arrived via the underlying transport technology.
         * @param listener The method to execute to process the date for the topic.
         * @return Returns OKSTATUS if the listener is unregistered correctly, otherwise it returns FAILSTATUS
@@ -101,7 +101,7 @@ class ZenohUTransport : public UTransport {
                                    const UListener &listener) noexcept;
 
         UStatus receive(const UUri &uri, 
-                        const UPayload &payload, 
+                        const upayload &payload, 
                         const UAttributes &attributes) noexcept;
 
     private:
@@ -119,15 +119,15 @@ class ZenohUTransport : public UTransport {
                                void* arg);
 
         UCode sendPublish(const UUri &uri, 
-                          const UPayload &payload,
+                          const upayload &payload,
                           const UAttributes &attributes) noexcept;
 
         UCode sendQueryable(const UUri &uri, 
-                            const UPayload &payload,
+                            const upayload &payload,
                             const UAttributes &attributes) noexcept;
 
-        UCode mapEncoding(const USerializationHint &encodingIn, 
-                          z_encoding_t &encodingOut) noexcept;
+        // UCode mapEncoding(const USerializationHint &encodingIn, 
+        //                   z_encoding_t &encodingOut) noexcept;
 
         /* zenoh session handle*/
         z_owned_session_t session_;

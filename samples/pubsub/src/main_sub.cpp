@@ -45,7 +45,7 @@ void signalHandler(int signal) {
 class TimeListener : public UListener {
     
     UStatus onReceive(const UUri &uri, 
-                      const UPayload &payload, 
+                      const upayload &payload, 
                       const UAttributes &attributes) const {
 
         uint64_t timeInMilliseconds;
@@ -65,7 +65,7 @@ class TimeListener : public UListener {
 class RandomListener : public UListener {
 
     UStatus onReceive(const UUri &uri, 
-                      const UPayload &payload, 
+                      const upayload &payload, 
                       const UAttributes &attributes) const {
 
         uint32_t random;
@@ -85,7 +85,7 @@ class RandomListener : public UListener {
 class CounterListener : public UListener {
 
     UStatus onReceive(const UUri &uri, 
-                      const UPayload &payload, 
+                      const upayload &payload, 
                       const UAttributes &attributes) const {
 
         uint8_t counter;

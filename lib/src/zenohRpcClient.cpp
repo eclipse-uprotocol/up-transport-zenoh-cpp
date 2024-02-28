@@ -27,6 +27,7 @@
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
+#include <up-cpp/utils/ThreadPool.h>
 #include <up-core-api/ustatus.pb.h>
 #include <up-core-api/uattributes.pb.h>
 #include <spdlog/spdlog.h>
@@ -36,6 +37,7 @@ using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
 using namespace uprotocol::uri;
 using namespace uprotocol::v1;
+using namespace uprotocol::utils;
 
 ZenohRpcClient& ZenohRpcClient::instance(void) noexcept {
     
@@ -69,15 +71,12 @@ UStatus ZenohRpcClient::init() noexcept {
                 return status;
             }
 
-            threadPool_ = make_shared<ThreadPool>(threadPoolSize_);
+            threadPool_ = make_shared<ThreadPool>(queueSize_, maxNumOfCuncurrentRequests_);
             if (nullptr == threadPool_) {
                 spdlog::error("failed to create thread pool");
                 status.set_code(UCode::UNAVAILABLE);
                 return status;
             }
-
-            threadPool_->init();
-
         }
         refCount_.fetch_add(1);
 
@@ -100,8 +99,6 @@ UStatus ZenohRpcClient::term() noexcept {
 
     if (0 == refCount_) {
 
-        threadPool_->term();
-
         if (UCode::OK != ZenohSessionManager::instance().term()) {
             spdlog::error("zenohSessionManager::instance().term() failed");
             status.set_code(UCode::UNAVAILABLE);
@@ -113,15 +110,20 @@ UStatus ZenohRpcClient::term() noexcept {
 
     return status;
 }
-std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri, const UPayload &payload, const UAttributes &attributes) noexcept {
-    std::future<UPayload> future;
+std::future<upayload> ZenohRpcClient::invokeMethod(const UUri &uri, const upayload &payload, const UAttributes &attributes) noexcept {
+    std::future<upayload> future;
 
     if (0 == refCount_) {
         spdlog::error("ZenohRpcClient is not initialized");
         return std::move(future);
     }
 
-    if (UMessageType::REQUEST != attributes.type()) {
+    if (false == isRPCMethod(uri.resource())) {
+        spdlog::error("URI is not of RPC type");
+        return std::move(future);
+    }
+
+    if (UMessageType::UMESSAGE_TYPE_REQUEST != attributes.type()) {
         spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
         return std::move(future);
     }
@@ -158,20 +160,21 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri, const UPaylo
 
     future = threadPool_->submit([=] { return handleReply(channel); });
 
-    if (!future.valid()) {
-        spdlog::error("failed to invoke method");
-    }
-
     z_drop(&map);
     return future;
 }
-UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
+upayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
     z_owned_reply_t reply = z_reply_null();
-    UPayload response(nullptr, 0, UPayloadType::VALUE);
+    upayload retPayload(nullptr, 0, upayloadType::VALUE);
 
     for (z_call(channel->recv, &reply); z_check(reply); z_call(channel->recv, &reply)) {
-        if (z_reply_is_ok(&reply)) {
-            z_sample_t sample = z_reply_ok(&reply);
+        
+        if (!z_reply_is_ok(&reply)) {
+            spdlog::error("error received");
+            break;
+        }
+           
+        z_sample_t sample = z_reply_ok(&reply);
 
             if (sample.payload.len == 0 || sample.payload.start == nullptr) {
                 spdlog::error("Payload is empty");
@@ -186,7 +189,7 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 
             const auto& payloadData = message.payload();
             if (!payloadData.value().empty()) {
-                response = UPayload(payloadData.value().data(), payloadData.value().size(), UPayloadType::VALUE);
+                response = upayload(payloadData.value().data(), payloadData.value().size(), upayloadType::VALUE);
             } else {
                 spdlog::error("Deserialized payload is empty");
             }
@@ -195,12 +198,14 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
             break;
         }
 
+        auto response = upayload(sample.payload.start, sample.payload.len, upayloadType::VALUE);
+        
+        retPayload = response;
         z_drop(z_move(reply));
     }
 
-    z_drop(z_move(reply));
     z_drop((channel));
     delete channel;
 
-    return response;
+    return retPayload;
 }

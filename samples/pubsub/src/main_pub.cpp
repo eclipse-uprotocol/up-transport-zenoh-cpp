@@ -85,7 +85,7 @@ UCode sendMessage(UUri &uri,
 
     UAttributes attributes = builder.build();
 
-    UPayload payload(buffer, size, UPayloadType::VALUE);
+    upayload payload(buffer, size, upayloadType::VALUE);
    
     if (UCode::OK != ZenohUTransport::instance().send(uri, payload, attributes).code()) {
         spdlog::error("ZenohUTransport::instance().send failed");

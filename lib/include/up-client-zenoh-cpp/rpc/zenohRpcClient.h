@@ -26,13 +26,14 @@
 #define _ZENOH_RPC_CLIENT_H_
 
 #include <up-cpp/rpc/RpcClient.h>
-#include <up-client-zenoh-cpp/utils/ThreadPool.h>
-#include <zenoh.h>
+#include <up-cpp/utils/ThreadPool.h>
 #include <up-core-api/ustatus.pb.h>
 #include <up-core-api/uri.pb.h>
+#include <zenoh.h>
 
 using namespace std;
 using namespace uprotocol::utransport;
+using namespace uprotocol::utils;
 using namespace uprotocol::v1;
 
 class ZenohRpcClient : public RpcClient {
@@ -67,14 +68,14 @@ class ZenohRpcClient : public RpcClient {
         * @param attributes Metadata for the method invocation (i.e. priority, timeout, etc.)
         * @return Returns the CompletableFuture with the result or exception.
         */
-        std::future<UPayload> invokeMethod(const UUri &uri, 
-                                           const UPayload &payload, 
+        std::future<upayload> invokeMethod(const UUri &uri, 
+                                           const upayload &payload, 
                                            const UAttributes &attributes) noexcept;
     private:
 
         ZenohRpcClient() {}
 
-        static UPayload handleReply(z_owned_reply_channel_t *channel);
+        static upayload handleReply(z_owned_reply_channel_t *channel);
         
         /* zenoh session handle*/
         z_owned_session_t session_;
@@ -85,7 +86,8 @@ class ZenohRpcClient : public RpcClient {
         std::shared_ptr<ThreadPool> threadPool_;
 
         static constexpr auto requestTimeoutMs_ = 5000;
-        static constexpr auto threadPoolSize_ = size_t(10);
+        static constexpr auto queueSize_ = size_t(20);
+        static constexpr auto maxNumOfCuncurrentRequests_ = size_t(2);
 
 };
 
