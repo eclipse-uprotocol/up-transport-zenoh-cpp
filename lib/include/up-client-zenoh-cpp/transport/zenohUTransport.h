@@ -30,6 +30,7 @@
 #include <atomic>
 #include <zenoh.h>
 #include <up-cpp/transport/UTransport.h>
+#include <up-core-api/upayload.pb.h>
 
 using namespace uprotocol::v1;
 using namespace std;
@@ -126,8 +127,8 @@ class ZenohUTransport : public UTransport {
                             const upayload &payload,
                             const UAttributes &attributes) noexcept;
 
-        // UCode mapEncoding(const USerializationHint &encodingIn, 
-        //                   z_encoding_t &encodingOut) noexcept;
+        UCode mapEncoding(const UPayloadFormat &encodingIn, 
+                          z_encoding_t &encodingOut) noexcept;
 
         /* zenoh session handle*/
         z_owned_session_t session_;

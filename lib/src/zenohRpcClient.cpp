@@ -30,6 +30,8 @@
 #include <up-cpp/utils/ThreadPool.h>
 #include <up-core-api/ustatus.pb.h>
 #include <up-core-api/uattributes.pb.h>
+#include <up-core-api/upayload.pb.h>
+#include <up-core-api/umessage.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
 
@@ -124,7 +126,7 @@ std::future<upayload> ZenohRpcClient::invokeMethod(const UUri &uri, const upaylo
     }
 
     if (UMessageType::UMESSAGE_TYPE_REQUEST != attributes.type()) {
-        spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
+        spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
         return std::move(future);
     }
 
@@ -150,9 +152,9 @@ std::future<upayload> ZenohRpcClient::invokeMethod(const UUri &uri, const upaylo
 
     opts.attachment = z_bytes_map_as_attachment(&map);
 
-    if (0 != z_put(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), 
-                   payload.data(), payload.size(), &opts)) {
-        spdlog::error("z_put failure");
+    if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), 
+                   "", z_move(channel->send), &opts)) {
+        spdlog::error("z_get failure");
         z_drop(&map);
         delete channel;
         return std::move(future);
@@ -163,48 +165,43 @@ std::future<upayload> ZenohRpcClient::invokeMethod(const UUri &uri, const upaylo
     z_drop(&map);
     return future;
 }
+
 upayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
     z_owned_reply_t reply = z_reply_null();
     upayload retPayload(nullptr, 0, upayloadType::VALUE);
 
-    for (z_call(channel->recv, &reply); z_check(reply); z_call(channel->recv, &reply)) {
-        
+    while (z_call(channel->recv, &reply), z_check(reply)) {
         if (!z_reply_is_ok(&reply)) {
             spdlog::error("error received");
             break;
         }
-           
+
         z_sample_t sample = z_reply_ok(&reply);
-
-            if (sample.payload.len == 0 || sample.payload.start == nullptr) {
-                spdlog::error("Payload is empty");
-                continue;
-            }
-
-            uprotocol::v1::UMessage message;
-            if (!message.ParseFromArray(sample.payload.start, sample.payload.len)) {
-                spdlog::error("ParseFromArray failure");
-                continue;
-            }
-
-            const auto& payloadData = message.payload();
-            if (!payloadData.value().empty()) {
-                response = upayload(payloadData.value().data(), payloadData.value().size(), upayloadType::VALUE);
-            } else {
-                spdlog::error("Deserialized payload is empty");
-            }
-        } else {
-            spdlog::error("error received");
-            break;
+        if (sample.payload.len == 0 || sample.payload.start == nullptr) {
+            spdlog::error("Payload is empty");
+            continue;
         }
 
-        auto response = upayload(sample.payload.start, sample.payload.len, upayloadType::VALUE);
-        
-        retPayload = response;
+        uprotocol::v1::UMessage message;
+        if (!message.ParseFromArray(sample.payload.start, sample.payload.len)) {
+            spdlog::error("ParseFromArray failure");
+            continue;
+        }
+
+        const auto& payloadData = message.payload();
+        if (!payloadData.value().empty()) {
+            auto response = upayload(reinterpret_cast<const uint8_t*>(payloadData.value().data()),
+                payloadData.value().size(), upayloadType::VALUE);
+
+            retPayload = response;
+        } else {
+            spdlog::error("Deserialized payload is empty");
+        }
+
         z_drop(z_move(reply));
     }
 
-    z_drop((channel));
+    z_drop((z_owned_reply_channel_t*)channel);
     delete channel;
 
     return retPayload;
