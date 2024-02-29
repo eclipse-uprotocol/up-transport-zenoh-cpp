@@ -56,17 +56,6 @@ $ cd up-cpp-client-zenoh
 $ conan create . 
 ```
 
-#### Compiling sample apps
-
-```
-$ cd up-cpp-client-zenoh
-$ conan install samples/conaninfo/  --output-folder=.
-$ cd build/Release
-$ cmake ../../ -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
-$ make -j
-```
-
-
 ## Show your support
 
 Give a ⭐️ if this project helped you!
