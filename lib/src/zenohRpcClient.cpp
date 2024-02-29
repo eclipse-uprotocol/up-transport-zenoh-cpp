@@ -130,6 +130,11 @@ std::future<upayload> ZenohRpcClient::invokeMethod(const UUri &uri, const upaylo
         return std::move(future);
     }
 
+    auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
+
+    z_owned_reply_channel_t *channel = new z_owned_reply_channel_t;
+    *channel = zc_reply_fifo_new(16);
+
     // Serialize UAttributes
     size_t attrSize = attributes.ByteSizeLong();
     std::vector<uint8_t> serializedAttributes(attrSize);
@@ -137,11 +142,6 @@ std::future<upayload> ZenohRpcClient::invokeMethod(const UUri &uri, const upaylo
         spdlog::error("SerializeToArray failure");
         return std::move(future);
     }
-
-    auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
-
-    z_owned_reply_channel_t *channel = new z_owned_reply_channel_t;
-    *channel = zc_reply_fifo_new(16);
 
     z_get_options_t opts = z_get_options_default();
     opts.timeout_ms = requestTimeoutMs_;
@@ -182,21 +182,7 @@ upayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
             continue;
         }
 
-        uprotocol::v1::UMessage message;
-        if (!message.ParseFromArray(sample.payload.start, sample.payload.len)) {
-            spdlog::error("ParseFromArray failure");
-            continue;
-        }
-
-        const auto& payloadData = message.payload();
-        if (!payloadData.value().empty()) {
-            auto response = upayload(reinterpret_cast<const uint8_t*>(payloadData.value().data()),
-                payloadData.value().size(), upayloadType::VALUE);
-
-            retPayload = response;
-        } else {
-            spdlog::error("Deserialized payload is empty");
-        }
+        retPayload = upayload(sample.payload.start, sample.payload.len, upayloadType::VALUE);
 
         z_drop(z_move(reply));
     }

@@ -591,34 +591,6 @@ UCode ZenohUTransport::mapEncoding(const UPayloadFormat &encodingIn,
 
     return UCode::OK;
 }
-// UCode ZenohUTransport::mapEncoding(const USerializationHint &encodingIn, 
-//                                    z_encoding_t &encodingOut) noexcept {
-
-//     switch (encodingIn) {
-//         case USerializationHint::PROTOBUF: {
-//             encodingOut = z_encoding(Z_ENCODING_PREFIX_APP_OCTET_STREAM, nullptr);
-//         }
-//         break;
-//         case USerializationHint::JSON: {
-//             encodingOut = z_encoding(Z_ENCODING_PREFIX_APP_JSON, nullptr);
-//         }
-//         break;
-//         case USerializationHint::SOMEIP: {
-//             encodingOut = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
-//         }
-//         break;
-//         case USerializationHint::RAW: {
-//             encodingOut = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
-//         }
-//         break;
-//         case USerializationHint::UNKNOWN: 
-//         default: {
-//             return UCode::UNAVAILABLE; 
-//         }
-//     }
-
-//     return UCode::OK;
-// }
 
 UStatus ZenohUTransport::receive(const UUri &uri, 
                                  const upayload &payload, 
