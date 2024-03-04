@@ -184,6 +184,18 @@ upayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 
         retPayload = upayload(sample.payload.start, sample.payload.len, upayloadType::VALUE);
 
+        z_bytes_t serializedAttributes = z_attachment_get(sample.attachment, z_bytes_new("attributes"));
+        if (serializedAttributes.len == 0 || serializedAttributes.start == nullptr) {
+            spdlog::error("Serialized attributes not found in the attachment");
+            continue;
+        }
+
+        uprotocol::v1::UAttributes attributes;
+        if (!attributes.ParseFromArray(serializedAttributes.start, serializedAttributes.len)) {
+            spdlog::error("ParseFromArray failure");
+            continue;
+        }
+
         z_drop(z_move(reply));
     }
 
