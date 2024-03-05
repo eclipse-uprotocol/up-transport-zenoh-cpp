@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 General Motors GTO LLC
+ * Copyright (c) 2024 General Motors GTO LLC
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  * SPDX-FileType: SOURCE
- * SPDX-FileCopyrightText: 2023 General Motors GTO LLC
+ * SPDX-FileCopyrightText: 2024 General Motors GTO LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -30,15 +30,12 @@
 #include <up-cpp/utils/ThreadPool.h>
 #include <up-core-api/ustatus.pb.h>
 #include <up-core-api/uattributes.pb.h>
-#include <up-core-api/upayload.pb.h>
-#include <up-core-api/umessage.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
 using namespace uprotocol::uri;
-using namespace uprotocol::v1;
 using namespace uprotocol::utils;
 
 ZenohRpcClient& ZenohRpcClient::instance(void) noexcept {
@@ -112,8 +109,11 @@ UStatus ZenohRpcClient::term() noexcept {
 
     return status;
 }
-std::future<upayload> ZenohRpcClient::invokeMethod(const UUri &uri, const upayload &payload, const UAttributes &attributes) noexcept {
-    std::future<upayload> future;
+std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
+                                                   const UPayload &payload, 
+                                                   const UAttributes &attributes) noexcept {
+
+    std::future<UPayload> future;
 
     if (0 == refCount_) {
         spdlog::error("ZenohRpcClient is not initialized");
@@ -133,6 +133,11 @@ std::future<upayload> ZenohRpcClient::invokeMethod(const UUri &uri, const upaylo
     auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
 
     z_owned_reply_channel_t *channel = new z_owned_reply_channel_t;
+    if (nullptr == channel) {
+        spdlog::error("failed to allocate channel");
+        return std::move(future);
+    }
+
     *channel = zc_reply_fifo_new(16);
 
     // Serialize UAttributes
@@ -166,9 +171,11 @@ std::future<upayload> ZenohRpcClient::invokeMethod(const UUri &uri, const upaylo
     return future;
 }
 
-upayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
+UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
+
     z_owned_reply_t reply = z_reply_null();
-    upayload retPayload(nullptr, 0, upayloadType::VALUE);
+    
+    UPayload retPayload(nullptr, 0, UPayloadType::VALUE);
 
     while (z_call(channel->recv, &reply), z_check(reply)) {
         if (!z_reply_is_ok(&reply)) {
@@ -177,29 +184,37 @@ upayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
         }
 
         z_sample_t sample = z_reply_ok(&reply);
+
         if (sample.payload.len == 0 || sample.payload.start == nullptr) {
             spdlog::error("Payload is empty");
-            continue;
+            break;
         }
 
-        retPayload = upayload(sample.payload.start, sample.payload.len, upayloadType::VALUE);
+        if (!z_check(sample.attachment)) {
+            spdlog::error("No attachment found in the reply");
+            break;
+        }       
 
         z_bytes_t serializedAttributes = z_attachment_get(sample.attachment, z_bytes_new("attributes"));
-        if (serializedAttributes.len == 0 || serializedAttributes.start == nullptr) {
+        
+        if ((0 == serializedAttributes.len) || (nullptr == serializedAttributes.start)) {
             spdlog::error("Serialized attributes not found in the attachment");
-            continue;
+            break;
         }
 
         uprotocol::v1::UAttributes attributes;
         if (!attributes.ParseFromArray(serializedAttributes.start, serializedAttributes.len)) {
             spdlog::error("ParseFromArray failure");
-            continue;
+            break;
         }
+
+        retPayload = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
 
         z_drop(z_move(reply));
     }
 
     z_drop((z_owned_reply_channel_t*)channel);
+
     delete channel;
 
     return retPayload;

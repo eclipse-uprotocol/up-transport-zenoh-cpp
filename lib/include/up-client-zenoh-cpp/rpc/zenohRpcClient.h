@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 General Motors GTO LLC
+ * Copyright (c) 2024 General Motors GTO LLC
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  * SPDX-FileType: SOURCE
- * SPDX-FileCopyrightText: 2023 General Motors GTO LLC
+ * SPDX-FileCopyrightText: 2024 General Motors GTO LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -27,6 +27,7 @@
 
 #include <up-cpp/rpc/RpcClient.h>
 #include <up-cpp/utils/ThreadPool.h>
+#include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-core-api/ustatus.pb.h>
 #include <up-core-api/uri.pb.h>
 #include <zenoh.h>
@@ -68,14 +69,14 @@ class ZenohRpcClient : public RpcClient {
         * @param attributes Metadata for the method invocation (i.e. priority, timeout, etc.)
         * @return Returns the CompletableFuture with the result or exception.
         */
-        std::future<upayload> invokeMethod(const UUri &uri, 
-                                           const upayload &payload, 
+        std::future<UPayload> invokeMethod(const UUri &uri, 
+                                           const UPayload &payload, 
                                            const UAttributes &attributes) noexcept;
     private:
 
         ZenohRpcClient() {}
 
-        static upayload handleReply(z_owned_reply_channel_t *channel);
+        static UPayload handleReply(z_owned_reply_channel_t *channel);
         
         /* zenoh session handle*/
         z_owned_session_t session_;

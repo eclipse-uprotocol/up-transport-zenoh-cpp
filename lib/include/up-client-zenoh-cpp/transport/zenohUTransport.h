@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 General Motors GTO LLC
+ * Copyright (c) 2024 General Motors GTO LLC
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  * SPDX-FileType: SOURCE
- * SPDX-FileCopyrightText: 2023 General Motors GTO LLC
+ * SPDX-FileCopyrightText: 2024 General Motors GTO LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -29,8 +29,8 @@
 #include <unordered_map>
 #include <atomic>
 #include <zenoh.h>
+#include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/UTransport.h>
-#include <up-core-api/upayload.pb.h>
 
 using namespace uprotocol::v1;
 using namespace std;
@@ -69,7 +69,7 @@ class ZenohUTransport : public UTransport {
         UStatus term() noexcept; 
 
         /**
-        * Transmit upayload to the topic using the attributes defined in UTransportAttributes.
+        * Transmit UPayload to the topic using the attributes defined in UTransportAttributes.
         * @param topic Resolved UUri topic to send the payload to.
         * @param payload Actual payload.
         * @param attributes Additional transport attributes.
@@ -77,11 +77,11 @@ class ZenohUTransport : public UTransport {
         * returns FAILSTATUS with the appropriate failure.
         */
         UStatus send(const UUri &uri, 
-                     const upayload &payload,
+                     const UPayload &payload,
                      const UAttributes &attributes) noexcept;
 
         /**
-        * Register listener to be called when upayload is received for the specific topic.
+        * Register listener to be called when UPayload is received for the specific topic.
         * @param topic Resolved UUri for where the message arrived via the underlying transport technology.
         * @param listener The method to execute to process the date for the topic.
         * @return Returns OKSTATUS if the listener is unregistered correctly, otherwise it returns FAILSTATUS
@@ -102,7 +102,7 @@ class ZenohUTransport : public UTransport {
                                    const UListener &listener) noexcept;
 
         UStatus receive(const UUri &uri, 
-                        const upayload &payload, 
+                        const UPayload &payload, 
                         const UAttributes &attributes) noexcept;
 
     private:
@@ -120,15 +120,15 @@ class ZenohUTransport : public UTransport {
                                void* arg);
 
         UCode sendPublish(const UUri &uri, 
-                          const upayload &payload,
+                          const UPayload &payload,
                           const UAttributes &attributes) noexcept;
 
         UCode sendQueryable(const UUri &uri, 
-                            const upayload &payload,
+                            const UPayload &payload,
                             const UAttributes &attributes) noexcept;
 
-        UCode mapEncoding(const UPayloadFormat &encodingIn, 
-                          z_encoding_t &encodingOut) noexcept;
+        UCode mapEncoding(const UPayloadFormat &payloadFormat, 
+                          z_encoding_t &encoding) noexcept;
 
         /* zenoh session handle*/
         z_owned_session_t session_;

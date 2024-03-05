@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 General Motors GTO LLC
+ * Copyright (c) 2024 General Motors GTO LLC
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  * SPDX-FileType: SOURCE
- * SPDX-FileCopyrightText: 2023 General Motors GTO LLC
+ * SPDX-FileCopyrightText: 2024 General Motors GTO LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -30,8 +30,6 @@
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
 #include <up-core-api/uattributes.pb.h>
-#include <up-core-api/umessage.pb.h>
-#include <up-core-api/upayload.pb.h>
 
 using namespace std;
 using namespace uprotocol::uri;
@@ -137,7 +135,6 @@ UStatus ZenohUTransport::term() noexcept {
             listenerInfo.second->listenerVector_.clear();
             listenerInfo.second->subVector_.clear();
         }
-
     
         listenerMap_.clear();
 
@@ -156,7 +153,7 @@ UStatus ZenohUTransport::term() noexcept {
 }
 
 UStatus ZenohUTransport::send(const UUri &uri,
-                              const upayload &payload,
+                              const UPayload &payload,
                               const UAttributes &attributes) noexcept {
     UStatus status;
 
@@ -187,7 +184,7 @@ UStatus ZenohUTransport::send(const UUri &uri,
     return status;
 }
 UCode ZenohUTransport::sendPublish(const UUri &uri, 
-                                   const upayload &payload,
+                                   const UPayload &payload,
                                    const UAttributes &attributes) noexcept {
     UCode status = UCode::UNAVAILABLE;
 
@@ -234,11 +231,9 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
             return UCode::INTERNAL;
         }
 
-        z_bytes_t bytes;
-        bytes.len = serializedAttributes.size();
-        bytes.start = serializedAttributes.data();
-        z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), bytes);
-
+        z_bytes_t attrBytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
+        z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), attrBytes);
+    
         // Publish the message
         if (0 != z_publisher_put(z_loan(pub), payload.data(), payload.size(), &options)) {
             spdlog::error("z_publisher_put failed");
@@ -255,8 +250,9 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
     return status;
 }
 UCode ZenohUTransport::sendQueryable(const UUri &uri, 
-                                     const upayload &payload,
+                                     const UPayload &payload,
                                      const UAttributes &attributes) noexcept {
+
     if (UMessageType::UMESSAGE_TYPE_RESPONSE != attributes.type()) {
         spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
         return UCode::INVALID_ARGUMENT;
@@ -292,6 +288,7 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
     z_owned_bytes_map_t map = z_bytes_map_new();
     z_bytes_t attrBytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
     z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), attrBytes);
+    
     options.attachment = z_bytes_map_as_attachment(&map);
 
     z_query_t lquery = z_loan(query);
@@ -312,6 +309,7 @@ UCode ZenohUTransport::sendQueryable(const UUri &uri,
     queryMap_.erase(uuidStr);
 
     z_drop(z_move(map));
+
     return UCode::OK;
 }
 
@@ -486,7 +484,7 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
 
 void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
 
-    if (sample == nullptr || arg == nullptr) {
+    if ((nullptr == sample) || (nullptr == arg)) {
        spdlog::error("Invalid arguments for SubHandler");
        return;
     }
@@ -508,7 +506,8 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
        return;
     }
 
-    upayload payload{sample->payload.start, sample->payload.len, upayloadType::REFERENCE};
+    UPayload payload{sample->payload.start, sample->payload.len, UPayloadType::REFERENCE};
+   
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
 
     // Retrieve URI, listener, and other necessary data from the tuple
@@ -518,8 +517,10 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
     // Pass the parsed headers and payload to the listener's onReceive method
     if (UCode::OK != listener->onReceive(*uri, payload, attributes).code()) {
        spdlog::error("listener->onReceive failed");
+       /* TODO handle error */
     }
 }
+
 void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
 
@@ -544,7 +545,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
 
     z_value_t payloadValue = z_query_value(query);
 
-    upayload payload(payloadValue.payload.start, payloadValue.payload.len, upayloadType::REFERENCE);
+    UPayload payload(payloadValue.payload.start, payloadValue.payload.len, UPayloadType::REFERENCE);
 
     auto uri = get<0>(*tuplePtr);
     auto instance = get<1>(*tuplePtr);
@@ -565,27 +566,28 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
        return;
     }
 }
-UCode ZenohUTransport::mapEncoding(const UPayloadFormat &encodingIn, 
-                               z_encoding_t &encodingOut) noexcept {
-    switch (encodingIn) {
-        case UPayloadFormat::UPAYLOAD_FORMAT_PROTOBUF:
-        case UPayloadFormat::UPAYLOAD_FORMAT_PROTOBUF_WRAPPED_IN_ANY:
-            encodingOut = z_encoding(Z_ENCODING_PREFIX_APP_OCTET_STREAM, nullptr);
+UCode ZenohUTransport::mapEncoding(const UPayloadFormat &payloadFormat, 
+                                   z_encoding_t &encoding) noexcept {
+    switch (payloadFormat) {
+        case UPayloadFormat::PROTOBUF:
+        case UPayloadFormat::PROTOBUF_WRAPPED_IN_ANY:
+            encoding = z_encoding(Z_ENCODING_PREFIX_APP_OCTET_STREAM, nullptr);
             break;
-        case UPayloadFormat::UPAYLOAD_FORMAT_JSON:
-            encodingOut = z_encoding(Z_ENCODING_PREFIX_APP_JSON, nullptr);
+        case UPayloadFormat::JSON:
+            encoding = z_encoding(Z_ENCODING_PREFIX_APP_JSON, nullptr);
             break;
-        case UPayloadFormat::UPAYLOAD_FORMAT_SOMEIP:
-        case UPayloadFormat::UPAYLOAD_FORMAT_SOMEIP_TLV:
-            encodingOut = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
+        case UPayloadFormat::SOMEIP:
+        case UPayloadFormat::SOMEIP_TLV:
+            encoding = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
             break;
-        case UPayloadFormat::UPAYLOAD_FORMAT_RAW:
-            encodingOut = z_encoding(Z_ENCODING_PREFIX_APP_OCTET_STREAM, nullptr);
+        case UPayloadFormat::RAW:
+            encoding = z_encoding(Z_ENCODING_PREFIX_APP_OCTET_STREAM, nullptr);
             break;
-        case UPayloadFormat::UPAYLOAD_FORMAT_TEXT:
-            encodingOut = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
+        case UPayloadFormat::TEXT:
+            encoding = z_encoding(Z_ENCODING_PREFIX_TEXT_PLAIN, nullptr);
             break;
         default:
+            spdlog::error("wrong format provided");
             return UCode::UNAVAILABLE;
     }
 
@@ -593,7 +595,7 @@ UCode ZenohUTransport::mapEncoding(const UPayloadFormat &encodingIn,
 }
 
 UStatus ZenohUTransport::receive(const UUri &uri, 
-                                 const upayload &payload, 
+                                 const UPayload &payload, 
                                  const UAttributes &attributes) noexcept {
 
     UStatus status;
