@@ -26,7 +26,7 @@ if(BUILD_UNBUNDLED)
     find_package(up-cpp REQUIRED)
     find_package(zenohc REQUIRED)
 else()
-    find_library(ZENOH_LIB zenohc HINTS ~/local)
+    find_library(ZENOH_LIB zenohc)
     find_package(up-cpp QUIET)
 endif()
 
