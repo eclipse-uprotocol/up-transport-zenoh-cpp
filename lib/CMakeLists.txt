@@ -45,12 +45,12 @@ set(SRC_FILES
 add_library(${PROJECT_NAME} ${SRC_FILES})
 add_library(up-client-zenoh-cpp::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-message("MICHAEL ${CMAKE_ZENOH_INCLUDE_PATH}")
+message("MICHAEL $ENV{CMAKE_ZENOH_INCLUDE_PATH}")
 target_include_directories(${PROJECT_NAME} 
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
-        ${CMAKE_ZENOH_INCLUDE_PATH}
+        $ENV{CMAKE_ZENOH_INCLUDE_PATH}
         ${HOME}/include
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
