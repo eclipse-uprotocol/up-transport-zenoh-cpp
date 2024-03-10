@@ -49,6 +49,7 @@ target_include_directories(${PROJECT_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+        ${CMAKE_INCLUDE_PATH}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
