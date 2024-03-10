@@ -24,6 +24,7 @@ class UpClientZenoh(ConanFile):
         "fPIC": [True, False],
         "build_testing": [True, False],
         "build_unbundled": [True, False],
+        "zenoh_package" [True, False],
         "build_cross_compiling": [True, False],
     }
 
@@ -32,6 +33,7 @@ class UpClientZenoh(ConanFile):
         "fPIC": False,
         "build_testing": False,
         "build_unbundled": False,
+        "zenoh_package": True,
         "build_cross_compiling": False,
     }
 
@@ -44,10 +46,9 @@ class UpClientZenoh(ConanFile):
         if self.options.build_testing:
             self.requires("gtest/1.14.0")
         if self.options.build_unbundled: #each componenet is built independently 
-            self.requires("up-cpp/0.1.5.0-dev")
-            self.requires("zenohc/cci.20240213")
-        else:
-            self.requires("up-cpp/0.1")
+            self.requires("up-cpp/0.1.5.1-dev")
+            if self.options.zenoh_package:
+                self.requires("zenohc/cci.20240213")
 
     def generate(self):
         tc = CMakeToolchain(self)
