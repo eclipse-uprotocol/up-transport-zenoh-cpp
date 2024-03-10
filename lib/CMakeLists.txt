@@ -27,6 +27,7 @@ if(BUILD_UNBUNDLED)
     find_package(zenohc REQUIRED)
 else()
     find_library(ZENOH_LIB zenohc)
+    find_package(up-cpp REQUIRED)
 endif()
 
 # Support pulling headers outside of /usr/local
@@ -64,7 +65,17 @@ else()
             ${up-cpp_INCLUDE_DIR}
             include
     )
-    target_link_libraries(${PROJECT_NAME} PRIVATE up-cpp::up-cpp ${ZENOH_LIB})
+    if (${up-cpp_FOUND})
+        target_link_libraries(${PROJECT_NAME} 
+            PRIVATE 
+            up-cpp::up-cpp 
+            ${ZENOH_LIB})
+    else()
+        target_link_libraries(${PROJECT_NAME} 
+            PRIVATE 
+            up-cpp 
+            ${ZENOH_LIB})
+    endif()
 endif()
 
 INSTALL(TARGETS ${PROJECT_NAME})
