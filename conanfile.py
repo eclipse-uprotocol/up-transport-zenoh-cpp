@@ -39,14 +39,13 @@ class UpClientZenoh(ConanFile):
     #     self.options["up-cpp"].shared = True
 
     def requirements(self):
-        if self.options.build_unbundled:
+        self.requires("protobuf/3.21.12" + ("@cross/cross" if self.options.build_cross_compiling else ""))
+        self.requires("spdlog/1.13.0")
+        if self.options.build_testing:
+            self.requires("gtest/1.14.0")
+        if self.options.build_unbundled: #each componenet is built independently 
             self.requires("up-cpp/0.1.5.0-dev")
             self.requires("zenohc/cci.20240213")
-            self.requires("protobuf/3.21.12" + ("@cross/cross" if self.options.build_cross_compiling else ""))
-        else:
-            self.requires("up-cpp/0.1")
-            self.requires("spdlog/1.13.0")
-            self.requires("protobuf/3.21.12")
 
     def generate(self):
         tc = CMakeToolchain(self)

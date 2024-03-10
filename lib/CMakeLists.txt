@@ -19,14 +19,14 @@
 cmake_minimum_required(VERSION 3.20)
 project(up-client-zenoh-cpp VERSION 0.1.0 LANGUAGES CXX)
 
+find_package(Protobuf REQUIRED)
+find_package(spdlog REQUIRED)
+
 if(BUILD_UNBUNDLED)
     find_package(up-cpp REQUIRED)
     find_package(zenohc REQUIRED)
 else()
     find_library(ZENOH_LIB zenohc)
-    find_package(up-cpp REQUIRED)
-    find_package(Protobuf REQUIRED)
-    find_package(spdlog REQUIRED)
 endif()
 
 # Support pulling headers outside of /usr/local

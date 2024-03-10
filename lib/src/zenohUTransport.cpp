@@ -93,7 +93,7 @@ UStatus ZenohUTransport::term() noexcept {
 
     if (0 == refCount_) {
 
-        uint8_t retries;
+        uint8_t retries = 0;
 
         termPending_ = true;
 
@@ -277,6 +277,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 UCode ZenohUTransport::sendQueryable(const UUri &uri, 
                                      const UPayload &payload,
                                      const UAttributes &attributes) noexcept {
+
     if (UMessageType::RESPONSE != attributes.type()) {
         spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
         return UCode::INVALID_ARGUMENT;
