@@ -24,7 +24,7 @@ class UpClientZenoh(ConanFile):
         "fPIC": [True, False],
         "build_testing": [True, False],
         "build_unbundled": [True, False],
-        "zenoh_package" [True, False],
+        "zenoh_package": [True, False],
         "build_cross_compiling": [True, False],
     }
 
