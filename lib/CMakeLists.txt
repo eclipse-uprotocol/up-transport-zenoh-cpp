@@ -27,7 +27,7 @@ if(BUILD_UNBUNDLED)
     find_package(zenohc REQUIRED)
 else()
     find_library(ZENOH_LIB zenohc)
-    find_package(up-cpp REQUIRED)
+    find_package(up-cpp QUIET)
 endif()
 
 # Support pulling headers outside of /usr/local
@@ -40,42 +40,28 @@ set(SRC_FILES
     src/zenohRpcClient.cpp
     src/zenohSessionManager.cpp
     src/messageBuilder.cpp
-    src/messageParser.cpp
-    )
+    src/messageParser.cpp)
 
 add_library(${PROJECT_NAME} ${SRC_FILES})
 add_library(up-client-zenoh-cpp::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
+target_include_directories(${PROJECT_NAME} 
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 if(BUILD_UNBUNDLED)
-    target_include_directories(${PROJECT_NAME} 
-        PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
-    )
     target_link_libraries(${PROJECT_NAME} 
         PRIVATE 
             up-cpp::up-cpp
-            zenohc::lib 
-    )
+            zenohc::lib)
 else()
-    target_include_directories(${PROJECT_NAME} 
-        PRIVATE 
-            ${up-cpp_INCLUDE_DIR}
-            include
-    )
-    if (${up-cpp_FOUND})
-        target_link_libraries(${PROJECT_NAME} 
-            PRIVATE 
+    target_link_libraries(${PROJECT_NAME} 
+        PUBLIC 
             up-cpp::up-cpp 
-            ${ZENOH_LIB})
-    else()
-        target_link_libraries(${PROJECT_NAME} 
-            PRIVATE 
-            up-cpp 
-            ${ZENOH_LIB})
-    endif()
+            ${ZENOH_LIB}) 
 endif()
 
 INSTALL(TARGETS ${PROJECT_NAME})
