@@ -16,7 +16,7 @@ class UpClientZenoh(ConanFile):
     options = {"shared": [True, False], "fPIC": [True, False]}
     conan_version = None
     generators = "CMakeDeps"
-    version = "0.1.1-dev"
+    version = "0.1.2-dev"
     exports_sources = "CMakeLists.txt", "lib/*"
 
     options = {
