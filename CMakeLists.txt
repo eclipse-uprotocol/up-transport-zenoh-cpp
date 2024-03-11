@@ -36,6 +36,7 @@ endif()
     
 add_subdirectory(lib)
 
-if(BUILD_SAMPLES)
-    add_subdirectory(samples)
+if(BUILD_TESTING)
+	enable_testing()
+	add_subdirectory(test)
 endif()

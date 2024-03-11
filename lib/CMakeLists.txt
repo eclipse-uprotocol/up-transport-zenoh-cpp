@@ -56,7 +56,7 @@ target_include_directories(${PROJECT_NAME}
 
 if(BUILD_UNBUNDLED)
     target_link_libraries(${PROJECT_NAME} 
-        PRIVATE 
+        PUBLIC 
             up-cpp::up-cpp
             zenohc::lib)
 else()

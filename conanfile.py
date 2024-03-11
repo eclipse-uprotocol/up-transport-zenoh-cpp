@@ -17,7 +17,7 @@ class UpClientZenoh(ConanFile):
     conan_version = None
     generators = "CMakeDeps"
     version = "0.1.2-dev"
-    exports_sources = "CMakeLists.txt", "lib/*"
+    exports_sources = "CMakeLists.txt", "lib/*", "test/*"
 
     options = {
         "shared": [True, False],
@@ -31,7 +31,7 @@ class UpClientZenoh(ConanFile):
     default_options = {
         "shared": False,
         "fPIC": False,
-        "build_testing": False,
+        "build_testing": True,
         "build_unbundled": True,
         "zenoh_package": False,
         "build_cross_compiling": False,
@@ -49,6 +49,7 @@ class UpClientZenoh(ConanFile):
 
     def generate(self):
         tc = CMakeToolchain(self)
+        tc.variables["BUILD_TESTING"] = self.options.build_testing
         tc.generate()
 
     def build(self):
@@ -62,3 +63,4 @@ class UpClientZenoh(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = ["up-client-zenoh-cpp"]
+
