@@ -25,6 +25,7 @@ cmake_minimum_required(VERSION 3.20)
 project(test VERSION 0.1.0 LANGUAGES CXX)
 
 find_package(GTest REQUIRED)
+find_package(spdlog REQUIRED)
 
 # include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 add_executable(main_test
@@ -32,6 +33,7 @@ add_executable(main_test
 target_link_libraries(main_test 
 	PUBLIC
 		up-client-zenoh-cpp::up-client-zenoh-cpp
+        spdlog::spdlog
 	PRIVATE
 		GTest::gtest_main
 		GTest::gmock    
