@@ -15,7 +15,7 @@ class UpClientZenoh(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False], "fPIC": [True, False]}
     conan_version = None
-    generators = "CMakeDeps"
+    generators = "CMakeDeps", "PkgConfigDeps", "VirtualRunEnv", "VirtualBuildEnv"
     version = "0.1.2-dev"
     exports_sources = "CMakeLists.txt", "lib/*"
 
