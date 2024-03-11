@@ -15,7 +15,7 @@ class UpClientZenoh(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False], "fPIC": [True, False]}
     conan_version = None
-    generators = "CMakeDeps", "PkgConfigDeps", "VirtualRunEnv", "VirtualBuildEnv"
+    generators = "CMakeDeps"
     version = "0.1.2-dev"
     exports_sources = "CMakeLists.txt", "lib/*"
 
@@ -32,13 +32,10 @@ class UpClientZenoh(ConanFile):
         "shared": False,
         "fPIC": False,
         "build_testing": False,
-        "build_unbundled": False,
-        "zenoh_package": True,
+        "build_unbundled": True,
+        "zenoh_package": False,
         "build_cross_compiling": False,
     }
-
-    # def configure(self):
-    #     self.options["up-cpp"].shared = True
 
     def requirements(self):
         self.requires("protobuf/3.21.12" + ("@cross/cross" if self.options.build_cross_compiling else ""))
