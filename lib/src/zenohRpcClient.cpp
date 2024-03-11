@@ -127,7 +127,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
 
     if (UMessageType::UMESSAGE_TYPE_REQUEST != attributes.type()) {
         spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
-        return std::move(future);
+        return future;
     }
 
     auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
@@ -135,7 +135,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
     z_owned_reply_channel_t *channel = new z_owned_reply_channel_t;
     if (nullptr == channel) {
         spdlog::error("failed to allocate channel");
-        return std::move(future);
+        return future;
     }
 
     *channel = zc_reply_fifo_new(16);
@@ -145,7 +145,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
     std::vector<uint8_t> serializedAttributes(attrSize);
     if (!attributes.SerializeToArray(serializedAttributes.data(), attrSize)) {
         spdlog::error("SerializeToArray failure");
-        return std::move(future);
+        return future;
     }
 
     z_get_options_t opts = z_get_options_default();
@@ -162,7 +162,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
         spdlog::error("z_get failure");
         z_drop(&map);
         delete channel;
-        return std::move(future);
+        return future;
     }
 
     future = threadPool_->submit([=] { return handleReply(channel); });
