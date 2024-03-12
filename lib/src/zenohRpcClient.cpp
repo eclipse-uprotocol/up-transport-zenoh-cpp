@@ -27,6 +27,8 @@
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
+#include <up-cpp/transport/builder/UAttributesBuilder.h>
+#include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <up-cpp/utils/ThreadPool.h>
 #include <up-core-api/ustatus.pb.h>
 #include <up-core-api/uattributes.pb.h>
@@ -109,67 +111,87 @@ UStatus ZenohRpcClient::term() noexcept {
 
     return status;
 }
-std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
-                                                   const UPayload &payload, 
-                                                   const UAttributes &attributes) noexcept {
 
+std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &topic, 
+                                                   const UPayload &payload, 
+                                                   const CallOptions &options) noexcept {
     std::future<UPayload> future;
+    z_owned_bytes_map_t map;
+    z_owned_reply_channel_t *channel = nullptr;
+    z_get_options_t opts = z_get_options_default();
+    UCode status = UCode::INTERNAL;
 
     if (0 == refCount_) {
         spdlog::error("ZenohRpcClient is not initialized");
         return future;
     }
 
-    if (false == isRPCMethod(uri.resource())) {
+    if (false == isRPCMethod(topic.resource())) {
         spdlog::error("URI is not of RPC type");
         return future;
     }
 
-    if (UMessageType::UMESSAGE_TYPE_REQUEST != attributes.type()) {
-        spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
-        return future;
-    }
+    do {
 
-    auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
+        auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(topic));
+        auto uuid = Uuidv8Factory::create();
+    
+        UAttributesBuilder builder(uuid, UMessageType::UMESSAGE_TYPE_PUBLISH, UPriority::UPRIORITY_CS0);
 
-    z_owned_reply_channel_t *channel = new z_owned_reply_channel_t;
-    if (nullptr == channel) {
-        spdlog::error("failed to allocate channel");
-        return future;
-    }
+        if (options.has_ttl()) {
+            builder.setTTL(options.ttl());
+            opts.timeout_ms = options.ttl();
+        } else {
+            opts.timeout_ms = requestTimeoutMs_;
+        }
 
-    *channel = zc_reply_fifo_new(16);
+        builder.setPriority(options.priority());
 
-    // Serialize UAttributes
-    size_t attrSize = attributes.ByteSizeLong();
-    std::vector<uint8_t> serializedAttributes(attrSize);
-    if (!attributes.SerializeToArray(serializedAttributes.data(), attrSize)) {
-        spdlog::error("SerializeToArray failure");
-        return future;
-    }
+        UAttributes attributes = builder.build();
 
-    z_get_options_t opts = z_get_options_default();
-    opts.timeout_ms = requestTimeoutMs_;
+        // Serialize UAttributes
+        size_t attrSize = attributes.ByteSizeLong();
+        std::vector<uint8_t> serializedAttributes(attrSize);
+        if (!attributes.SerializeToArray(serializedAttributes.data(), attrSize)) {
+            spdlog::error("attributes SerializeToArray failure");
+            break;
+        }
 
-    z_owned_bytes_map_t map = z_bytes_map_new();
-    z_bytes_t bytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
-    z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), bytes);
+        map = z_bytes_map_new();
+        z_bytes_t bytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
+        
+        z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), bytes);
 
-    opts.attachment = z_bytes_map_as_attachment(&map);
+        channel = new z_owned_reply_channel_t;
+        if (nullptr == channel) {
+            spdlog::error("failed to allocate channel");
+            break;
+        }
 
-    if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), 
-                   "", z_move(channel->send), &opts)) {
-        spdlog::error("z_get failure");
-        z_drop(&map);
+        *channel = zc_reply_fifo_new(16);
+
+        opts.attachment = z_bytes_map_as_attachment(&map);
+
+        if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
+            spdlog::error("z_get failure");
+            break;
+        }
+
+        future = threadPool_->submit([=] { return handleReply(channel); });
+
+        status = UCode::OK;
+    
+    } while(0);
+
+    if (UCode::OK != status) {
         delete channel;
-        return future;
     }
-
-    future = threadPool_->submit([=] { return handleReply(channel); });
 
     z_drop(&map);
+
     return future;
 }
+
 
 UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 

@@ -32,18 +32,14 @@
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/UTransport.h>
 
-using namespace uprotocol::v1;
-using namespace std;
-using namespace uprotocol::utransport;
-
 class ListenerContainer {
     public:
         std::vector<z_owned_subscriber_t> subVector_;
         std::vector<z_owned_queryable_t> queryVector_;
-        std::vector<const UListener*> listenerVector_;
+        std::vector<const uprotocol::utransport::UListener*> listenerVector_;
 };
 
-class ZenohUTransport : public UTransport {
+class ZenohUTransport : public uprotocol::utransport::UTransport {
 
     public:
 
@@ -54,19 +50,19 @@ class ZenohUTransport : public UTransport {
         * The API provides an instance of the zenoh session
         * @return instance of ZenohUTransport
         */
-	static ZenohUTransport& instance(void) noexcept;
+	    static ZenohUTransport& instance(void) noexcept;
 
         /**
         * init the zenohUTransport 
         * @return Returns OK on SUCCESS and ERROR on failure
         */
-        UStatus init() noexcept;
+        uprotocol::v1::UStatus init() noexcept;
 
         /**
         * Terminates the zenoh utransport  - the API should be called by any class that called init
         * @return Returns OK on SUCCESS and ERROR on failure
         */
-        UStatus term() noexcept; 
+        uprotocol::v1::UStatus term() noexcept; 
 
         /**
         * Transmit UPayload to the topic using the attributes defined in UTransportAttributes.
@@ -76,9 +72,9 @@ class ZenohUTransport : public UTransport {
         * @return Returns OKSTATUS if the payload has been successfully sent (ACK'ed), otherwise it
         * returns FAILSTATUS with the appropriate failure.
         */
-        UStatus send(const UUri &uri, 
-                     const UPayload &payload,
-                     const UAttributes &attributes) noexcept;
+        uprotocol::v1::UStatus send(const uprotocol::v1::UUri &uri, 
+                                    const uprotocol::utransport::UPayload &payload,
+                                    const uprotocol::v1::UAttributes &attributes) noexcept;
 
         /**
         * Register listener to be called when UPayload is received for the specific topic.
@@ -87,8 +83,8 @@ class ZenohUTransport : public UTransport {
         * @return Returns OKSTATUS if the listener is unregistered correctly, otherwise it returns FAILSTATUS
         * with the appropriate failure.
         */ 
-        UStatus registerListener(const UUri &uri,
-                                 const UListener &listener) noexcept;
+        uprotocol::v1::UStatus registerListener(const uprotocol::v1::UUri &uri,
+                                                const uprotocol::utransport::UListener &listener) noexcept;
 
         /**
         * Unregister a listener for a given topic. Messages arriving on this topic will no longer be processed
@@ -98,16 +94,12 @@ class ZenohUTransport : public UTransport {
         * @return Returns OKSTATUS if the listener is unregistered correctly, otherwise it returns FAILSTATUS
         * with the appropriate failure.
         */
-        UStatus unregisterListener(const UUri &uri, 
-                                   const UListener &listener) noexcept;
-
-        UStatus receive(const UUri &uri, 
-                        const UPayload &payload, 
-                        const UAttributes &attributes) noexcept;
+        uprotocol::v1::UStatus unregisterListener(const uprotocol::v1::UUri &uri, 
+                                                  const uprotocol::utransport::UListener &listener) noexcept;
 
     private:
 
-	ZenohUTransport() {}
+	    ZenohUTransport() {}
 
         static void OnSubscriberClose(void *arg);
 
@@ -119,35 +111,35 @@ class ZenohUTransport : public UTransport {
         static void SubHandler(const z_sample_t* sample,
                                void* arg);
 
-        UCode sendPublish(const UUri &uri, 
-                          const UPayload &payload,
-                          const UAttributes &attributes) noexcept;
+        uprotocol::v1::UCode sendPublish(const uprotocol::v1::UUri &uri, 
+                                         const uprotocol::utransport::UPayload &payload,
+                                         const uprotocol::v1::UAttributes &attributes) noexcept;
 
-        UCode sendQueryable(const UUri &uri, 
-                            const UPayload &payload,
-                            const UAttributes &attributes) noexcept;
+        uprotocol::v1::UCode sendQueryable(const uprotocol::v1::UUri &uri, 
+                                           const uprotocol::utransport::UPayload &payload,
+                                           const uprotocol::v1::UAttributes &attributes) noexcept;
 
-        UCode mapEncoding(const UPayloadFormat &payloadFormat, 
-                          z_encoding_t &encoding) noexcept;
+        uprotocol::v1::UCode mapEncoding(const uprotocol::utransport::UPayloadFormat &payloadFormat, 
+                                         z_encoding_t &encoding) noexcept;
 
         /* zenoh session handle*/
         z_owned_session_t session_;
         /* indicate that termination is pending so no new transactions are allowed*/
-        atomic_bool termPending_ = false;
+        std::atomic_bool termPending_ = false;
         /* how many send transactions are currently in progress*/
-        atomic_uint32_t pendingSendRefCnt_ = 0;
+        std::atomic_uint32_t pendingSendRefCnt_ = 0;
         /* how many times uTransport was initialized*/
-        atomic_uint32_t refCount_ = 0;
+        std::atomic_uint32_t refCount_ = 0;
         
         std::mutex mutex_;
 
         using uuriKey = size_t;     
         using uuidStr = std::string;
 
-        unordered_map<uuriKey, z_owned_publisher_t> pubHandleMap_;
-        unordered_map<uuriKey, std::shared_ptr<ListenerContainer>> listenerMap_;  
-        unordered_map<uuriKey, bool> authorized_;
-        unordered_map<uuidStr, z_owned_query_t> queryMap_;
+        std::unordered_map<uuriKey, z_owned_publisher_t> pubHandleMap_;
+        std::unordered_map<uuriKey, std::shared_ptr<ListenerContainer>> listenerMap_;  
+        std::unordered_map<uuriKey, bool> authorized_;
+        std::unordered_map<uuidStr, z_owned_query_t> queryMap_;
 
         std::mutex pubInitMutex_;
         std::mutex subInitMutex_;
@@ -155,7 +147,7 @@ class ZenohUTransport : public UTransport {
         static constexpr auto termMaxRetries_ = size_t(10);
         static constexpr auto termRetryTimeout_ = std::chrono::milliseconds(100);
 
-        using cbArgumentType = std::tuple<std::shared_ptr<UUri>, ZenohUTransport*, const UListener&>;
+        using cbArgumentType = std::tuple<std::shared_ptr<uprotocol::v1::UUri>, ZenohUTransport*, const uprotocol::utransport::UListener&>;
 };
 
 #endif /*_ZENOH_UTRANSPORT_*/

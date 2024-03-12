@@ -35,6 +35,7 @@ using namespace std;
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
+using namespace uprotocol::utransport;
 
 ZenohUTransport& ZenohUTransport::instance(void) noexcept {
 
@@ -592,23 +593,6 @@ UCode ZenohUTransport::mapEncoding(const UPayloadFormat &payloadFormat,
     }
 
     return UCode::OK;
-}
-
-UStatus ZenohUTransport::receive(const UUri &uri, 
-                                 const UPayload &payload, 
-                                 const UAttributes &attributes) noexcept {
-
-    UStatus status;
-
-    (void)uri;
-    (void)payload;
-    (void)attributes;
-
-    spdlog::error("not implemented");
-
-    status.set_code(UCode::UNAVAILABLE);
-
-    return status;
 }
 
 void ZenohUTransport::OnSubscriberClose(void *arg) {

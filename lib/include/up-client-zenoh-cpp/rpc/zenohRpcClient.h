@@ -34,6 +34,7 @@
 
 using namespace std;
 using namespace uprotocol::utransport;
+using namespace uprotocol::rpc;
 using namespace uprotocol::utils;
 using namespace uprotocol::v1;
 
@@ -62,16 +63,11 @@ class ZenohRpcClient : public RpcClient {
         */
         UStatus term() noexcept; 
 
-        /**
-        * Support for RPC method invocation.
-        * @param topic topic of the method to be invoked (i.e. the name of the API we are calling).
-        * @param payload The request message to be sent to the server.
-        * @param attributes Metadata for the method invocation (i.e. priority, timeout, etc.)
-        * @return Returns the CompletableFuture with the result or exception.
-        */
-        std::future<UPayload> invokeMethod(const UUri &uri, 
+
+        std::future<UPayload> invokeMethod(const UUri &topic, 
                                            const UPayload &payload, 
-                                           const UAttributes &attributes) noexcept;
+                                           const CallOptions &options) noexcept;
+
     private:
 
         ZenohRpcClient() {}
@@ -89,7 +85,6 @@ class ZenohRpcClient : public RpcClient {
         static constexpr auto requestTimeoutMs_ = 5000;
         static constexpr auto queueSize_ = size_t(20);
         static constexpr auto maxNumOfCuncurrentRequests_ = size_t(2);
-
 };
 
 #endif /*_ZENOH_RPC_CLIENT_H_*/

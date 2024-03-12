@@ -28,6 +28,7 @@
 #include <gtest/gtest.h>
 
 using namespace uprotocol::utransport;
+using namespace uprotocol::v1;
 
 class upClientZenohCppTest : public ::testing::Test {
 
