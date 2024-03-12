@@ -337,9 +337,13 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
     }
 
     if (typeid(listener) == typeid(RequestListener)) {
-        std::cout << "Listener is of type MyListener" << std::endl;
+        
+    } else if (typeid(listener) == typeid(SubscribeListener)){
+    //    return registerSubscribeListener(uri, listener);
     } else {
-        std::cout << "Listener is of an unknown type" << std::endl;
+        spdlog::error("Listener type is not supported");
+        status.set_code(UCode::UNAVAILABLE);
+        return status;
     }
 
     do {
@@ -489,6 +493,17 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
 
     status.set_code(UCode::OK);
     return status;
+}
+
+UCode ZenohUTransport::registerRpcRequestListener(const UUri &uri,
+                                                  const UListener &listener) noexcept {
+
+    return UCode::OK;
+}
+
+UCode ZenohUTransport::registerSubscribeListener(const UUri &uri,
+                                                 const UListener &listener) noexcept {
+    return UCode::OK;                                                
 }
 
 void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {

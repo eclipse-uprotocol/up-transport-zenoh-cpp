@@ -119,6 +119,12 @@ class ZenohUTransport : public uprotocol::utransport::UTransport {
                                            const uprotocol::utransport::UPayload &payload,
                                            const uprotocol::v1::UAttributes &attributes) noexcept;
 
+        uprotocol::v1::UCode registerRpcRequestListener(const uprotocol::v1::UUri &uri,
+                                                        const uprotocol::utransport::UListener &listener) noexcept;
+
+        uprotocol::v1::UCode registerSubscribeListener(const uprotocol::v1::UUri &uri,
+                                                       const uprotocol::utransport::UListener &listener) noexcept;
+
         uprotocol::v1::UCode mapEncoding(const uprotocol::utransport::UPayloadFormat &payloadFormat, 
                                          z_encoding_t &encoding) noexcept;
 
