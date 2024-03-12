@@ -27,6 +27,8 @@
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
+#include <up-cpp/transport/URequestListener.h>
+#include <up-cpp/transport/USubscribeListener.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
 #include <up-core-api/uattributes.pb.h>
@@ -332,6 +334,12 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
         spdlog::error("ZenohUTransport is marked for termination");
         status.set_code(UCode::UNAVAILABLE);
         return status;
+    }
+
+    if (typeid(listener) == typeid(RequestListener)) {
+        std::cout << "Listener is of type MyListener" << std::endl;
+    } else {
+        std::cout << "Listener is of an unknown type" << std::endl;
     }
 
     do {
