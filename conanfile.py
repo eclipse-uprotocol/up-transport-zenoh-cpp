@@ -43,7 +43,7 @@ class UpClientZenoh(ConanFile):
         if self.options.build_testing:
             self.requires("gtest/1.14.0")
         if self.options.build_unbundled: #each componenet is built independently 
-            self.requires("up-cpp/0.1.5.1-dev")
+            self.requires("up-cpp/0.1.1-dev")
             if self.options.zenoh_package:
                 self.requires("zenohc/cci.20240213")
 
