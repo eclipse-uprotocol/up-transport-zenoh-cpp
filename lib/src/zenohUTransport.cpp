@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 General Motors GTO LLC
+ * Copyright (c) 2024 General Motors GTO LLC
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  * SPDX-FileType: SOURCE
- * SPDX-FileCopyrightText: 2023 General Motors GTO LLC
+ * SPDX-FileCopyrightText: 2024 General Motors GTO LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -93,7 +93,7 @@ UStatus ZenohUTransport::term() noexcept {
 
     if (0 == refCount_) {
 
-        uint8_t retries;
+        uint8_t retries = 0;
 
         termPending_ = true;
 
@@ -277,6 +277,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 UCode ZenohUTransport::sendQueryable(const UUri &uri, 
                                      const UPayload &payload,
                                      const UAttributes &attributes) noexcept {
+
     if (UMessageType::RESPONSE != attributes.type()) {
         spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
         return UCode::INVALID_ARGUMENT;

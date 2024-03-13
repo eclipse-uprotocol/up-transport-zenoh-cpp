@@ -1,4 +1,4 @@
-# Copyright (c) 2023 General Motors GTO LLC
+# Copyright (c) 2024 General Motors GTO LLC
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,14 +19,15 @@
 cmake_minimum_required(VERSION 3.20)
 project(up-client-zenoh-cpp VERSION 0.1.0 LANGUAGES CXX)
 
+find_package(Protobuf REQUIRED)
+find_package(spdlog REQUIRED)
+
 if(BUILD_UNBUNDLED)
     find_package(up-cpp REQUIRED)
     find_package(zenohc REQUIRED)
 else()
     find_library(ZENOH_LIB zenohc)
-    find_package(up-cpp REQUIRED)
-    find_package(Protobuf REQUIRED)
-    find_package(spdlog REQUIRED)
+    find_package(up-cpp QUIET)
 endif()
 
 # Support pulling headers outside of /usr/local
@@ -39,32 +40,30 @@ set(SRC_FILES
     src/zenohRpcClient.cpp
     src/zenohSessionManager.cpp
     src/messageBuilder.cpp
-    src/messageParser.cpp
-    )
+    src/messageParser.cpp)
 
 add_library(${PROJECT_NAME} ${SRC_FILES})
 add_library(up-client-zenoh-cpp::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
+target_include_directories(${PROJECT_NAME} 
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
+        $ENV{CMAKE_ZENOH_INCLUDE_PATH}
+        ${HOME}/include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 if(BUILD_UNBUNDLED)
-    target_include_directories(${PROJECT_NAME} 
-        PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
-    )
     target_link_libraries(${PROJECT_NAME} 
-        PRIVATE 
+        PUBLIC 
             up-cpp::up-cpp
-            zenohc::lib 
-    )
+            zenohc::lib)
 else()
-    target_include_directories(${PROJECT_NAME} 
-        PRIVATE 
-            ${up-cpp_INCLUDE_DIR}
-            include
-    )
-    target_link_libraries(${PROJECT_NAME} PRIVATE up-cpp::up-cpp ${ZENOH_LIB})
+    target_link_libraries(${PROJECT_NAME} 
+        PUBLIC 
+            up-cpp::up-cpp 
+            ${ZENOH_LIB}) 
 endif()
 
 INSTALL(TARGETS ${PROJECT_NAME})

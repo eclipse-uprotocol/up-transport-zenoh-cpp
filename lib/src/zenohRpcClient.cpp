@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 General Motors GTO LLC
+ * Copyright (c) 2024 General Motors GTO LLC
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  * SPDX-FileType: SOURCE
- * SPDX-FileCopyrightText: 2023 General Motors GTO LLC
+ * SPDX-FileCopyrightText: 2024 General Motors GTO LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -119,17 +119,17 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
 
     if (0 == refCount_) {
         spdlog::error("ZenohRpcClient is not initialized");
-        return std::move(future);
+        return future;
     }
 
     if (false == isRPCMethod(uri.resource())) {
         spdlog::error("URI is not of RPC type");
-        return std::move(future);
+        return future;
     }
 
     if (UMessageType::REQUEST != attributes.type()) {
         spdlog::error("Wrong message type = {}", UMessageTypeToString(attributes.type()).value());
-        return std::move(future);
+        return future;
     }
 
     auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
@@ -137,7 +137,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
     auto header = MessageBuilder::buildHeader(attributes);
     if (header.empty()) {
         spdlog::error("Failed to build header");
-        return std::move(future);
+        return future;
     }
 
     z_bytes_t bytes;
@@ -167,7 +167,7 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri,
     if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
         spdlog::error("z_get failure");
         z_drop(&map);
-        return std::move(future);
+        return future;
     }
 
     future = threadPool_->submit(handleReply, channel);

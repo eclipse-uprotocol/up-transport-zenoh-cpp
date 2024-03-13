@@ -1,4 +1,4 @@
-# Copyright (c) 2023 General Motors GTO LLC
+# Copyright (c) 2024 General Motors GTO LLC
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -36,6 +36,7 @@ endif()
     
 add_subdirectory(lib)
 
-if(BUILD_SAMPLES)
-    add_subdirectory(samples)
+if(BUILD_TESTING)
+	enable_testing()
+	add_subdirectory(test)
 endif()

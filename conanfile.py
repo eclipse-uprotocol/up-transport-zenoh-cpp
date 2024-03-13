@@ -16,14 +16,15 @@ class UpClientZenoh(ConanFile):
     options = {"shared": [True, False], "fPIC": [True, False]}
     conan_version = None
     generators = "CMakeDeps"
-    version = "0.1"
-    exports_sources = "CMakeLists.txt", "lib/*"
+    version = "0.1.2-dev"
+    exports_sources = "CMakeLists.txt", "lib/*", "test/*"
 
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
         "build_testing": [True, False],
         "build_unbundled": [True, False],
+        "zenoh_package": [True, False],
         "build_cross_compiling": [True, False],
     }
 
@@ -31,25 +32,24 @@ class UpClientZenoh(ConanFile):
         "shared": False,
         "fPIC": False,
         "build_testing": False,
-        "build_unbundled": False,
+        "build_unbundled": True,
+        "zenoh_package": False,
         "build_cross_compiling": False,
     }
 
-    # def configure(self):
-    #     self.options["up-cpp"].shared = True
-
     def requirements(self):
-        if self.options.build_unbundled:
-            self.requires("up-cpp/0.1.5.0-dev")
-            self.requires("zenohc/cci.20240213")
-            self.requires("protobuf/3.21.12" + ("@cross/cross" if self.options.build_cross_compiling else ""))
-        else:
-            self.requires("up-cpp/0.1")
-            self.requires("spdlog/1.13.0")
-            self.requires("protobuf/3.21.12")
+        self.requires("protobuf/3.21.12" + ("@cross/cross" if self.options.build_cross_compiling else ""))
+        self.requires("spdlog/1.13.0")
+        if self.options.build_testing:
+            self.requires("gtest/1.14.0")
+        if self.options.build_unbundled: #each componenet is built independently 
+            self.requires("up-cpp/0.1.1-dev")
+            if self.options.zenoh_package:
+                self.requires("zenohc/cci.20240213")
 
     def generate(self):
         tc = CMakeToolchain(self)
+        tc.variables["BUILD_TESTING"] = self.options.build_testing
         tc.generate()
 
     def build(self):
@@ -63,3 +63,4 @@ class UpClientZenoh(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = ["up-client-zenoh-cpp"]
+

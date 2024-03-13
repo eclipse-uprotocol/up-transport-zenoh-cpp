@@ -35,7 +35,6 @@ jobs:
         run: |
           git clone https://github.com/eclipse-uprotocol/up-cpp.git
           cd up-cpp
-          git clone -b uprotocol-core-api-1.5.6 https://github.com/eclipse-uprotocol/up-core-api.git
           git submodule update --init --recursive
           conan create . --build=missing
 
@@ -50,9 +49,10 @@ jobs:
       - name: Build && install up-client-zenoh-cpp
         shell: bash
         run: |
-          conan install conaninfo/ --output-folder=.
-          cd build/Release
-          cmake ../../ -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/local
+          mkdir build
+          cd build
+          conan install ../ -o build_unbundled=True -o zenoh_package=False
+          cmake ../ -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/local
           cmake --build . --target install --config Release -- -j
 
 

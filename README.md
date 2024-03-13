@@ -23,10 +23,9 @@ This module contains the implementation for pub-sub and RPC API`s defined in the
 $ git clone https://github.com/eclipse-uprotocol/up-client-zenoh-cpp.git
 ```
 ## How to Use the Library
-To add up-cpp to your conan build dependencies, simply add the following to your conanfile.txt:
+To add up-client-zenoh-cpp to your conan build dependencies, simply add the following to your conanfile.txt:
 ```
 [requires]
-up-cpp/0.1
 up-cpp-client-zenoh/0.1
 protobuf/3.21.12
 
@@ -43,10 +42,11 @@ cmake_layout
 ### Building locally 
 ```
 $ cd up-cpp-client-zenoh
-$ conan install conaninfo/  --output-folder=.
-$ cd build/Release
-$ cmake ../../ -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
-$ make -j 
+$ mkdir build
+$ cd build
+$ conan install ../ 
+$ cmake ../ -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+$ cmake --build . --config Release -- -j
 ```
 
 #### Creating conan package locally 
