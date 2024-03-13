@@ -210,6 +210,9 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
             if (handleInfo != pubHandleMap_.end()) {
                 pub = handleInfo->second;
             } else {
+
+                std::cout << "pub : " << std::to_string(uriHash) << std::endl;
+
                 pub = z_declare_publisher(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), nullptr);
                 if (false == z_check(pub)) {
                     spdlog::error("Unable to declare Publisher for key expression!");
@@ -237,6 +240,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
         z_bytes_t attrBytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
         z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), attrBytes);
     
+         std::cout << "publish" << std::endl;
         // Publish the message
         if (0 != z_publisher_put(z_loan(pub), payload.data(), payload.size(), &options)) {
             spdlog::error("z_publisher_put failed");
@@ -346,6 +350,8 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
 
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
 
+
+
         // check if URI exists 
         if (listenerMap_.find(uriHash) != listenerMap_.end()) {
 
@@ -383,10 +389,11 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
         }
 
         /* listener for a regular pub-sub*/
-        if (typeid(listener) == typeid(SubscribeListener)) {
+        if (false == isRPCMethod(uri.resource())) {
 
             z_owned_closure_sample_t callback = z_closure(SubHandler, OnSubscriberClose, arg);
 
+            std::cout << "sub : " << std::to_string(uriHash) << std::endl;
             auto sub = z_declare_subscriber(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), z_move(callback), nullptr);
             if (!z_check(sub)) {
                 spdlog::error("z_declare_subscriber failed");
@@ -397,7 +404,8 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
             listenerContainer->subVector_.push_back(sub);
             listenerContainer->listenerVector_.push_back(&listener);
 
-        } else if (typeid(listener) == typeid(RequestListener)) {
+        // } else if (typeid(listener) == typeid(RequestListener)) {
+        } else {
 
             z_owned_closure_query_t callback = z_closure(QueryHandler, OnQueryClose, arg);
         
@@ -488,6 +496,7 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
 
 void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
 
+    std::cout << "SubHandler"  << std::endl;
     if ((nullptr == sample) || (nullptr == arg)) {
        spdlog::error("Invalid arguments for SubHandler");
        return;
