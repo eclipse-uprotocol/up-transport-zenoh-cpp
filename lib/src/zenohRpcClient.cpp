@@ -112,10 +112,10 @@ UStatus ZenohRpcClient::term() noexcept {
     return status;
 }
 
-std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &topic, 
+std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic, 
                                                    const UPayload &payload, 
                                                    const CallOptions &options) noexcept {
-    std::future<UPayload> future;
+    std::future<UMessage> future;
     z_owned_bytes_map_t map;
     z_owned_reply_channel_t *channel = nullptr;
     z_get_options_t opts = z_get_options_default();
@@ -131,12 +131,17 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &topic,
         return future;
     }
 
+    if (UPriority::UPRIORITY_CS4 > options.priority()) {
+        spdlog::error("Prirority is smaller then UPRIORITY_CS4");
+        return future;
+    }
+
     do {
 
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(topic));
         auto uuid = Uuidv8Factory::create();
     
-        UAttributesBuilder builder(uuid, UMessageType::UMESSAGE_TYPE_PUBLISH, UPriority::UPRIORITY_CS0);
+        UAttributesBuilder builder(uuid, UMessageType::UMESSAGE_TYPE_REQUEST, UPriority::UPRIORITY_CS0);
 
         if (options.has_ttl()) {
             builder.setTTL(options.ttl());
@@ -172,6 +177,14 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &topic,
 
         opts.attachment = z_bytes_map_as_attachment(&map);
 
+        if ((0 != payload.size()) && (nullptr != payload.data())) {
+            opts.value.payload.len =  payload.size();
+            opts.value.payload.start = payload.data();
+        } else {
+            opts.value.payload.len = 0;
+            opts.value.payload.start = nullptr;
+        }
+        
         if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
             spdlog::error("z_get failure");
             break;
@@ -193,11 +206,11 @@ std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &topic,
 }
 
 
-UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
+UMessage ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 
     z_owned_reply_t reply = z_reply_null();
-    
-    UPayload retPayload(nullptr, 0, UPayloadType::VALUE);
+
+    UMessage message;
 
     while (z_call(channel->recv, &reply), z_check(reply)) {
         if (!z_reply_is_ok(&reply)) {
@@ -230,7 +243,10 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
             break;
         }
 
-        retPayload = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
+        auto payload = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
+
+        message.setPayload(payload);
+        message.setAttributes(attributes);
 
         z_drop(z_move(reply));
     }
@@ -239,5 +255,5 @@ UPayload ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 
     delete channel;
 
-    return retPayload;
+    return message;
 }

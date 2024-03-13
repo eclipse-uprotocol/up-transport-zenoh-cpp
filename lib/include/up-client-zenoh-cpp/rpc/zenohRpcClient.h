@@ -32,13 +32,7 @@
 #include <up-core-api/uri.pb.h>
 #include <zenoh.h>
 
-using namespace std;
-using namespace uprotocol::utransport;
-using namespace uprotocol::rpc;
-using namespace uprotocol::utils;
-using namespace uprotocol::v1;
-
-class ZenohRpcClient : public RpcClient {
+class ZenohRpcClient : public uprotocol::rpc::RpcClient {
 
     public:
 
@@ -55,24 +49,24 @@ class ZenohRpcClient : public RpcClient {
         * init the zenohRpcClient 
         * @return Returns OK on SUCCESS and ERROR on failure
         */
-        UStatus init() noexcept;
+        uprotocol::v1::UStatus init() noexcept;
 
         /**
         * Terminates the zenoh RPC client  - the API should be called by any class that called init
         * @return Returns OK on SUCCESS and ERROR on failure
         */
-        UStatus term() noexcept; 
+        uprotocol::v1::UStatus term() noexcept; 
 
 
-        std::future<UPayload> invokeMethod(const UUri &topic, 
-                                           const UPayload &payload, 
-                                           const CallOptions &options) noexcept;
+        std::future<uprotocol::utransport::UMessage> invokeMethod(const uprotocol::v1::UUri &topic, 
+                                                                  const uprotocol::utransport::UPayload &payload, 
+                                                                  const uprotocol::v1::CallOptions &options) noexcept;
 
     private:
 
         ZenohRpcClient() {}
 
-        static UPayload handleReply(z_owned_reply_channel_t *channel);
+        static uprotocol::utransport::UMessage handleReply(z_owned_reply_channel_t *channel);
         
         /* zenoh session handle*/
         z_owned_session_t session_;
@@ -80,7 +74,7 @@ class ZenohRpcClient : public RpcClient {
         atomic_uint32_t refCount_ = 0;
         
         std::mutex mutex_;
-        std::shared_ptr<ThreadPool> threadPool_;
+        std::shared_ptr<uprotocol::utils::ThreadPool> threadPool_;
 
         static constexpr auto requestTimeoutMs_ = 5000;
         static constexpr auto queueSize_ = size_t(20);

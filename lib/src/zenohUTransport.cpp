@@ -336,16 +336,6 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
         return status;
     }
 
-    if (typeid(listener) == typeid(RequestListener)) {
-        
-    } else if (typeid(listener) == typeid(SubscribeListener)){
-    //    return registerSubscribeListener(uri, listener);
-    } else {
-        spdlog::error("Listener type is not supported");
-        status.set_code(UCode::UNAVAILABLE);
-        return status;
-    }
-
     do {
 
         status.set_code(UCode::OK);
@@ -393,7 +383,7 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
         }
 
         /* listener for a regular pub-sub*/
-        if (false == isRPCMethod(uri.resource())) {
+        if (typeid(listener) == typeid(SubscribeListener)) {
 
             z_owned_closure_sample_t callback = z_closure(SubHandler, OnSubscriberClose, arg);
 
@@ -406,7 +396,8 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
             
             listenerContainer->subVector_.push_back(sub);
             listenerContainer->listenerVector_.push_back(&listener);
-        } else {
+
+        } else if (typeid(listener) == typeid(RequestListener)) {
 
             z_owned_closure_query_t callback = z_closure(QueryHandler, OnQueryClose, arg);
         
@@ -493,17 +484,6 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
 
     status.set_code(UCode::OK);
     return status;
-}
-
-UCode ZenohUTransport::registerRpcRequestListener(const UUri &uri,
-                                                  const UListener &listener) noexcept {
-
-    return UCode::OK;
-}
-
-UCode ZenohUTransport::registerSubscribeListener(const UUri &uri,
-                                                 const UListener &listener) noexcept {
-    return UCode::OK;                                                
 }
 
 void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
