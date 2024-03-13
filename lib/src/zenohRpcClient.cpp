@@ -185,6 +185,7 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
             opts.value.payload.start = nullptr;
         }
         
+        std::cout << "sent request" << std::endl;
         if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
             spdlog::error("z_get failure");
             break;

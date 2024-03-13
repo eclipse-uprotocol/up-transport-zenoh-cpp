@@ -564,7 +564,9 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
        return;
     }
 
-    if (UCode::OK != listener->onReceive(*uri, payload, attributes).code()) {
+    UMessage message(payload, attributes);
+
+    if (UCode::OK != listener->onReceive(message).code()) {
        /*TODO error handling*/
        spdlog::error("onReceive failure");
        return;
