@@ -24,7 +24,7 @@
 
 #include <csignal>
 #include <spdlog/spdlog.h>
-#include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/client/upZenohClient.h>
 #include <gtest/gtest.h>
 
 using namespace uprotocol::utransport;
@@ -37,8 +37,8 @@ class upClientZenohCppTest : public ::testing::Test {
         // SetUpTestSuite() is called before all tests in the test suite
         static void SetUpTestSuite() {
 
-            if (UCode::OK != ZenohUTransport::instance().init().code()) {
-                spdlog::error("ZenohUTransport::instance().init failed");
+            if (UCode::OK != upZenohClient::instance().init().code()) {
+                spdlog::error("upZenohClient::instance().init failed");
                 return;
             }
         }
@@ -46,8 +46,8 @@ class upClientZenohCppTest : public ::testing::Test {
         // TearDownTestSuite() is called after all tests in the test suite
         static void TearDownTestSuite() {
 
-            if (UCode::OK != ZenohUTransport::instance().term().code()) {
-                spdlog::error("ZenohUTransport::instance().term() failed");
+            if (UCode::OK != upZenohClient::instance().term().code()) {
+                spdlog::error("upZenohClient::instance().term() failed");
                 return;
             }
         }
