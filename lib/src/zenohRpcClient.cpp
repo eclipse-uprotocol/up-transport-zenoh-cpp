@@ -41,13 +41,6 @@ using namespace uprotocol::uri;
 using namespace uprotocol::v1;
 using namespace uprotocol::utils;
 
-ZenohRpcClient& ZenohRpcClient::instance(void) noexcept {
-    
-    static ZenohRpcClient rpcClient;
-
-    return rpcClient;
-}
-
 UStatus ZenohRpcClient::init() noexcept {
 
     UStatus status;

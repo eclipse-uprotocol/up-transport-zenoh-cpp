@@ -50,12 +50,6 @@ class ZenohUTransport : public UTransport {
         ZenohUTransport& operator=(const ZenohUTransport&) = delete;
 
         /**
-        * The API provides an instance of the zenoh session
-        * @return instance of ZenohUTransport
-        */
-	static ZenohUTransport& instance(void) noexcept;
-
-        /**
         * init the zenohUTransport 
         * @return Returns OK on SUCCESS and ERROR on failure
         */

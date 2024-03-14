@@ -36,13 +36,6 @@ using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
 
-ZenohUTransport& ZenohUTransport::instance(void) noexcept {
-
-    static ZenohUTransport zenohUtransport;
-
-    return zenohUtransport;
-}
-
 UStatus ZenohUTransport::init() noexcept {
     
     UStatus status;

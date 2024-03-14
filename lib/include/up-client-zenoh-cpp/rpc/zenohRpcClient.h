@@ -44,12 +44,6 @@ class ZenohRpcClient : public RpcClient {
         ZenohRpcClient& operator=(const ZenohRpcClient&) = delete;
 
         /**
-        * The API provides an instance of the zenoh RPC client
-        * @return instance of ZenohUTransport
-        */
-        static ZenohRpcClient& instance(void) noexcept;
-
-        /**
         * init the zenohRpcClient 
         * @return Returns OK on SUCCESS and ERROR on failure
         */
