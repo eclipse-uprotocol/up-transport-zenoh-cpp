@@ -27,8 +27,6 @@
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
-#include <up-cpp/transport/URequestListener.h>
-#include <up-cpp/transport/USubscribeListener.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
 #include <up-core-api/uattributes.pb.h>
@@ -240,7 +238,6 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
         z_bytes_t attrBytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
         z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), attrBytes);
     
-         std::cout << "publish" << std::endl;
         // Publish the message
         if (0 != z_publisher_put(z_loan(pub), payload.data(), payload.size(), &options)) {
             spdlog::error("z_publisher_put failed");

@@ -116,9 +116,9 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
                                                    const UPayload &payload, 
                                                    const CallOptions &options) noexcept {
     std::future<UMessage> future;
-    z_owned_bytes_map_t map;
-    z_owned_reply_channel_t *channel = nullptr;
+    z_owned_bytes_map_t map = z_bytes_map_new();
     z_get_options_t opts = z_get_options_default();
+    z_owned_reply_channel_t *channel = nullptr;
     UCode status = UCode::INTERNAL;
 
     if (0 == refCount_) {
@@ -135,6 +135,9 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
         spdlog::error("Prirority is smaller then UPRIORITY_CS4");
         return future;
     }
+
+    /* TODO : Decide how to handle MUST return ALREADY_EXISTS if the same request already exists 
+        (i.e. same UUri and CallOptions). This is to prevent duplicate requests.*/
 
     do {
 
@@ -162,7 +165,6 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
             break;
         }
 
-        map = z_bytes_map_new();
         z_bytes_t bytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
         
         z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), bytes);
@@ -185,7 +187,6 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
             opts.value.payload.start = nullptr;
         }
         
-        std::cout << "sent request" << std::endl;
         if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
             spdlog::error("z_get failure");
             break;
@@ -193,6 +194,10 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
 
         future = threadPool_->submit([=] { return handleReply(channel); });
 
+        if (false == future.valid()) {
+            spdlog::error("invalid future received");
+            break;
+        }
         status = UCode::OK;
     
     } while(0);
@@ -206,25 +211,25 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
     return future;
 }
 
-
 UMessage ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 
     z_owned_reply_t reply = z_reply_null();
 
     UMessage message;
 
+    if (nullptr == channel) {
+        spdlog::error("channel is nullptr");
+        return message;
+    }
+
     while (z_call(channel->recv, &reply), z_check(reply)) {
+
         if (!z_reply_is_ok(&reply)) {
             spdlog::error("error received");
             break;
         }
 
         z_sample_t sample = z_reply_ok(&reply);
-
-        if (sample.payload.len == 0 || sample.payload.start == nullptr) {
-            spdlog::error("Payload is empty");
-            break;
-        }
 
         if (!z_check(sample.attachment)) {
             spdlog::error("No attachment found in the reply");
