@@ -71,9 +71,11 @@ class ZenohRpcClient : public RpcClient {
         std::future<UPayload> invokeMethod(const UUri &uri, 
                                            const UPayload &payload, 
                                            const UAttributes &attributes) noexcept;
-    private:
+    protected:
 
         ZenohRpcClient() {}
+
+    private:
 
         static UPayload handleReply(z_owned_reply_channel_t *channel);
         

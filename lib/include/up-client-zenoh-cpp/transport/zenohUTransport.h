@@ -104,9 +104,11 @@ class ZenohUTransport : public UTransport {
                         const UPayload &payload, 
                         const UAttributes &attributes) noexcept;
 
-    private:
+    protected:
 
 	ZenohUTransport() {}
+
+    private:
 
         static void OnSubscriberClose(void *arg);
 
