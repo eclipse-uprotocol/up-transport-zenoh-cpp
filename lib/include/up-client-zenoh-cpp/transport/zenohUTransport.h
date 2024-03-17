@@ -115,8 +115,7 @@ class ZenohUTransport : public uprotocol::utransport::UTransport {
                                          const uprotocol::utransport::UPayload &payload,
                                          const uprotocol::v1::UAttributes &attributes) noexcept;
 
-        uprotocol::v1::UCode sendQueryable(const uprotocol::v1::UUri &uri, 
-                                           const uprotocol::utransport::UPayload &payload,
+        uprotocol::v1::UCode sendQueryable(const uprotocol::utransport::UPayload &payload,
                                            const uprotocol::v1::UAttributes &attributes) noexcept;
 
         uprotocol::v1::UCode mapEncoding(const uprotocol::utransport::UPayloadFormat &payloadFormat, 

@@ -173,7 +173,7 @@ UStatus ZenohUTransport::send(const UUri &uri,
     if (false == isRPCMethod(uri.resource())) {
         status.set_code(sendPublish(uri, payload, attributes));
     } else {
-        status.set_code(sendQueryable(uri, payload, attributes));
+        status.set_code(sendQueryable(payload, attributes));
     }
 
     return status;
@@ -245,8 +245,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 
     return status;
 }
-UCode ZenohUTransport::sendQueryable(const UUri &uri, 
-                                     const UPayload &payload,
+UCode ZenohUTransport::sendQueryable(const UPayload &payload,
                                      const UAttributes &attributes) noexcept {
 
     if (UMessageType::UMESSAGE_TYPE_RESPONSE != attributes.type()) {
