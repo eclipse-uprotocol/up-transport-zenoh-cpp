@@ -214,6 +214,45 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic,
     return future;
 }
 
+UStatus ZenohRpcClient::invokeMethod(const UUri &topic,
+                                     const UPayload &payload,
+                                     const CallOptions &options,
+                                     const UListener &callback) noexcept {
+
+    UStatus status;
+
+    auto future = invokeMethod(topic, payload, options);
+
+    if (false == future.valid()) {
+        status.set_code(UCode::INTERNAL);
+        return status;
+    }
+
+    auto future_status = future.wait_for(std::chrono::milliseconds(options.ttl()));
+
+    switch (future_status) {
+        case std::future_status::timeout: {
+            status.set_code(UCode::DEADLINE_EXCEEDED);
+        }
+        break;
+        case std::future_status::ready: {
+           auto response = future.get();
+
+           status.set_code(response.status.code());
+           if (UCode::OK == response.status.code()) {
+                callback.onReceive(response.message);
+           }
+        }
+        break;
+        case std::future_status::deferred: {
+            status.set_code(UCode::INTERNAL);
+        }
+        break;
+    }
+
+    return status;
+}
+
 RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 
     z_owned_reply_t reply = z_reply_null();

@@ -73,6 +73,11 @@ class ZenohRpcClient : public uprotocol::rpc::RpcClient {
                                                               const uprotocol::utransport::UPayload &payload, 
                                                               const uprotocol::v1::CallOptions &options) noexcept;
 
+        uprotocol::v1::UStatus invokeMethod(const uprotocol::v1::UUri &topic,
+                                            const uprotocol::utransport::UPayload &payload,
+                                            const uprotocol::v1::CallOptions &options,
+                                            const uprotocol::utransport::UListener &callback) noexcept;
+
         size_t getMaxConcurrentRequests() {
             return maxNumOfCuncurrentRequests_;
         }
