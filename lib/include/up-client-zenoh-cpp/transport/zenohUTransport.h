@@ -50,7 +50,7 @@ class ZenohUTransport : public uprotocol::utransport::UTransport {
         * The API provides an instance of the zenoh session
         * @return instance of ZenohUTransport
         */
-	    static ZenohUTransport& instance(void) noexcept;
+        static ZenohUTransport& instance(void) noexcept;
 
         /**
         * init the zenohUTransport 
@@ -99,7 +99,7 @@ class ZenohUTransport : public uprotocol::utransport::UTransport {
 
     private:
 
-	    ZenohUTransport() {}
+        ZenohUTransport() {}
 
         static void OnSubscriberClose(void *arg);
 

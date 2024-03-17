@@ -268,6 +268,7 @@ RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
     while (z_call(channel->recv, &reply), z_check(reply)) {
 
         if (!z_reply_is_ok(&reply)) {
+            /* Need to understand how to check if the error is timeout*/
             spdlog::error("Error received while waiting for response");
             break;
         }
