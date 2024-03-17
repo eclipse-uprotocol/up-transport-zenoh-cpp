@@ -555,7 +555,12 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
 
     z_value_t payloadValue = z_query_value(query);
 
+    std::cout << payloadValue.payload.len << std::endl;
+
     UPayload payload(payloadValue.payload.start, payloadValue.payload.len, UPayloadType::REFERENCE);
+
+    std::cout << payload.size() << std::endl;
+
 
     auto uri = get<0>(*tuplePtr);
     auto instance = get<1>(*tuplePtr);
@@ -571,6 +576,8 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
     }
 
     UMessage message(payload, attributes);
+
+    std::cout << message.payload().size() << std::endl;
 
     if (UCode::OK != listener->onReceive(message).code()) {
        /*TODO error handling*/

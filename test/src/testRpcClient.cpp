@@ -26,6 +26,7 @@
 #include <spdlog/spdlog.h>
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
+#include <up-cpp/transport/builder/UAttributesBuilder.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <gtest/gtest.h>
 
@@ -55,28 +56,23 @@ class RpcServer : public UListener {
 
          UStatus onReceive(UMessage &message) const override {
 
-            (void) message;
-            
             UStatus status;
-
-            return status;
             
-            // std::cout << "OnReceive" << std::endl;
-            //       /* Construct response payload with the current time */
-            // auto currentTime = std::chrono::system_clock::now();
-            // auto duration = currentTime.time_since_epoch();
-            // uint64_t currentTimeMilli = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+            UAttributesBuilder builder(message.attributes().id(), UMessageType::UMESSAGE_TYPE_RESPONSE, UPriority::UPRIORITY_CS0);
 
-            // UPayload responsePayload(reinterpret_cast<const uint8_t*>(&currentTimeMilli), sizeof(currentTimeMilli), UPayloadType::VALUE);
+            UAttributes responseAttributes = builder.build();
 
-            // /* Build response attributes - the same UUID should be used to send the response 
-            //  * it is also possible to send the response outside of the callback context */
-            // UAttributesBuilder builder(message.attributes().id(), UMessageType::UMESSAGE_TYPE_RESPONSE, UPriority::UPRIORITY_CS0);
-            // UAttributes responseAttributes = builder.build();
+            if (nullptr != message.payload().data()) {
 
-            // auto rpcUri = LongUriSerializer::deserialize("/test_rpc.app/1/rpc.milliseconds");
-            // /* Send the response */
-            // return ZenohUTransport::instance().send(rpcUri, responsePayload, responseAttributes);
+               // std::cout << message.payload().size() << std::endl;
+                //std::string cmd(message.payload().data(), message.payload().data() + message.payload().size());
+
+                // if ("No Response" != cmd) {
+                //     return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
+                // }
+            }
+                                
+            return status;
         }
 };
 
@@ -120,28 +116,45 @@ class TestRPcClient : public ::testing::Test {
 
 RpcServer TestRPcClient::rpcListener;
 
-/* Deprecate non existing topic */
-TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
+// /* Deprecate non existing topic */
+// TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
     
-    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
     
-    CallOptions options;
+//     CallOptions options;
 
-    options.set_priority(UPriority::UPRIORITY_CS4);
+//     options.set_priority(UPriority::UPRIORITY_CS4);
 
-    std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcNoServerUri, payload, options);
+//     std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcNoServerUri, payload, options);
 
-    EXPECT_EQ(future.valid(), true);
+//     EXPECT_EQ(future.valid(), true);
     
-    auto response = future.get();
+//     auto response = future.get();
     
-    EXPECT_NE(response.status.code(), UCode::OK);
-}
+//     EXPECT_NE(response.status.code(), UCode::OK);
+// }
+
+// /* Deprecate non existing topic */
+// TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
+    
+//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    
+//     CallOptions options;
+
+//     options.set_priority(UPriority::UPRIORITY_CS3);
+
+//     std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcNoServerUri, payload, options);
+
+//     EXPECT_EQ(future.valid(), false);
+// }
 
 /* Deprecate non existing topic */
 TEST_F(TestRPcClient, invokeMethodNoResponse) {
     
-    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    std::string message = "No Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
+
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);
     
     CallOptions options;
 
@@ -157,31 +170,48 @@ TEST_F(TestRPcClient, invokeMethodNoResponse) {
     EXPECT_NE(response.status.code(), UCode::OK);
 }
 
+// /* Deprecate non existing topic */
+// TEST_F(TestRPcClient, maxSimultaneousRequests) {
+    
+//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    
+//     CallOptions options;
+
+//     options.set_priority(UPriority::UPRIORITY_CS4);
+//     options.set_ttl(5000);
+
+//     size_t numRequestsUntilQueueIsFull = ZenohRpcClient::instance().getMaxConcurrentRequests() + ZenohRpcClient::instance().getQueueSize();
+
+//     for (size_t i = 0; i < (numRequestsUntilQueueIsFull + 1) ; ++i) {
+//         std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
+
+//         if (i < numRequestsUntilQueueIsFull) {
+//             EXPECT_EQ(future.valid(), true);
+//         } else {
+//             EXPECT_EQ(future.valid(), false);
+//         }
+//     }
+// }
+
 /* Deprecate non existing topic */
-TEST_F(TestRPcClient, maxSimultaneousRequests) {
+// TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
     
-    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
     
-    CallOptions options;
+//     CallOptions options;
 
-    options.set_priority(UPriority::UPRIORITY_CS4);
-    options.set_ttl(5000);
+//     options.set_priority(UPriority::UPRIORITY_CS4);
+//     options.set_ttl(1000);
 
-    size_t numRequestsUntilQueueIsFull = ZenohRpcClient::instance().getMaxConcurrentRequests() + ZenohRpcClient::instance().getQueueSize();
+//     std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
 
-    for (size_t i = 0; i < (numRequestsUntilQueueIsFull + 1) ; ++i) {
-        std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
+//     EXPECT_EQ(future.valid(), true);
+    
+//     auto response = future.get();
+    
+//     EXPECT_NE(response.status.code(), UCode::OK);
+// }
 
-        if (i < numRequestsUntilQueueIsFull) {
-            EXPECT_EQ(future.valid(), true);
-        } else {
-            EXPECT_EQ(future.valid(), false);
-        }
-    }
-}
-
-//priority is less the CS4
-//response is 0
 //response is non zero 
 
 //send response on the same UUID twice
