@@ -33,88 +33,90 @@
 #include <up-core-api/uri.pb.h>
 #include <zenoh.h>
 
-class ZenohRpcClient : public uprotocol::rpc::RpcClient {
+namespace uprotocol::rpc {
 
-    public:
+    class ZenohRpcClient : public uprotocol::rpc::RpcClient {
 
-        ZenohRpcClient(const ZenohRpcClient&) = delete;
-        ZenohRpcClient& operator=(const ZenohRpcClient&) = delete;
+        public:
 
-        /**
-        * The API provides an instance of the zenoh RPC client
-        * @return instance of ZenohUTransport
-        */
-        static ZenohRpcClient& instance(void) noexcept;
+            ZenohRpcClient(const ZenohRpcClient&) = delete;
+            ZenohRpcClient& operator=(const ZenohRpcClient&) = delete;
 
-        /**
-        * init the zenohRpcClient 
-        * @return Returns OK on SUCCESS and ERROR on failure
-        */
-        uprotocol::v1::UStatus init() noexcept;
+            /**
+            * The API provides an instance of the zenoh RPC client
+            * @return instance of ZenohUTransport
+            */
+            static ZenohRpcClient& instance(void) noexcept;
 
-        /**
-        * Terminates the zenoh RPC client  - the API should be called by any class that called init
-        * @return Returns OK on SUCCESS and ERROR on failure
-        */
-        uprotocol::v1::UStatus term() noexcept; 
+            /**
+            * init the zenohRpcClient 
+            * @return Returns OK on SUCCESS and ERROR on failure
+            */
+            uprotocol::v1::UStatus init() noexcept;
 
-        /**
-        * API for clients to invoke a method (send an RPC request) and receive the response (the returned 
-        * {@link CompletionStage} {@link UPayload}. <br>
-        * Client will set method to be the URI of the method they want to invoke, 
-        * payload to the request message, and attributes with the various metadata for the 
-        * method invocation.
-        * @param topic The method URI to be invoked, ex (long form): /example.hello_world/1/rpc.SayHello.
-        * @param payload The request message to be sent to the server.
-        * @param options RPC method invocation call options, see {@link CallOptions}
-        * @return Returns the future 
-        */
-        std::future<uprotocol::rpc::RpcResponse> invokeMethod(const uprotocol::v1::UUri &topic, 
-                                                              const uprotocol::utransport::UPayload &payload, 
-                                                              const uprotocol::v1::CallOptions &options) noexcept;
+            /**
+            * Terminates the zenoh RPC client  - the API should be called by any class that called init
+            * @return Returns OK on SUCCESS and ERROR on failure
+            */
+            uprotocol::v1::UStatus term() noexcept; 
 
-        /**
-        * API for clients to invoke a method (send an RPC request) and receive the response (the returned 
-        * {@link CompletionStage} {@link UPayload}. <br>
-        * Client will set method to be the URI of the method they want to invoke, 
-        * payload to the request message, and attributes with the various metadata for the 
-        * method invocation.
-        * @param methodUri The method URI to be invoked, ex (long form): /example.hello_world/1/rpc.SayHello.
-        * @param requestPayload The request message to be sent to the server.
-        * @param options RPC method invocation call options, see {@link CallOptions}
-        * @param callback that will be called once the future is complete
-        * @return UStatus
-        */
-        uprotocol::v1::UStatus invokeMethod(const uprotocol::v1::UUri &topic,
-                                            const uprotocol::utransport::UPayload &payload,
-                                            const uprotocol::v1::CallOptions &options,
-                                            const uprotocol::utransport::UListener &callback) noexcept;
+            /**
+            * API for clients to invoke a method (send an RPC request) and receive the response (the returned 
+            * {@link CompletionStage} {@link UPayload}. <br>
+            * Client will set method to be the URI of the method they want to invoke, 
+            * payload to the request message, and attributes with the various metadata for the 
+            * method invocation.
+            * @param topic The method URI to be invoked, ex (long form): /example.hello_world/1/rpc.SayHello.
+            * @param payload The request message to be sent to the server.
+            * @param options RPC method invocation call options, see {@link CallOptions}
+            * @return Returns the future 
+            */
+            std::future<uprotocol::rpc::RpcResponse> invokeMethod(const uprotocol::v1::UUri &topic, 
+                                                                const uprotocol::utransport::UPayload &payload, 
+                                                                const uprotocol::v1::CallOptions &options) noexcept;
 
-        size_t getMaxConcurrentRequests() {
-            return maxNumOfCuncurrentRequests_;
-        }
-        
-        size_t getQueueSize() {
-            return queueSize_;
-        }
+            /**
+            * API for clients to invoke a method (send an RPC request) and receive the response (the returned 
+            * {@link CompletionStage} {@link UPayload}. <br>
+            * Client will set method to be the URI of the method they want to invoke, 
+            * payload to the request message, and attributes with the various metadata for the 
+            * method invocation.
+            * @param methodUri The method URI to be invoked, ex (long form): /example.hello_world/1/rpc.SayHello.
+            * @param requestPayload The request message to be sent to the server.
+            * @param options RPC method invocation call options, see {@link CallOptions}
+            * @param callback that will be called once the future is complete
+            * @return UStatus
+            */
+            uprotocol::v1::UStatus invokeMethod(const uprotocol::v1::UUri &topic,
+                                                const uprotocol::utransport::UPayload &payload,
+                                                const uprotocol::v1::CallOptions &options,
+                                                const uprotocol::utransport::UListener &callback) noexcept;
 
-    private:
+            size_t getMaxConcurrentRequests() {
+                return maxNumOfCuncurrentRequests_;
+            }
+            
+            size_t getQueueSize() {
+                return queueSize_;
+            }
 
-        ZenohRpcClient() {}
+        private:
 
-        static uprotocol::rpc::RpcResponse handleReply(z_owned_reply_channel_t *channel);
-        
-        /* zenoh session handle*/
-        z_owned_session_t session_;
-        /* how many times uTransport was initialized*/
-        atomic_uint32_t refCount_ = 0;
-        
-        std::mutex mutex_;
-        std::shared_ptr<uprotocol::utils::ThreadPool> threadPool_;
+            ZenohRpcClient() {}
 
-        static constexpr auto requestTimeoutMs_ = 5000;
-        static constexpr auto queueSize_ = size_t(20);
-        static constexpr auto maxNumOfCuncurrentRequests_ = size_t(2);
-};
+            static uprotocol::rpc::RpcResponse handleReply(z_owned_reply_channel_t *channel);
+            
+            /* zenoh session handle*/
+            z_owned_session_t session_;
+            /* how many times uTransport was initialized*/
+            atomic_uint32_t refCount_ = 0;
+            
+            std::mutex mutex_;
+            std::shared_ptr<uprotocol::utils::ThreadPool> threadPool_;
 
+            static constexpr auto requestTimeoutMs_ = 5000;
+            static constexpr auto queueSize_ = size_t(20);
+            static constexpr auto maxNumOfCuncurrentRequests_ = size_t(2);
+    };
+}
 #endif /*_ZENOH_RPC_CLIENT_H_*/
