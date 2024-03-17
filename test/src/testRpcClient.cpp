@@ -64,12 +64,11 @@ class RpcServer : public UListener {
 
             if (nullptr != message.payload().data()) {
 
-               // std::cout << message.payload().size() << std::endl;
-                //std::string cmd(message.payload().data(), message.payload().data() + message.payload().size());
+                std::string cmd(message.payload().data(), message.payload().data() + message.payload().size());
 
-                // if ("No Response" != cmd) {
-                //     return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
-                // }
+                if ("No Response" != cmd) {
+                    return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
+                }
             }
                                 
             return status;
@@ -116,37 +115,37 @@ class TestRPcClient : public ::testing::Test {
 
 RpcServer TestRPcClient::rpcListener;
 
-// /* Deprecate non existing topic */
-// TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
+/* Deprecate non existing topic */
+TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
     
-//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
     
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_priority(UPriority::UPRIORITY_CS4);
 
-//     std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcNoServerUri, payload, options);
+    std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcNoServerUri, payload, options);
 
-//     EXPECT_EQ(future.valid(), true);
+    EXPECT_EQ(future.valid(), true);
     
-//     auto response = future.get();
+    auto response = future.get();
     
-//     EXPECT_NE(response.status.code(), UCode::OK);
-// }
+    EXPECT_NE(response.status.code(), UCode::OK);
+}
 
-// /* Deprecate non existing topic */
-// TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
+/* Deprecate non existing topic */
+TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
     
-//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
     
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS3);
+    options.set_priority(UPriority::UPRIORITY_CS3);
 
-//     std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcNoServerUri, payload, options);
+    std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcNoServerUri, payload, options);
 
-//     EXPECT_EQ(future.valid(), false);
-// }
+    EXPECT_EQ(future.valid(), false);
+}
 
 /* Deprecate non existing topic */
 TEST_F(TestRPcClient, invokeMethodNoResponse) {
@@ -170,28 +169,28 @@ TEST_F(TestRPcClient, invokeMethodNoResponse) {
     EXPECT_NE(response.status.code(), UCode::OK);
 }
 
-// /* Deprecate non existing topic */
-// TEST_F(TestRPcClient, maxSimultaneousRequests) {
+/* Deprecate non existing topic */
+TEST_F(TestRPcClient, maxSimultaneousRequests) {
     
-//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
     
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS4);
-//     options.set_ttl(5000);
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(5000);
 
-//     size_t numRequestsUntilQueueIsFull = ZenohRpcClient::instance().getMaxConcurrentRequests() + ZenohRpcClient::instance().getQueueSize();
+    size_t numRequestsUntilQueueIsFull = ZenohRpcClient::instance().getMaxConcurrentRequests() + ZenohRpcClient::instance().getQueueSize();
 
-//     for (size_t i = 0; i < (numRequestsUntilQueueIsFull + 1) ; ++i) {
-//         std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
+    for (size_t i = 0; i < (numRequestsUntilQueueIsFull + 1) ; ++i) {
+        std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
 
-//         if (i < numRequestsUntilQueueIsFull) {
-//             EXPECT_EQ(future.valid(), true);
-//         } else {
-//             EXPECT_EQ(future.valid(), false);
-//         }
-//     }
-// }
+        if (i < numRequestsUntilQueueIsFull) {
+            EXPECT_EQ(future.valid(), true);
+        } else {
+            EXPECT_EQ(future.valid(), false);
+        }
+    }
+}
 
 /* Deprecate non existing topic */
 // TEST_F(TestRPcClient, invokeMethodWithNullResponse) {

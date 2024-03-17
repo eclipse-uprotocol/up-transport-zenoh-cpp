@@ -209,8 +209,6 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
                 pub = handleInfo->second;
             } else {
 
-                std::cout << "pub : " << std::to_string(uriHash) << std::endl;
-
                 pub = z_declare_publisher(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), nullptr);
                 if (false == z_check(pub)) {
                     spdlog::error("Unable to declare Publisher for key expression!");
@@ -390,7 +388,6 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
 
             z_owned_closure_sample_t callback = z_closure(SubHandler, OnSubscriberClose, arg);
 
-            std::cout << "sub : " << std::to_string(uriHash) << std::endl;
             auto sub = z_declare_subscriber(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), z_move(callback), nullptr);
             if (!z_check(sub)) {
                 spdlog::error("z_declare_subscriber failed");
@@ -493,7 +490,6 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
 
 void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
 
-    std::cout << "SubHandler"  << std::endl;
     if ((nullptr == sample) || (nullptr == arg)) {
        spdlog::error("Invalid arguments for SubHandler");
        return;
@@ -555,12 +551,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
 
     z_value_t payloadValue = z_query_value(query);
 
-    std::cout << payloadValue.payload.len << std::endl;
-
     UPayload payload(payloadValue.payload.start, payloadValue.payload.len, UPayloadType::REFERENCE);
-
-    std::cout << payload.size() << std::endl;
-
 
     auto uri = get<0>(*tuplePtr);
     auto instance = get<1>(*tuplePtr);
@@ -577,7 +568,6 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
 
     UMessage message(payload, attributes);
 
-    std::cout << message.payload().size() << std::endl;
 
     if (UCode::OK != listener->onReceive(message).code()) {
        /*TODO error handling*/
