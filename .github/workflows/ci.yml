@@ -33,7 +33,7 @@ jobs:
       - name: Create up-cpp Conan package
         shell: bash
         run: |
-          git clone https://github.com/MelamudMichael/up-cpp.git
+          git clone https://github.com/eclipse-uprotocol/up-cpp.git
           cd up-cpp
           git submodule update --init --recursive
           conan create . --build=missing
