@@ -25,6 +25,7 @@
 #ifndef _ZENOH_RPC_CLIENT_H_
 #define _ZENOH_RPC_CLIENT_H_
 
+#include <condition_variable>
 #include <up-cpp/rpc/RpcClient.h>
 #include <up-cpp/utils/ThreadPool.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
@@ -58,15 +59,15 @@ class ZenohRpcClient : public uprotocol::rpc::RpcClient {
         uprotocol::v1::UStatus term() noexcept; 
 
 
-        std::future<uprotocol::utransport::UMessage> invokeMethod(const uprotocol::v1::UUri &topic, 
-                                                                  const uprotocol::utransport::UPayload &payload, 
-                                                                  const uprotocol::v1::CallOptions &options) noexcept;
-
+        std::future<uprotocol::rpc::RpcResponse> invokeMethod(const uprotocol::v1::UUri &topic, 
+                                                              const uprotocol::utransport::UPayload &payload, 
+                                                              const uprotocol::v1::CallOptions &options) noexcept;
+        
     private:
 
         ZenohRpcClient() {}
 
-        static uprotocol::utransport::UMessage handleReply(z_owned_reply_channel_t *channel);
+        static uprotocol::rpc::RpcResponse handleReply(z_owned_reply_channel_t *channel);
         
         /* zenoh session handle*/
         z_owned_session_t session_;

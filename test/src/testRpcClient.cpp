@@ -25,14 +25,16 @@
 #include <csignal>
 #include <spdlog/spdlog.h>
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
+#include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <gtest/gtest.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::v1;
+using namespace uprotocol::uri;
+using namespace uprotocol::rpc;
 
-class upClientZenohCppTest : public ::testing::Test {
-
-    public:
+class TestRPcClient : public ::testing::Test {
 
     public:
         // SetUpTestSuite() is called before all tests in the test suite
@@ -40,6 +42,11 @@ class upClientZenohCppTest : public ::testing::Test {
 
             if (UCode::OK != ZenohUTransport::instance().init().code()) {
                 spdlog::error("ZenohUTransport::instance().init failed");
+                return;
+            }
+
+            if (UCode::OK != ZenohRpcClient::instance().init().code()) {
+                spdlog::error("ZenohRpcClient::instance().init failed");
                 return;
             }
         }
@@ -52,11 +59,27 @@ class upClientZenohCppTest : public ::testing::Test {
                 return;
             }
         }
+    
+    public:
+
+        UUri rpcUri = LongUriSerializer::deserialize("/test_rpc.app/1/rpc.milliseconds");
 };
 
 /* Deprecate non existing topic */
-TEST_F(upClientZenohCppTest, DummyTest) {
-   
+TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
+    
+    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    CallOptions options;
+
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    /* send the RPC request , a future is returned from invokeMethod */
+    std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
+
+    EXPECT_EQ(future.valid(), true);
+    
+    auto response = future.get();
+    
+    EXPECT_NE(response.status.code(), UCode::OK);
 }
 
 //unsubscribe from non existane topic 

@@ -39,6 +39,7 @@ using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
 using namespace uprotocol::uri;
 using namespace uprotocol::utils;
+using namespace uprotocol::rpc;
 
 ZenohRpcClient& ZenohRpcClient::instance(void) noexcept {
     
@@ -112,14 +113,14 @@ UStatus ZenohRpcClient::term() noexcept {
     return status;
 }
 
-std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic, 
-                                                   const UPayload &payload, 
-                                                   const CallOptions &options) noexcept {
-    std::future<UMessage> future;
+std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic, 
+                                                      const UPayload &payload, 
+                                                      const CallOptions &options) noexcept {
+    std::future<RpcResponse> future;
     z_owned_bytes_map_t map = z_bytes_map_new();
     z_get_options_t opts = z_get_options_default();
     z_owned_reply_channel_t *channel = nullptr;
-    UCode status = UCode::INTERNAL;
+    UStatus status;
 
     if (0 == refCount_) {
         spdlog::error("ZenohRpcClient is not initialized");
@@ -140,6 +141,8 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
         (i.e. same UUri and CallOptions). This is to prevent duplicate requests.*/
 
     do {
+
+        status.set_code(UCode::INTERNAL);
 
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(topic));
         auto uuid = Uuidv8Factory::create();
@@ -191,18 +194,18 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
             spdlog::error("z_get failure");
             break;
         }
-
+       
         future = threadPool_->submit([=] { return handleReply(channel); });
-
         if (false == future.valid()) {
             spdlog::error("invalid future received");
             break;
         }
-        status = UCode::OK;
     
+        status.set_code(UCode::OK);
+
     } while(0);
 
-    if (UCode::OK != status) {
+    if (UCode::OK != status.code()) {
         delete channel;
     }
 
@@ -211,15 +214,16 @@ std::future<UMessage> ZenohRpcClient::invokeMethod(const UUri &topic,
     return future;
 }
 
-UMessage ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
+RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 
     z_owned_reply_t reply = z_reply_null();
+    RpcResponse rpcResponse;
 
-    UMessage message;
+    rpcResponse.status.set_code(UCode::INTERNAL);
 
     if (nullptr == channel) {
         spdlog::error("channel is nullptr");
-        return message;
+        return rpcResponse;
     }
 
     while (z_call(channel->recv, &reply), z_check(reply)) {
@@ -251,8 +255,9 @@ UMessage ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 
         auto payload = UPayload(sample.payload.start, sample.payload.len, UPayloadType::VALUE);
 
-        message.setPayload(payload);
-        message.setAttributes(attributes);
+        rpcResponse.message.setPayload(payload);
+        rpcResponse.message.setAttributes(attributes);
+        rpcResponse.status.set_code(UCode::OK);
 
         z_drop(z_move(reply));
     }
@@ -261,5 +266,5 @@ UMessage ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
 
     delete channel;
 
-    return message;
+    return rpcResponse;
 }
