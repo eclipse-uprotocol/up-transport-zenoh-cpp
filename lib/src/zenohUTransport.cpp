@@ -169,12 +169,6 @@ UStatus ZenohUTransport::send(const UUri &uri,
         status.set_code(UCode::UNAVAILABLE);
         return status;
     }
-    
-    if ((0 == payload.size()) || (nullptr == payload.data())) {
-        spdlog::error("invalid paylooad");
-        status.set_code(UCode::UNAVAILABLE);
-        return status;
-    }
 
     if (false == isRPCMethod(uri.resource())) {
         status.set_code(sendPublish(uri, payload, attributes));

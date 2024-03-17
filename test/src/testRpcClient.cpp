@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 General Motors GTO LLC
+ * Copyright (c) 2024 General Motors GTO LLC
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,7 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  * SPDX-FileType: SOURCE
- * SPDX-FileCopyrightText: 2023 General Motors GTO LLC
+ * SPDX-FileCopyrightText: 2024 General Motors GTO LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -54,9 +54,11 @@ class RpcServer : public UListener {
             return status;
         }
 
-         UStatus onReceive(UMessage &message) const override {
+        UStatus onReceive(UMessage &message) const override {
 
             UStatus status;
+
+            status.set_code(UCode::OK);
             
             UAttributesBuilder builder(message.attributes().id(), UMessageType::UMESSAGE_TYPE_RESPONSE, UPriority::UPRIORITY_CS0);
 
@@ -69,7 +71,10 @@ class RpcServer : public UListener {
                 if ("No Response" != cmd) {
                     return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
                 }
+            } else {
+                 return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
             }
+
                                 
             return status;
         }
@@ -115,7 +120,6 @@ class TestRPcClient : public ::testing::Test {
 
 RpcServer TestRPcClient::rpcListener;
 
-/* Deprecate non existing topic */
 TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
     
     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
@@ -133,7 +137,6 @@ TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
     EXPECT_NE(response.status.code(), UCode::OK);
 }
 
-/* Deprecate non existing topic */
 TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
     
     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
@@ -147,7 +150,6 @@ TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
     EXPECT_EQ(future.valid(), false);
 }
 
-/* Deprecate non existing topic */
 TEST_F(TestRPcClient, invokeMethodNoResponse) {
     
     std::string message = "No Response";
@@ -169,10 +171,12 @@ TEST_F(TestRPcClient, invokeMethodNoResponse) {
     EXPECT_NE(response.status.code(), UCode::OK);
 }
 
-/* Deprecate non existing topic */
 TEST_F(TestRPcClient, maxSimultaneousRequests) {
     
-    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    std::string message = "No Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
+
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);
     
     CallOptions options;
 
@@ -190,35 +194,60 @@ TEST_F(TestRPcClient, maxSimultaneousRequests) {
             EXPECT_EQ(future.valid(), false);
         }
     }
+
+    /* wait for al futures to return */
+    sleep(5);
+
+    std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
+
+    EXPECT_EQ(future.valid(), true);
 }
 
-/* Deprecate non existing topic */
-// TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
+TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
     
-//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
     
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS4);
-//     options.set_ttl(1000);
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(1000);
 
-//     std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
+    std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
 
-//     EXPECT_EQ(future.valid(), true);
+    EXPECT_EQ(future.valid(), true);
     
-//     auto response = future.get();
+    auto response = future.get();
     
-//     EXPECT_NE(response.status.code(), UCode::OK);
-// }
+    EXPECT_EQ(response.status.code(), UCode::OK);
 
-//response is non zero 
+    EXPECT_EQ(response.message.payload().data(), nullptr);
+}
 
-//send response on the same UUID twice
-//request payload is 0
-//request payload is non zero 
-//send response on expired TTL 
+TEST_F(TestRPcClient, invokeMethodWithResponse) {
+    
+    std::string message = "Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
 
-//unsubscribe from non existane topic 
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
+
+    CallOptions options;
+
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(1000);
+
+    std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
+
+    EXPECT_EQ(future.valid(), true);
+    
+    auto response = future.get();
+    
+    EXPECT_EQ(response.status.code(), UCode::OK);
+
+    EXPECT_NE(response.message.payload().data(), nullptr);
+    EXPECT_NE(response.message.payload().size(), 0);
+
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
