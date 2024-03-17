@@ -229,7 +229,7 @@ RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
     while (z_call(channel->recv, &reply), z_check(reply)) {
 
         if (!z_reply_is_ok(&reply)) {
-            spdlog::error("error received");
+            spdlog::error("Error received while waiting for response");
             break;
         }
 
