@@ -26,7 +26,11 @@ if(BUILD_UNBUNDLED)
     find_package(up-cpp REQUIRED)
     find_package(zenohc REQUIRED)
 else()
-    find_library(ZENOH_LIB zenohc)
+    if(CROSS_COMPILE)
+        find_package(zenohc REQUIRED)
+    else()
+        find_library(ZENOH_LIB zenohc)
+    endif()
     find_package(up-cpp QUIET)
 endif()
 
@@ -52,7 +56,7 @@ target_include_directories(${PROJECT_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-if(BUILD_UNBUNDLED)
+if ((BUILD_UNBUNDLED) OR (CROSS_COMPILE))
     target_link_libraries(${PROJECT_NAME} 
         PUBLIC 
             up-cpp::up-cpp
