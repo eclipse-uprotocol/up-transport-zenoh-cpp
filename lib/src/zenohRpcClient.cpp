@@ -48,7 +48,7 @@ ZenohRpcClient& ZenohRpcClient::instance(void) noexcept {
     return rpcClient;
 }
 
-UStatus ZenohRpcClient::init() noexcept {
+UStatus ZenohRpcClient::init(ZenohRpcClientConfig *config) noexcept {
 
     UStatus status;
 
@@ -58,9 +58,9 @@ UStatus ZenohRpcClient::init() noexcept {
 
         if (0 == refCount_) {
             /* by default initialized to empty strings */
-            ZenohSessionManagerConfig config;
+            ZenohSessionManagerConfig zenohConfig;
 
-            if (UCode::OK != ZenohSessionManager::instance().init(config)) {
+            if (UCode::OK != ZenohSessionManager::instance().init(zenohConfig)) {
                 spdlog::error("zenohSessionManager::instance().init() failed");
                 status.set_code(UCode::UNAVAILABLE);
                 return status;
@@ -71,6 +71,11 @@ UStatus ZenohRpcClient::init() noexcept {
             } else {
                 status.set_code(UCode::UNAVAILABLE);
                 return status;
+            }
+
+            if (nullptr != config) {
+                queueSize_ = config->maxQueueSize;
+                maxNumOfCuncurrentRequests_ = config->maxConcurrentRequests;
             }
 
             threadPool_ = make_shared<ThreadPool>(queueSize_, maxNumOfCuncurrentRequests_);
@@ -117,10 +122,6 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic,
                                                       const UPayload &payload, 
                                                       const CallOptions &options) noexcept {
     std::future<RpcResponse> future;
-    z_owned_bytes_map_t map = z_bytes_map_new();
-    z_get_options_t opts = z_get_options_default();
-    z_owned_reply_channel_t *channel = nullptr;
-    UStatus status;
 
     if (0 == refCount_) {
         spdlog::error("ZenohRpcClient is not initialized");
@@ -139,6 +140,53 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic,
 
     /* TODO : Decide how to handle MUST return ALREADY_EXISTS if the same request already exists 
         (i.e. same UUri and CallOptions). This is to prevent duplicate requests.*/
+
+    return invokeMethodInternal(topic, payload, options);
+}
+
+UStatus ZenohRpcClient::invokeMethod(const UUri &topic,
+                                     const UPayload &payload,
+                                     const CallOptions &options,
+                                     const UListener &callback) noexcept {
+    UStatus status;
+
+    status.set_code(UCode::INTERNAL);
+
+    if (0 == refCount_) {
+        spdlog::error("ZenohRpcClient is not initialized");
+        return status;
+    }
+
+    if (false == isRPCMethod(topic.resource())) {
+        spdlog::error("URI is not of RPC type");
+        return status;
+    }
+
+    if (UPriority::UPRIORITY_CS4 > options.priority()) {
+        spdlog::error("Prirority is smaller then UPRIORITY_CS4");
+        return status;
+    }
+
+    auto future = invokeMethodInternal(topic, payload, options, &callback);
+    if (false == future.valid()){
+        spdlog::error("invokeMethodInternal failed");
+        return status;
+    }
+
+    status.set_code(UCode::OK);
+
+    return status;
+}
+
+std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
+                                                              const UPayload &payload,
+                                                              const CallOptions &options,
+                                                              const UListener *callback) noexcept {
+    std::future<RpcResponse> future;
+    z_owned_bytes_map_t map = z_bytes_map_new();
+    z_get_options_t opts = z_get_options_default();
+    z_owned_reply_channel_t *channel = nullptr;
+    UStatus status;
 
     do {
 
@@ -195,7 +243,7 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic,
             break;
         }
        
-        future = threadPool_->submit([=] { return handleReply(channel); });
+        future = threadPool_->submit([=] { return handleReply(channel, callback); });
         if (false == future.valid()) {
             spdlog::error("invalid future received");
             break;
@@ -214,46 +262,8 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic,
     return future;
 }
 
-UStatus ZenohRpcClient::invokeMethod(const UUri &topic,
-                                     const UPayload &payload,
-                                     const CallOptions &options,
-                                     const UListener &callback) noexcept {
-
-    UStatus status;
-
-    auto future = invokeMethod(topic, payload, options);
-
-    if (false == future.valid()) {
-        status.set_code(UCode::INTERNAL);
-        return status;
-    }
-
-    auto future_status = future.wait_for(std::chrono::milliseconds(options.ttl()));
-
-    switch (future_status) {
-        case std::future_status::timeout: {
-            status.set_code(UCode::DEADLINE_EXCEEDED);
-        }
-        break;
-        case std::future_status::ready: {
-           auto response = future.get();
-
-           status.set_code(response.status.code());
-           if (UCode::OK == response.status.code()) {
-                callback.onReceive(response.message);
-           }
-        }
-        break;
-        case std::future_status::deferred: {
-            status.set_code(UCode::INTERNAL);
-        }
-        break;
-    }
-
-    return status;
-}
-
-RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
+RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel,
+                                        const UListener *callback) noexcept {
 
     z_owned_reply_t reply = z_reply_null();
     RpcResponse rpcResponse;
@@ -268,8 +278,14 @@ RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
     while (z_call(channel->recv, &reply), z_check(reply)) {
 
         if (!z_reply_is_ok(&reply)) {
-            /* Need to understand how to check if the error is timeout*/
-            spdlog::error("Error received while waiting for response");
+            z_value_t error = z_reply_err(&reply);
+            if (memcmp("Timeout", error.payload.start, error.payload.len) == 0) {
+                spdlog::error("Timeout received while waiting for response");
+                rpcResponse.status.set_code(UCode::DEADLINE_EXCEEDED);
+            } else {
+                spdlog::error("Error received while waiting for response");
+            }
+
             break;
         }
 
@@ -305,6 +321,11 @@ RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel) {
     z_drop((z_owned_reply_channel_t*)channel);
 
     delete channel;
+
+    /* TODO - how to send an error to the user*/
+    if ((nullptr != callback) && (UCode::OK == rpcResponse.status.code())) {
+        callback->onReceive(rpcResponse.message);
+    }
 
     return rpcResponse;
 }

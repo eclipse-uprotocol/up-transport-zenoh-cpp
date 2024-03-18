@@ -509,12 +509,12 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
    
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
 
-    // Retrieve URI, listener, and other necessary data from the tuple
-    auto uri = get<0>(*tuplePtr);
     auto listener = &get<2>(*tuplePtr);
 
+    UMessage message(payload, attributes);
+
     // Pass the parsed headers and payload to the listener's onReceive method
-    if (UCode::OK != listener->onReceive(*uri, payload, attributes).code()) {
+    if (UCode::OK != listener->onReceive(message).code()) {
        spdlog::error("listener->onReceive failed");
        /* TODO handle error */
     }
@@ -560,7 +560,6 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
     }
 
     UMessage message(payload, attributes);
-
 
     if (UCode::OK != listener->onReceive(message).code()) {
        /*TODO error handling*/

@@ -35,6 +35,12 @@
 
 namespace uprotocol::rpc {
 
+    struct ZenohRpcClientConfig
+    {
+        size_t maxQueueSize;
+        size_t maxConcurrentRequests;
+    };
+
     class ZenohRpcClient : public uprotocol::rpc::RpcClient {
 
         public:
@@ -52,7 +58,7 @@ namespace uprotocol::rpc {
             * init the zenohRpcClient 
             * @return Returns OK on SUCCESS and ERROR on failure
             */
-            uprotocol::v1::UStatus init() noexcept;
+            uprotocol::v1::UStatus init(ZenohRpcClientConfig *config = nullptr) noexcept;
 
             /**
             * Terminates the zenoh RPC client  - the API should be called by any class that called init
@@ -72,8 +78,8 @@ namespace uprotocol::rpc {
             * @return Returns the future 
             */
             std::future<uprotocol::rpc::RpcResponse> invokeMethod(const uprotocol::v1::UUri &topic, 
-                                                                const uprotocol::utransport::UPayload &payload, 
-                                                                const uprotocol::v1::CallOptions &options) noexcept;
+                                                                  const uprotocol::utransport::UPayload &payload, 
+                                                                  const uprotocol::v1::CallOptions &options) noexcept;
 
             /**
             * API for clients to invoke a method (send an RPC request) and receive the response (the returned 
@@ -92,20 +98,34 @@ namespace uprotocol::rpc {
                                                 const uprotocol::v1::CallOptions &options,
                                                 const uprotocol::utransport::UListener &callback) noexcept;
 
+            /**
+             * get the number of max concurrent request 
+             * @return number of concurrent requests
+            */
             size_t getMaxConcurrentRequests() {
                 return maxNumOfCuncurrentRequests_;
             }
             
+            /**
+             * get queue size
+             * @return queue size
+            */
             size_t getQueueSize() {
                 return queueSize_;
             }
 
         private:
 
-            ZenohRpcClient() {}
+           ZenohRpcClient() {}
 
-            static uprotocol::rpc::RpcResponse handleReply(z_owned_reply_channel_t *channel);
-            
+           std::future<uprotocol::rpc::RpcResponse> invokeMethodInternal(const uprotocol::v1::UUri &topic,
+                                                                         const uprotocol::utransport::UPayload &payload,
+                                                                         const uprotocol::v1::CallOptions &options,
+                                                                         const uprotocol::utransport::UListener *callback = nullptr) noexcept;
+
+            static uprotocol::rpc::RpcResponse handleReply(z_owned_reply_channel_t *channel, 
+                                                           const uprotocol::utransport::UListener *callback = nullptr) noexcept;
+                        
             /* zenoh session handle*/
             z_owned_session_t session_;
             /* how many times uTransport was initialized*/
@@ -115,8 +135,12 @@ namespace uprotocol::rpc {
             std::shared_ptr<uprotocol::utils::ThreadPool> threadPool_;
 
             static constexpr auto requestTimeoutMs_ = 5000;
-            static constexpr auto queueSize_ = size_t(20);
-            static constexpr auto maxNumOfCuncurrentRequests_ = size_t(2);
+            static constexpr auto queueSizeDefault_ = size_t(20);
+            static constexpr auto maxNumOfCuncurrentRequestsDefault_ = size_t(2);
+
+            size_t queueSize_ = queueSizeDefault_;
+            size_t maxNumOfCuncurrentRequests_ = maxNumOfCuncurrentRequestsDefault_;
     };
 }
+
 #endif /*_ZENOH_RPC_CLIENT_H_*/

@@ -41,18 +41,6 @@ UUri rpcNoServerUri = LongUriSerializer::deserialize("/test_rpc.app/1/rpc.noServ
 class RpcServer : public UListener {
 
      public:
-        UStatus onReceive(const UUri& uri,
-                          const UPayload& payload,
-                          const UAttributes& attributes) const override {
-            
-            (void) uri;
-            (void) payload;
-            (void) attributes;
-
-            UStatus status;
-
-            return status;
-        }
 
         UStatus onReceive(UMessage &message) const override {
 
@@ -76,6 +64,22 @@ class RpcServer : public UListener {
             }
 
                                 
+            return status;
+        }
+};
+
+class ResponseListener : public UListener {
+
+     public:
+
+        UStatus onReceive(UMessage &message) const override {
+
+            (void) message;
+
+            UStatus status;
+
+            status.set_code(UCode::OK);
+           
             return status;
         }
 };
@@ -115,10 +119,12 @@ class TestRPcClient : public ::testing::Test {
         }
     
         static RpcServer rpcListener;
+        static ResponseListener responseListener;
 
 };
 
 RpcServer TestRPcClient::rpcListener;
+ResponseListener TestRPcClient::responseListener;
 
 TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
     
@@ -246,6 +252,24 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
     EXPECT_NE(response.message.payload().data(), nullptr);
     EXPECT_NE(response.message.payload().size(), 0);
 
+}
+
+TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
+    
+    std::string message = "Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
+
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
+
+    CallOptions options;
+
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(1000);
+
+    auto status = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options, responseListener);
+
+    EXPECT_EQ(status.code(), UCode::OK);
+    
 }
 
 int main(int argc, char **argv) {
