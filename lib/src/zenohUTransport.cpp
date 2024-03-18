@@ -178,6 +178,7 @@ UStatus ZenohUTransport::send(const UUri &uri,
 
     return status;
 }
+
 UCode ZenohUTransport::sendPublish(const UUri &uri, 
                                    const UPayload &payload,
                                    const UAttributes &attributes) noexcept {
@@ -505,7 +506,7 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
        return;
     }
 
-    UPayload payload{sample->payload.start, sample->payload.len, UPayloadType::REFERENCE};
+    UPayload payload{sample->payload.start, sample->payload.len, UPayloadType::VALUE};
    
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
 

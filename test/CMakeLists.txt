@@ -27,6 +27,8 @@ project(test VERSION 0.1.0 LANGUAGES CXX)
 find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+
 # include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 add_executable(testRpcClient
 	src/testRpcClient.cpp)
@@ -41,3 +43,28 @@ target_link_libraries(testRpcClient
 )
 
 add_test("t-18-testRpcClient" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testRpcClient)
+
+add_executable(testLatencyPing
+	src/testLatencyPing.cpp)
+target_link_libraries(testLatencyPing 
+	PUBLIC
+		up-client-zenoh-cpp::up-client-zenoh-cpp
+        spdlog::spdlog
+	PRIVATE
+		GTest::gtest_main
+		GTest::gmock    
+		pthread
+)
+
+add_test("t-18-testLatencyPing" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPing)
+
+
+add_executable(testLatencyPong
+	src/testLatencyPong.cpp)
+target_link_libraries(testLatencyPong 
+	PUBLIC
+		up-client-zenoh-cpp::up-client-zenoh-cpp
+        spdlog::spdlog
+	PRIVATE
+		pthread
+)
