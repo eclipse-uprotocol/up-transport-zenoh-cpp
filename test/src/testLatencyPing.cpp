@@ -73,10 +73,10 @@ class TestLatencyPing : public ::testing::Test, UListener{
             memcpy(&pongTimeMicro, payload.data(), sizeof(pongTimeMicro));
             memcpy(&pid, payload.data() + sizeof(pingTimeMicro), sizeof(pid));
             
-            latencyTotal_ += pongTimeMicro - pingTimeMicro;
+            latencyTotal_.fetch_add(pongTimeMicro - pingTimeMicro);
 
             responseCounter_.fetch_add(1);
-            ++responseCounterTotal_;
+            responseCounterTotal_.fetch_add(1);
 
             LatencyPerPID entry = processTable[pid];
             uint64_t latency = pongTimeMicro - pingTimeMicro;
@@ -186,7 +186,8 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
             spdlog::info("Sleeping for 10 seconds to finish get all of the responses");
             sleep (10);
-            spdlog::info("*** message size {} total samples received {} total latency {} average latency {} ***" , bufferSize, responseCounterTotal_, latencyTotal_ , (latencyTotal_ / responseCounterTotal_)); 
+            spdlog::info("*** message size {} total samples received {} total latency {} average latency {} ***" , 
+                bufferSize, responseCounterTotal_.load(), latencyTotal_.load() , (latencyTotal_.load() / responseCounterTotal_.load())); 
 
             for (int pid : pidList) {
 
@@ -201,6 +202,20 @@ class TestLatencyPing : public ::testing::Test, UListener{
                     spdlog::error("Failed to send SIGINT signal to process with PID {}", pid);
                 }
             }
+
+            spdlog::info("Sleeping for 10 seconds to all processes to terminate");
+            pidList = getPids();
+
+            if (0 != pidList.size()) {
+                for (int pid : pidList) {
+                   kill(pid, SIGKILL);
+                }
+                spdlog::info("Sleeping for 10 seconds to all processes to terminate");
+            }
+
+            pidList = getPids();
+
+            EXPECT_EQ(pidList.size(), 0);
         }
 
         void SetUp() override {
@@ -238,8 +253,8 @@ class TestLatencyPing : public ::testing::Test, UListener{
         mutable std::condition_variable cv;
         size_t maxSubscribers_ = 0;
         mutable std::atomic<size_t> responseCounter_ = 0;
-        mutable uint64_t latencyTotal_ = 0;
-        mutable size_t responseCounterTotal_ = 0;
+        mutable std::atomic<uint64_t> latencyTotal_ = 0;
+        mutable std::atomic<size_t> responseCounterTotal_ = 0;
         mutable std::unordered_map<pid_t, LatencyPerPID> processTable;
 };
 
@@ -253,6 +268,30 @@ TEST_F(TestLatencyPing, LatencyTests1Kb5Sub) {
 
 TEST_F(TestLatencyPing, LatencyTests1Kb20Sub) {
     runTest(1024, 20);
+}
+
+TEST_F(TestLatencyPing, LatencyTests10Kb1Sub) {
+    runTest(1024 * 10 , 1);
+}
+
+TEST_F(TestLatencyPing, LatencyTests10Kb5Sub) {
+    runTest(1024 * 10 , 5);
+}
+
+TEST_F(TestLatencyPing, LatencyTests10Kb20Sub) {
+    runTest(1024 * 10, 20);
+}
+
+TEST_F(TestLatencyPing, LatencyTests100Kb1Sub) {
+    runTest(1024 * 100, 1);
+}
+
+TEST_F(TestLatencyPing, LatencyTests100Kb5Sub) {
+    runTest(1024 * 100, 5);
+}
+
+TEST_F(TestLatencyPing, LatencyTests100Kb20Sub) {
+    runTest(1024 * 100, 20);
 }
 
 int main(int argc, char **argv) {
