@@ -61,9 +61,7 @@ class CustomListener : public UListener {
 
         UStatus onReceive(UMessage &message) const override {
             
-            static int i = 0;
-
-            (void)message;        
+           (void)message;        
          
             timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts); // Get current time
@@ -73,10 +71,6 @@ class CustomListener : public UListener {
 
             UStatus status;
             UPayload payload(reinterpret_cast<const uint8_t*>(&bc), sizeof(bc), UPayloadType::VALUE);
-
-            std::cout << i << " sending " << bc << std::endl;
-
-            i++;
             /* Send the response */
             return ZenohUTransport::instance().send(pongUri, payload, responseAttributes);
 

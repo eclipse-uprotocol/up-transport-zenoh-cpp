@@ -54,111 +54,138 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
         UStatus onReceive(UMessage &message) const override {
             
-            auto payload = message.payload();
-    
-            const uint64_t *pongTimeMicro = reinterpret_cast<const uint64_t*>(payload.data());
+            const uint64_t *pongTimeMicro = reinterpret_cast<const uint64_t*>(message.payload().data());
             
-                        
-            printf("%lu\n", (*pongTimeMicro - pingTimeMicro));
+            latencyTotal_ += *pongTimeMicro - pingTimeMicro;
 
-            UStatus status;
+            responseCounter_.fetch_add(1);
+            ++responseCounterTotal_;
 
-            status.set_code(UCode::OK);
-
-            counter.fetch_add(1);
-            if (maxSubscribers == counter) {
+            if (maxSubscribers_ == responseCounter_) {
                 cv.notify_one();
             }
 
+            UStatus status;
+
+            status.set_code(UCode::OK);         
+
             return status;
-      
         }
 
         uint64_t getCurrentTimeMicroseconds() {
             timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts); // Get current time
+            clock_gettime(CLOCK_REALTIME, &ts); 
 
-            // Convert seconds to microseconds and add nanoseconds converted to microseconds
             return static_cast<uint64_t>(ts.tv_sec) * 1000000ULL + static_cast<uint64_t>(ts.tv_nsec) / 1000ULL;
         }
 
-         void SetUp() override {
-            // Perform initialization before each test case
+        std::vector<int> getPids() {
+            std::vector<int> pidList;
+            char buffer[128];
+            std::shared_ptr<FILE> pipe(popen("ps -ef | grep testLatencyPong | grep -v grep | awk '{print $2}'", "r"), pclose);
+            if (!pipe) throw std::runtime_error("popen() failed!");
+
+            while (!feof(pipe.get())) {
+                if (fgets(buffer, 128, pipe.get()) != nullptr) {
+                    // Split the output into tokens and store the PID
+                    std::istringstream iss(buffer);
+                    int pid;
+                    if (iss >> pid) {
+                        pidList.push_back(pid);
+                    }
+                }
+            }
+            return pidList;
+        }
+
+        void SetUp() override {
             ZenohUTransport::instance().registerListener(pongUri, *this);
         }
 
         void TearDown() override {
-            // Perform cleanup after each test case
             ZenohUTransport::instance().unregisterListener(pongUri, *this);
         }
 
-        // SetUpTestSuite() is called before all tests in the test suite
         static void SetUpTestSuite() {
-
             if (UCode::OK != ZenohUTransport::instance().init().code()) {
                 spdlog::error("ZenohUTransport::instance().init failed");
                 return;
             }
-
-
-           // ZenohUTransport::instance().registerListener(rpcUri, TestRPcClient::rpcListener);
-
         }
 
-        // TearDownTestSuite() is called after all tests in the test suite
         static void TearDownTestSuite() {
-
             if (UCode::OK != ZenohUTransport::instance().term().code()) {
                 spdlog::error("ZenohUTransport::instance().term() failed");
                 return;
             }
-
         }
     
         void waitUntilAllCallbacksInvoked() {
             std::unique_lock<std::mutex> lock(mutex_);
-            cv.wait(lock, [this](){ return counter >= maxSubscribers; });
+            cv.wait(lock, [this](){ return responseCounter_ >= maxSubscribers_; });
         }
 
         UUri pingUri = LongUriSerializer::deserialize(PING_URI_STRING); //1 pub , many sub 
         UUri pongUri = LongUriSerializer::deserialize(PONG_URI_STRING); //1 sub , many pub
 
-        UUID pingUUid;
         uint64_t pingTimeMicro;
         std::mutex mutex_;
         mutable std::condition_variable cv;
-        size_t maxSubscribers = 0;
-        mutable std::atomic<size_t> counter = 0;
+        size_t maxSubscribers_ = 0;
+        mutable std::atomic<size_t> responseCounter_ = 0;
+        mutable uint64_t latencyTotal_ = 0;
+        mutable size_t responseCounterTotal_ = 0;
 };
 
-//Send ping to 1 ... n with the ping time + payload
-//send pong with with ID + ping time
-//map of key= a .. n , value = list of micro seconds results 
 TEST_F(TestLatencyPing, LatencyTests1Kb1Sub) {
-    
-    maxSubscribers = 1;
-
-    auto now = std::chrono::high_resolution_clock::now();
-    
-    pingUUid = Uuidv8Factory::create();
-
-    UAttributesBuilder builder(pingUUid, UMessageType::UMESSAGE_TYPE_PUBLISH, UPriority::UPRIORITY_CS0);
-    UAttributes attributes = builder.build();
         
+    maxSubscribers_ = 1;
+    responseCounter_ = 0;
+    latencyTotal_ = 0;
+    responseCounterTotal_ = 0;
+
+    for (size_t i = 0 ; i < maxSubscribers_ ; ++i) {
+        std::system(LATENCY_PONG_BIN_PATH );
+    }
+    
+    std::vector<int> pidList = getPids();
+
+    EXPECT_EQ(pidList.size(), maxSubscribers_);
+
+    spdlog::info("Sleeping for 10 seconds to give time for processes to initialize");
+    sleep(10);
+    
     for (size_t i = 0 ; i < 1000 ; ++i) {
 
-        
-    pingTimeMicro = getCurrentTimeMicroseconds();
+        auto pingUUid = Uuidv8Factory::create();
 
-    UPayload payload(reinterpret_cast<const uint8_t*>(&pingTimeMicro), sizeof(pingTimeMicro), UPayloadType::VALUE);
+        UAttributesBuilder builder(pingUUid, UMessageType::UMESSAGE_TYPE_PUBLISH, UPriority::UPRIORITY_CS0);
+        UAttributes attributes = builder.build();     
+        
+        pingTimeMicro = getCurrentTimeMicroseconds();
+
+        UPayload payload(reinterpret_cast<const uint8_t*>(&pingTimeMicro), sizeof(pingTimeMicro), UPayloadType::VALUE);
     
-        std::cout << i << " sending " << pingTimeMicro << std::endl;
         UStatus status = ZenohUTransport::instance().send(pingUri, payload, attributes);
+        
         EXPECT_EQ(status.code(), UCode::OK);
 
         waitUntilAllCallbacksInvoked();
 
-        counter = 0;
+        responseCounter_ = 0;
+    }
+
+    spdlog::info("Sleeping for 10 seconds to finish get all of the responses");
+    sleep (10);
+    spdlog::info("total samples received {}  total latency {} average latency {}" , responseCounterTotal_, latencyTotal_ , (latencyTotal_ / responseCounterTotal_)); 
+
+    for (int pid : pidList) {
+        int result = kill(pid, SIGINT);
+        if (result == 0) {
+            spdlog::info("Sent SIGINT signal to process with PID {}", pid);
+        } else {
+            spdlog::error("Failed to send SIGINT signal to process with PID {}", pid);
+        }
     }
 }
 

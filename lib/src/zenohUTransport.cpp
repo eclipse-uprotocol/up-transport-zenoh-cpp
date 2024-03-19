@@ -106,7 +106,7 @@ UStatus ZenohUTransport::term() noexcept {
         }
 
         if (termMaxRetries_ == retries) {
-            spdlog::error("timeout elapsed while trying to terminate");
+            spdlog::error("timeout elapsed while trying to terminate remaining pending sends = {}", pendingSendRefCnt_.load());
             status.set_code(UCode::INTERNAL);
             return status;
         }
@@ -184,6 +184,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
                                    const UAttributes &attributes) noexcept {
     UCode status = UCode::UNAVAILABLE;
 
+    pendingSendRefCnt_.fetch_add(1);
     do {
         if (UMessageType::UMESSAGE_TYPE_PUBLISH != attributes.type()) {
             spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
