@@ -57,6 +57,10 @@ struct LatencyPerPID {
     size_t samplesCount;
 };
 
+constexpr size_t arraySize = 4 * 1024 * 1024; // 4 megabytes
+uint8_t byteArray[arraySize];
+
+
 class TestLatencyPing : public ::testing::Test, UListener{
 
     public:
@@ -165,8 +169,8 @@ class TestLatencyPing : public ::testing::Test, UListener{
                 processTable[pid] = entry;
             }
 
-            spdlog::info("Sleeping for 10 seconds to give time for processes to initialize");
-            sleep(10);
+            spdlog::info("Sleeping for 5 seconds to give time for processes to initialize");
+            sleep(5);
             
             for (size_t i = 0 ; i < 1000 ; ++i) {
 
@@ -179,7 +183,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
                 memcpy(payloadBuffer, &pingTimeMicro, sizeof(pingTimeMicro));
 
-                UPayload payload(reinterpret_cast<const uint8_t*>(&pingTimeMicro), sizeof(pingTimeMicro), UPayloadType::VALUE);
+                UPayload payload(payloadBuffer, bufferSize, UPayloadType::VALUE);
             
                 UStatus status = ZenohUTransport::instance().send(pingUri, payload, attributes);
                 
@@ -303,19 +307,6 @@ TEST_F(TestLatencyPing, LatencyTests100Kb5Sub) {
 TEST_F(TestLatencyPing, LatencyTests100Kb20Sub) {
     runTest(1024 * 100, 20);
 }
-
-TEST_F(TestLatencyPing, LatencyTests512Kb1Sub) {
-    runTest(512 * 1024, 1);
-}
-
-TEST_F(TestLatencyPing, LatencyTests512Kb5Sub) {
-    runTest(512 * 1024, 5);
-}
-
-TEST_F(TestLatencyPing, LatencyTests512Kb20Sub) {
-    runTest(512 * 1024, 20);
-}
-
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
