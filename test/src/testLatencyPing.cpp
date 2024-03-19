@@ -30,6 +30,8 @@
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <gtest/gtest.h>
+#include <iostream>
+#include <filesystem>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
@@ -81,7 +83,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
             LatencyPerPID entry = processTable[pid];
             uint64_t latency = pongTimeMicro - pingTimeMicro;
 
-            if (entry.peakLatency < latency) {
+            if ((entry.peakLatency < latency) && (latency < 10000)){
                 entry.peakLatency = latency;
             }
 
@@ -141,8 +143,12 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
             uint8_t payloadBuffer[bufferSize];
 
+            std::string currentPath = std::filesystem::current_path().string();
+
+            currentPath.append("/testLatencyPong > /dev/null &");
+           
             for (size_t i = 0 ; i < maxSubscribers_ ; ++i) {
-                std::system(LATENCY_PONG_BIN_PATH );
+                std::system(currentPath.c_str());
             }
             
             std::vector<int> pidList = getPids();
@@ -186,13 +192,15 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
             spdlog::info("Sleeping for 10 seconds to finish get all of the responses");
             sleep (10);
-            spdlog::info("*** message size {} total samples received {} total latency {} average latency {} ***" , 
+            spdlog::info("*** message size , total samples received , total latency , average latency  ***" );
+            spdlog::info("***  {} , \t\t{} , \t\t\t{} , \t{} ***" , 
                 bufferSize, responseCounterTotal_.load(), latencyTotal_.load() , (latencyTotal_.load() / responseCounterTotal_.load())); 
 
+            spdlog::info("*** PID , \t\tsamples count , total latency , average latency , peak latency , minimum latency  ***");
             for (int pid : pidList) {
 
                 LatencyPerPID entry = processTable[pid];
-                spdlog::info("*** PID {} samples count {} total latency {} average latency {} peak latency {} minimum latency {} ***", 
+                spdlog::info("*** {} , \t\t{} , \t\t\t{} , \t{} , \t\t{} , \t\t{} ***", 
                     pid, entry.samplesCount, entry.latencyTotal, entry.latencyTotal / entry.samplesCount, entry.peakLatency, entry.minLatency);
             }
 
@@ -203,14 +211,16 @@ class TestLatencyPing : public ::testing::Test, UListener{
                 }
             }
 
-            spdlog::info("Sleeping for 10 seconds to all processes to terminate");
+            spdlog::info("Sleeping for 5 seconds to all processes to terminate");
+            sleep(5);
             pidList = getPids();
 
             if (0 != pidList.size()) {
                 for (int pid : pidList) {
                    kill(pid, SIGKILL);
                 }
-                spdlog::info("Sleeping for 10 seconds to all processes to terminate");
+                spdlog::info("Sleeping for 5 seconds to all processes to terminate");
+                sleep(5);
             }
 
             pidList = getPids();
@@ -293,6 +303,19 @@ TEST_F(TestLatencyPing, LatencyTests100Kb5Sub) {
 TEST_F(TestLatencyPing, LatencyTests100Kb20Sub) {
     runTest(1024 * 100, 20);
 }
+
+TEST_F(TestLatencyPing, LatencyTests512Kb1Sub) {
+    runTest(512 * 1024, 1);
+}
+
+TEST_F(TestLatencyPing, LatencyTests512Kb5Sub) {
+    runTest(512 * 1024, 5);
+}
+
+TEST_F(TestLatencyPing, LatencyTests512Kb20Sub) {
+    runTest(512 * 1024, 20);
+}
+
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
