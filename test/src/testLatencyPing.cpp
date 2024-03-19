@@ -48,25 +48,57 @@ void signalHandler(int signal) {
     }
 }
 
+struct LatencyPerPID {
+    uint64_t latencyTotal;
+    uint64_t peakLatency;
+    uint64_t minLatency;
+    size_t samplesCount;
+};
+
 class TestLatencyPing : public ::testing::Test, UListener{
 
     public:
 
         UStatus onReceive(UMessage &message) const override {
             
-            const uint64_t *pongTimeMicro = reinterpret_cast<const uint64_t*>(message.payload().data());
+            auto payload = message.payload();
+
+            if ((sizeof(uint64_t) + sizeof(pid_t)) != payload.size()){
+                spdlog::error("wrong size received");
+            }
+
+            uint64_t pongTimeMicro;
+            pid_t pid;
+
+            memcpy(&pongTimeMicro, payload.data(), sizeof(pongTimeMicro));
+            memcpy(&pid, payload.data() + sizeof(pingTimeMicro), sizeof(pid));
             
-            latencyTotal_ += *pongTimeMicro - pingTimeMicro;
+            latencyTotal_ += pongTimeMicro - pingTimeMicro;
 
             responseCounter_.fetch_add(1);
             ++responseCounterTotal_;
+
+            LatencyPerPID entry = processTable[pid];
+            uint64_t latency = pongTimeMicro - pingTimeMicro;
+
+            if (entry.peakLatency < latency) {
+                entry.peakLatency = latency;
+            }
+
+            if ((entry.minLatency > latency) || (entry.minLatency == 0 )) {
+                entry.minLatency = latency;
+            }
+
+            entry.latencyTotal += pongTimeMicro - pingTimeMicro;
+            entry.samplesCount += 1;
+
+            processTable[pid] = entry;
 
             if (maxSubscribers_ == responseCounter_) {
                 cv.notify_one();
             }
 
             UStatus status;
-
             status.set_code(UCode::OK);         
 
             return status;
@@ -96,6 +128,79 @@ class TestLatencyPing : public ::testing::Test, UListener{
                 }
             }
             return pidList;
+        }
+
+        void runTest(size_t bufferSize, 
+                     size_t numSub) {
+
+            maxSubscribers_ = numSub;
+            responseCounter_ = 0;
+            latencyTotal_ = 0;
+            responseCounterTotal_ = 0;
+            processTable.clear();
+
+            uint8_t payloadBuffer[bufferSize];
+
+            for (size_t i = 0 ; i < maxSubscribers_ ; ++i) {
+                std::system(LATENCY_PONG_BIN_PATH );
+            }
+            
+            std::vector<int> pidList = getPids();
+
+            EXPECT_EQ(pidList.size(), maxSubscribers_);
+
+            for (int pid : pidList) {
+                LatencyPerPID entry;
+
+                entry.latencyTotal = 0;
+                entry.samplesCount = 0;
+                entry.peakLatency = 0;
+                entry.minLatency = 0;
+                processTable[pid] = entry;
+            }
+
+            spdlog::info("Sleeping for 10 seconds to give time for processes to initialize");
+            sleep(10);
+            
+            for (size_t i = 0 ; i < 1000 ; ++i) {
+
+                auto pingUUid = Uuidv8Factory::create();
+
+                UAttributesBuilder builder(pingUUid, UMessageType::UMESSAGE_TYPE_PUBLISH, UPriority::UPRIORITY_CS0);
+                UAttributes attributes = builder.build();     
+                
+                pingTimeMicro = getCurrentTimeMicroseconds();
+
+                memcpy(payloadBuffer, &pingTimeMicro, sizeof(pingTimeMicro));
+
+                UPayload payload(reinterpret_cast<const uint8_t*>(&pingTimeMicro), sizeof(pingTimeMicro), UPayloadType::VALUE);
+            
+                UStatus status = ZenohUTransport::instance().send(pingUri, payload, attributes);
+                
+                EXPECT_EQ(status.code(), UCode::OK);
+
+                waitUntilAllCallbacksInvoked();
+
+                responseCounter_ = 0;
+            }
+
+            spdlog::info("Sleeping for 10 seconds to finish get all of the responses");
+            sleep (10);
+            spdlog::info("*** message size {} total samples received {} total latency {} average latency {} ***" , bufferSize, responseCounterTotal_, latencyTotal_ , (latencyTotal_ / responseCounterTotal_)); 
+
+            for (int pid : pidList) {
+
+                LatencyPerPID entry = processTable[pid];
+                spdlog::info("*** PID {} samples count {} total latency {} average latency {} peak latency {} minimum latency {} ***", 
+                    pid, entry.samplesCount, entry.latencyTotal, entry.latencyTotal / entry.samplesCount, entry.peakLatency, entry.minLatency);
+            }
+
+            for (int pid : pidList) {
+                int result = kill(pid, SIGINT);
+                if (result != 0) {
+                    spdlog::error("Failed to send SIGINT signal to process with PID {}", pid);
+                }
+            }
         }
 
         void SetUp() override {
@@ -135,66 +240,19 @@ class TestLatencyPing : public ::testing::Test, UListener{
         mutable std::atomic<size_t> responseCounter_ = 0;
         mutable uint64_t latencyTotal_ = 0;
         mutable size_t responseCounterTotal_ = 0;
+        mutable std::unordered_map<pid_t, LatencyPerPID> processTable;
 };
 
 TEST_F(TestLatencyPing, LatencyTests1Kb1Sub) {
-        
-    maxSubscribers_ = 1;
-    responseCounter_ = 0;
-    latencyTotal_ = 0;
-    responseCounterTotal_ = 0;
-
-    for (size_t i = 0 ; i < maxSubscribers_ ; ++i) {
-        std::system(LATENCY_PONG_BIN_PATH );
-    }
-    
-    std::vector<int> pidList = getPids();
-
-    EXPECT_EQ(pidList.size(), maxSubscribers_);
-
-    spdlog::info("Sleeping for 10 seconds to give time for processes to initialize");
-    sleep(10);
-    
-    for (size_t i = 0 ; i < 1000 ; ++i) {
-
-        auto pingUUid = Uuidv8Factory::create();
-
-        UAttributesBuilder builder(pingUUid, UMessageType::UMESSAGE_TYPE_PUBLISH, UPriority::UPRIORITY_CS0);
-        UAttributes attributes = builder.build();     
-        
-        pingTimeMicro = getCurrentTimeMicroseconds();
-
-        UPayload payload(reinterpret_cast<const uint8_t*>(&pingTimeMicro), sizeof(pingTimeMicro), UPayloadType::VALUE);
-    
-        UStatus status = ZenohUTransport::instance().send(pingUri, payload, attributes);
-        
-        EXPECT_EQ(status.code(), UCode::OK);
-
-        waitUntilAllCallbacksInvoked();
-
-        responseCounter_ = 0;
-    }
-
-    spdlog::info("Sleeping for 10 seconds to finish get all of the responses");
-    sleep (10);
-    spdlog::info("total samples received {}  total latency {} average latency {}" , responseCounterTotal_, latencyTotal_ , (latencyTotal_ / responseCounterTotal_)); 
-
-    for (int pid : pidList) {
-        int result = kill(pid, SIGINT);
-        if (result == 0) {
-            spdlog::info("Sent SIGINT signal to process with PID {}", pid);
-        } else {
-            spdlog::error("Failed to send SIGINT signal to process with PID {}", pid);
-        }
-    }
+    runTest(1024, 1);
 }
 
 TEST_F(TestLatencyPing, LatencyTests1Kb5Sub) {
-
+    runTest(1024, 5);
 }
 
 TEST_F(TestLatencyPing, LatencyTests1Kb20Sub) {
-
+    runTest(1024, 20);
 }
 
 int main(int argc, char **argv) {

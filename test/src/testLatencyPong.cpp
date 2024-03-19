@@ -61,22 +61,24 @@ class CustomListener : public UListener {
 
         UStatus onReceive(UMessage &message) const override {
             
-           (void)message;        
+            
+            (void)message;        
          
             timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts); // Get current time
-
             // Convert seconds to microseconds and add nanoseconds converted to microseconds
-             auto bc = static_cast<uint64_t>(ts.tv_sec) * 1000000ULL + static_cast<uint64_t>(ts.tv_nsec) / 1000ULL;
+            uint64_t currentTime = static_cast<uint64_t>(ts.tv_sec) * 1000000ULL + static_cast<uint64_t>(ts.tv_nsec) / 1000ULL;
+            pid_t pid = getpid();
 
-            UStatus status;
-            UPayload payload(reinterpret_cast<const uint8_t*>(&bc), sizeof(bc), UPayloadType::VALUE);
+            uint8_t respBuffer[sizeof(pid_t) + sizeof(currentTime)];
+
+            memcpy(respBuffer, &currentTime, sizeof(currentTime));
+            memcpy(respBuffer + sizeof(currentTime), &pid , sizeof(pid));
+
+            UPayload payload(respBuffer, sizeof(respBuffer), UPayloadType::VALUE);
+
             /* Send the response */
             return ZenohUTransport::instance().send(pongUri, payload, responseAttributes);
-
-            status.set_code(UCode::OK);
-
-            return status;
         }
 
         UUri pongUri = LongUriSerializer::deserialize(PONG_URI_STRING);
