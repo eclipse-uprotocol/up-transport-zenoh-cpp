@@ -39,21 +39,8 @@ using namespace uprotocol::v1;
 class ZenohRpcClient : public RpcClient {
 
     public:
-
         ZenohRpcClient(const ZenohRpcClient&) = delete;
         ZenohRpcClient& operator=(const ZenohRpcClient&) = delete;
-
-        /**
-        * init the zenohRpcClient 
-        * @return Returns OK on SUCCESS and ERROR on failure
-        */
-        UStatus init() noexcept;
-
-        /**
-        * Terminates the zenoh RPC client  - the API should be called by any class that called init
-        * @return Returns OK on SUCCESS and ERROR on failure
-        */
-        UStatus term() noexcept; 
 
         /**
         * Support for RPC method invocation.
@@ -66,19 +53,18 @@ class ZenohRpcClient : public RpcClient {
                                            const UPayload &payload, 
                                            const UAttributes &attributes) noexcept;
     protected:
+        /* Initialization success/failure status */
+        UStatus rpcSuccess_;
 
-        ZenohRpcClient() {}
+        ZenohRpcClient() noexcept;
+        ~ZenohRpcClient() noexcept;
 
     private:
-
         static UPayload handleReply(z_owned_reply_channel_t *channel);
-        
+
         /* zenoh session handle*/
         z_owned_session_t session_;
-        /* how many times uTransport was initialized*/
-        atomic_uint32_t refCount_ = 0;
         
-        std::mutex mutex_;
         std::shared_ptr<ThreadPool> threadPool_;
 
         static constexpr auto requestTimeoutMs_ = 5000;

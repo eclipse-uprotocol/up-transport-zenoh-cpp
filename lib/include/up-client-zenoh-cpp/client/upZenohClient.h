@@ -30,29 +30,15 @@
 
 class upZenohClient : public ZenohUTransport, public ZenohRpcClient {
     public:
+        upZenohClient() {}
         upZenohClient(const upZenohClient&) = delete;
         upZenohClient& operator=(const upZenohClient&) = delete;
-
-        /**
-        * init the upZenohClient 
-        * @return Returns OK on SUCCESS and ERROR on failure
-        */
-	UStatus init() noexcept;
-
-        /**
-        * Terminates the zenoh client  - the API should be called by any class that called init
-        * @return Returns OK on SUCCESS and ERROR on failure
-        */
-	UStatus term() noexcept;
 
         /**
         * The API provides an instance of the zenoh session
         * @return instance of upZenohClient
         */
-	static upZenohClient& instance(void) noexcept;	
-
-    private:
-	upZenohClient() {}
+        static std::shared_ptr<upZenohClient> instance(void) noexcept;
 };
 
 #endif /* _UP_ZENOH_CLIENT_H_ */

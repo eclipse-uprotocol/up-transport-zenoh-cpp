@@ -27,38 +27,27 @@
 
 using namespace uprotocol::v1;
 
-upZenohClient &upZenohClient::instance(void) noexcept {
+std::shared_ptr<upZenohClient> upZenohClient::instance(void) noexcept {
+    static std::weak_ptr<upZenohClient> w_handle;
 
-	static upZenohClient zenohClient;
+    if (auto handle = w_handle.lock()) {
+        return handle;
+    } else {
+        static std::mutex construction_mtx;
+        std::lock_guard lock(construction_mtx);
 
-	return zenohClient;
+        if (handle = w_handle.lock()) {
+            return handle;
+        }
+
+        handle = std::make_shared<upZenohClient>();
+        if (handle->rpcSuccess_.code() == UCode::OK && handle->uSuccess_.code() == UCode::OK) {
+            w_handle = handle;
+            return handle;
+        } else {
+            return nullptr;
+        }
+    }
 }
 
-UStatus upZenohClient::init() noexcept {
-	UStatus status;
-
-	status = ZenohRpcClient::init();
-
-	if (UCode::OK != status.code()) {
-		return status;
-	}
-
-	status = ZenohUTransport::init();
-
-	return status;
-}
-
-UStatus upZenohClient::term() noexcept {
-	UStatus status;
-
-	status = ZenohUTransport::term();
-
-	if (UCode::OK != status.code()) {
-		return status;
-	}
-
-	status = ZenohRpcClient::term();
-
-	return status;
-}
 
