@@ -32,30 +32,27 @@ using namespace uprotocol::utransport;
 class upClientZenohCppTest : public ::testing::Test {
 
     public:
+        static inline std::shared_ptr<upZenohClient> pClient;
 
-    public:
         // SetUpTestSuite() is called before all tests in the test suite
         static void SetUpTestSuite() {
+            pClient = upZenohClient::instance();
 
-            if (UCode::OK != upZenohClient::instance().init().code()) {
-                spdlog::error("upZenohClient::instance().init failed");
+            if (nullptr == upClientZenohCppTest::pClient) {
+                spdlog::error("upZenohClient initialization failed");
                 return;
             }
         }
 
         // TearDownTestSuite() is called after all tests in the test suite
         static void TearDownTestSuite() {
-
-            if (UCode::OK != upZenohClient::instance().term().code()) {
-                spdlog::error("upZenohClient::instance().term() failed");
-                return;
-            }
+            pClient = nullptr;
         }
 };
 
 /* Deprecate non existing topic */
 TEST_F(upClientZenohCppTest, DummyTest) {
-   
+
 }
 
 //unsubscribe from non existane topic 
