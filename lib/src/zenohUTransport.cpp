@@ -267,10 +267,10 @@ UCode ZenohUTransport::sendQueryable(const UPayload &payload,
 
     z_encoding_t encoding;
 
-    if (UCode::OK != mapEncoding(payload.format(), encoding)) {
-        spdlog::error("mapEncoding failure");
-        return UCode::INTERNAL;
-    }
+    // if (UCode::OK != mapEncoding(payload.format(), encoding)) {
+    //     spdlog::error("mapEncoding failure");
+    //     return UCode::INTERNAL;
+    // }
 
     options.encoding = encoding;
 
@@ -507,7 +507,7 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
        return;
     }
 
-    UPayload payload{sample->payload.start, sample->payload.len, UPayloadType::VALUE};
+    UPayload payload{sample->payload.start, sample->payload.len, UPayloadType::REFERENCE};
    
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
 

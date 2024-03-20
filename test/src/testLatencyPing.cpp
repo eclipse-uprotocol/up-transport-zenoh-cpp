@@ -149,7 +149,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
             std::string currentPath = std::filesystem::current_path().string();
 
-            currentPath.append("/testLatencyPong > /dev/null &");
+            currentPath.append("/testLatencyPong  &");
            
             for (size_t i = 0 ; i < maxSubscribers_ ; ++i) {
                 std::system(currentPath.c_str());
@@ -183,7 +183,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
                 memcpy(payloadBuffer, &pingTimeMicro, sizeof(pingTimeMicro));
 
-                UPayload payload(payloadBuffer, bufferSize, UPayloadType::VALUE);
+                UPayload payload(payloadBuffer, bufferSize, UPayloadType::REFERENCE);
             
                 UStatus status = ZenohUTransport::instance().send(pingUri, payload, attributes);
                 
