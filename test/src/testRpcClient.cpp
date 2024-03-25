@@ -286,7 +286,6 @@ TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
     EXPECT_NE(status.code(), UCode::OK);  
 }
 
-
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
