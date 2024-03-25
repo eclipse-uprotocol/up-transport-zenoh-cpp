@@ -90,13 +90,13 @@ namespace uprotocol::rpc {
             * @param methodUri The method URI to be invoked, ex (long form): /example.hello_world/1/rpc.SayHello.
             * @param requestPayload The request message to be sent to the server.
             * @param options RPC method invocation call options, see {@link CallOptions}
-            * @param callback that will be called once the future is complete
+            * @param listener that will be called once the future is complete
             * @return UStatus
             */
             uprotocol::v1::UStatus invokeMethod(const uprotocol::v1::UUri &topic,
                                                 const uprotocol::utransport::UPayload &payload,
                                                 const uprotocol::v1::CallOptions &options,
-                                                const uprotocol::utransport::UListener &callback) noexcept;
+                                                const uprotocol::utransport::UListener &listener) noexcept;
 
             /**
              * get the number of max concurrent request 

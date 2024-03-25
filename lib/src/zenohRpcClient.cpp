@@ -147,7 +147,7 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic,
 UStatus ZenohRpcClient::invokeMethod(const UUri &topic,
                                      const UPayload &payload,
                                      const CallOptions &options,
-                                     const UListener &callback) noexcept {
+                                     const UListener &listener) noexcept {
     UStatus status;
 
     status.set_code(UCode::INTERNAL);
@@ -167,7 +167,7 @@ UStatus ZenohRpcClient::invokeMethod(const UUri &topic,
         return status;
     }
 
-    auto future = invokeMethodInternal(topic, payload, options, &callback);
+    auto future = invokeMethodInternal(topic, payload, options, &listener);
     if (false == future.valid()){
         spdlog::error("invokeMethodInternal failed");
         return status;
@@ -181,7 +181,7 @@ UStatus ZenohRpcClient::invokeMethod(const UUri &topic,
 std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
                                                               const UPayload &payload,
                                                               const CallOptions &options,
-                                                              const UListener *callback) noexcept {
+                                                              const UListener *listener) noexcept {
     std::future<RpcResponse> future;
     z_owned_bytes_map_t map = z_bytes_map_new();
     z_get_options_t opts = z_get_options_default();
@@ -195,7 +195,7 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(topic));
         auto uuid = Uuidv8Factory::create();
     
-        UAttributesBuilder builder(uuid, UMessageType::UMESSAGE_TYPE_REQUEST, UPriority::UPRIORITY_CS0);
+        UAttributesBuilder builder(uuid, UMessageType::UMESSAGE_TYPE_REQUEST, options.priority());
 
         if (options.has_ttl()) {
             builder.setTTL(options.ttl());
@@ -203,8 +203,6 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
         } else {
             opts.timeout_ms = requestTimeoutMs_;
         }
-
-        builder.setPriority(options.priority());
 
         UAttributes attributes = builder.build();
 
@@ -243,7 +241,7 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
             break;
         }
        
-        future = threadPool_->submit([=] { return handleReply(channel, callback); });
+        future = threadPool_->submit([=] { return handleReply(channel, listener); });
         if (false == future.valid()) {
             spdlog::error("invalid future received");
             break;
@@ -263,7 +261,7 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
 }
 
 RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel,
-                                        const UListener *callback) noexcept {
+                                        const UListener *listener) noexcept {
 
     z_owned_reply_t reply = z_reply_null();
     RpcResponse rpcResponse;
@@ -323,8 +321,8 @@ RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel,
     delete channel;
 
     /* TODO - how to send an error to the user*/
-    if ((nullptr != callback) && (UCode::OK == rpcResponse.status.code())) {
-        callback->onReceive(rpcResponse.message);
+    if ((nullptr != listener) && (UCode::OK == rpcResponse.status.code())) {
+        listener->onReceive(rpcResponse.message);
     }
 
     return rpcResponse;

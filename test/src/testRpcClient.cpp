@@ -60,10 +60,9 @@ class RpcServer : public UListener {
                     return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
                 }
             } else {
-                 return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
+                return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
             }
-
-                                
+                   
             return status;
         }
 };
@@ -251,7 +250,6 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
 
     EXPECT_NE(response.message.payload().data(), nullptr);
     EXPECT_NE(response.message.payload().size(), 0);
-
 }
 
 TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
@@ -268,10 +266,25 @@ TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
 
     auto status = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options, responseListener);
 
-    EXPECT_EQ(status.code(), UCode::OK);
-    
+    EXPECT_EQ(status.code(), UCode::OK);  
 }
 
+TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
+    
+    std::string message = "Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
+
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
+
+    CallOptions options;
+
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(1000);
+
+    auto status = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options, responseListener);
+
+    EXPECT_EQ(status.code(), UCode::OK);  
+}
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
