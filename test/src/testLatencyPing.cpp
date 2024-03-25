@@ -57,10 +57,6 @@ struct LatencyPerPID {
     size_t samplesCount;
 };
 
-constexpr size_t arraySize = 4 * 1024 * 1024; // 4 megabytes
-uint8_t byteArray[arraySize];
-
-
 class TestLatencyPing : public ::testing::Test, UListener{
 
     public:
@@ -73,32 +69,37 @@ class TestLatencyPing : public ::testing::Test, UListener{
                 spdlog::error("wrong size received");
             }
 
-            uint64_t pongTimeMicro;
-            pid_t pid;
-
-            memcpy(&pongTimeMicro, payload.data(), sizeof(pongTimeMicro));
-            memcpy(&pid, payload.data() + sizeof(pingTimeMicro), sizeof(pid));
-            
-            latencyTotal_.fetch_add(pongTimeMicro - pingTimeMicro);
-
-            responseCounter_.fetch_add(1);
             responseCounterTotal_.fetch_add(1);
+            responseCounter_.fetch_add(1);
 
-            LatencyPerPID entry = processTable[pid];
-            uint64_t latency = pongTimeMicro - pingTimeMicro;
+            if (responseCounterTotal_.load() >= (numOfWarmupMessages_ * maxSubscribers_)) {
+               
+                uint64_t pongTimeMicro;
+                pid_t pid;
 
-            if ((entry.peakLatency < latency) && (latency < 10000)){
-                entry.peakLatency = latency;
+                memcpy(&pongTimeMicro, payload.data(), sizeof(pongTimeMicro));
+                memcpy(&pid, payload.data() + sizeof(pingTimeMicro), sizeof(pid));
+                
+                latencyTotal_.fetch_add(pongTimeMicro - pingTimeMicro);
+
+
+                LatencyPerPID entry = processTable[pid];
+                uint64_t latency = pongTimeMicro - pingTimeMicro;
+
+                if (entry.peakLatency < latency){
+                    entry.peakLatency = latency;
+                }
+
+                if ((entry.minLatency > latency) || (entry.minLatency == 0 )) {
+                    entry.minLatency = latency;
+                }
+
+                entry.latencyTotal += pongTimeMicro - pingTimeMicro;
+                entry.samplesCount += 1;
+
+                processTable[pid] = entry;
             }
 
-            if ((entry.minLatency > latency) || (entry.minLatency == 0 )) {
-                entry.minLatency = latency;
-            }
-
-            entry.latencyTotal += pongTimeMicro - pingTimeMicro;
-            entry.samplesCount += 1;
-
-            processTable[pid] = entry;
 
             if (maxSubscribers_ == responseCounter_) {
                 cv.notify_one();
@@ -111,10 +112,13 @@ class TestLatencyPing : public ::testing::Test, UListener{
         }
 
         uint64_t getCurrentTimeMicroseconds() {
-            timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts); 
+            auto currentTime = std::chrono::high_resolution_clock::now();
 
-            return static_cast<uint64_t>(ts.tv_sec) * 1000000ULL + static_cast<uint64_t>(ts.tv_nsec) / 1000ULL;
+            auto duration = currentTime.time_since_epoch();
+
+            auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+
+            return microseconds;
         }
 
         std::vector<int> getPids() {
@@ -149,7 +153,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
             std::string currentPath = std::filesystem::current_path().string();
 
-            currentPath.append("/testLatencyPong  &");
+            currentPath.append("/testLatencyPong > /dev/null &");
            
             for (size_t i = 0 ; i < maxSubscribers_ ; ++i) {
                 std::system(currentPath.c_str());
@@ -172,7 +176,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
             spdlog::info("Sleeping for 5 seconds to give time for processes to initialize");
             sleep(5);
             
-            for (size_t i = 0 ; i < 1000 ; ++i) {
+            for (size_t i = 0 ; i < numOfmessages_ ; ++i) {
 
                 auto pingUUid = Uuidv8Factory::create();
 
@@ -180,8 +184,6 @@ class TestLatencyPing : public ::testing::Test, UListener{
                 UAttributes attributes = builder.build();     
                 
                 pingTimeMicro = getCurrentTimeMicroseconds();
-
-                memcpy(payloadBuffer, &pingTimeMicro, sizeof(pingTimeMicro));
 
                 UPayload payload(payloadBuffer, bufferSize, UPayloadType::REFERENCE);
             
@@ -194,11 +196,11 @@ class TestLatencyPing : public ::testing::Test, UListener{
                 responseCounter_ = 0;
             }
 
-            spdlog::info("Sleeping for 10 seconds to finish get all of the responses");
-            sleep (10);
+            spdlog::info("Sleeping for 5 seconds to finish get all of the responses");
+            sleep (5);
             spdlog::info("*** message size , total samples received , total latency , average latency  ***" );
             spdlog::info("***  {} , \t\t{} , \t\t\t{} , \t{} ***" , 
-                bufferSize, responseCounterTotal_.load(), latencyTotal_.load() , (latencyTotal_.load() / responseCounterTotal_.load())); 
+                bufferSize, responseCounterTotal_.load(), latencyTotal_.load() , (latencyTotal_.load() / (responseCounterTotal_.load()/2))); 
 
             spdlog::info("*** PID , \t\tsamples count , total latency , average latency , peak latency , minimum latency  ***");
             for (int pid : pidList) {
@@ -270,6 +272,8 @@ class TestLatencyPing : public ::testing::Test, UListener{
         mutable std::atomic<uint64_t> latencyTotal_ = 0;
         mutable std::atomic<size_t> responseCounterTotal_ = 0;
         mutable std::unordered_map<pid_t, LatencyPerPID> processTable;
+        static constexpr auto numOfmessages_ = size_t(2000);
+        static constexpr auto numOfWarmupMessages_ = size_t(numOfmessages_/2);
 };
 
 TEST_F(TestLatencyPing, LatencyTests1Kb1Sub) {
