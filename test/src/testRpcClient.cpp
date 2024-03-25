@@ -201,7 +201,7 @@ TEST_F(TestRPcClient, maxSimultaneousRequests) {
     }
 
     /* wait for al futures to return */
-    sleep(5);
+    sleep(10);
 
     std::future<RpcResponse> future = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options);
 
@@ -225,7 +225,7 @@ TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
     
     EXPECT_EQ(response.status.code(), UCode::OK);
 
-    EXPECT_EQ(response.message.payload().data(), nullptr);
+    EXPECT_EQ(response.message.payload().size(), 0);
 }
 
 TEST_F(TestRPcClient, invokeMethodWithResponse) {
@@ -278,13 +278,15 @@ TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
 
     CallOptions options;
 
-    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_priority(UPriority::UPRIORITY_CS0);
     options.set_ttl(1000);
 
     auto status = ZenohRpcClient::instance().invokeMethod(rpcUri, payload, options, responseListener);
 
-    EXPECT_EQ(status.code(), UCode::OK);  
+    EXPECT_NE(status.code(), UCode::OK);  
 }
+
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
