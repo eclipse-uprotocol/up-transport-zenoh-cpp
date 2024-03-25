@@ -29,8 +29,11 @@
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
 
 class upZenohClient : public ZenohUTransport, public ZenohRpcClient {
+    private:
+        struct ConstructToken {};
+
     public:
-        upZenohClient() {}
+        upZenohClient(const struct ConstructToken &) {}
         upZenohClient(const upZenohClient&) = delete;
         upZenohClient& operator=(const upZenohClient&) = delete;
 

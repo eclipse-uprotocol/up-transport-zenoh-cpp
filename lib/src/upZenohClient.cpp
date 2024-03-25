@@ -40,7 +40,7 @@ std::shared_ptr<upZenohClient> upZenohClient::instance(void) noexcept {
             return handle;
         }
 
-        handle = std::make_shared<upZenohClient>();
+        handle = std::make_shared<upZenohClient>(ConstructToken());
         if (handle->rpcSuccess_.code() == UCode::OK && handle->uSuccess_.code() == UCode::OK) {
             w_handle = handle;
             return handle;
