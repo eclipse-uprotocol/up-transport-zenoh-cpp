@@ -30,6 +30,7 @@
 #include <atomic>
 #include <zenoh.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
+#include <up-cpp/transport/datamodel/UMessage.h>
 #include <up-cpp/transport/UTransport.h>
 
 namespace uprotocol::utransport {
@@ -74,9 +75,7 @@ namespace uprotocol::utransport {
             * @return Returns OKSTATUS if the payload has been successfully sent (ACK'ed), otherwise it
             * returns FAILSTATUS with the appropriate failure.
             */
-            uprotocol::v1::UStatus send(const uprotocol::v1::UUri &uri, 
-                                        const uprotocol::utransport::UPayload &payload,
-                                        const uprotocol::v1::UAttributes &attributes) noexcept;
+            uprotocol::v1::UStatus send(const uprotocol::utransport::UMessage &message) noexcept;
 
             /**
             * Register listener to be called when UPayload is received for the specific topic.
@@ -97,7 +96,7 @@ namespace uprotocol::utransport {
             * with the appropriate failure.
             */
             uprotocol::v1::UStatus unregisterListener(const uprotocol::v1::UUri &uri, 
-                                                    const uprotocol::utransport::UListener &listener) noexcept;
+                                                      const uprotocol::utransport::UListener &listener) noexcept;
 
         private:
 
@@ -111,17 +110,14 @@ namespace uprotocol::utransport {
                                     void *context);
 
             static void SubHandler(const z_sample_t* sample,
-                                void* arg);
+                                   void* arg);
 
-            uprotocol::v1::UCode sendPublish(const uprotocol::v1::UUri &uri, 
-                                            const uprotocol::utransport::UPayload &payload,
-                                            const uprotocol::v1::UAttributes &attributes) noexcept;
+            uprotocol::v1::UCode sendPublish(const uprotocol::utransport::UMessage &message) noexcept;
 
-            uprotocol::v1::UCode sendQueryable(const uprotocol::utransport::UPayload &payload,
-                                            const uprotocol::v1::UAttributes &attributes) noexcept;
+            uprotocol::v1::UCode sendQueryable(const uprotocol::utransport::UMessage &message) noexcept;
 
             uprotocol::v1::UCode mapEncoding(const uprotocol::utransport::UPayloadFormat &payloadFormat, 
-                                            z_encoding_t &encoding) noexcept;
+                                             z_encoding_t &encoding) noexcept;
 
             /* zenoh session handle*/
             z_owned_session_t session_;

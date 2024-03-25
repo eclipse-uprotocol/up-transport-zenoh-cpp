@@ -52,15 +52,19 @@ class RpcServer : public UListener {
 
             UAttributes responseAttributes = builder.build();
 
+            UPayload outPayload = message.payload();
+
+            UMessage respMessage(outPayload, responseAttributes);
+
             if (nullptr != message.payload().data()) {
 
                 std::string cmd(message.payload().data(), message.payload().data() + message.payload().size());
 
                 if ("No Response" != cmd) {
-                    return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
+                    return ZenohUTransport::instance().send(respMessage);
                 }
             } else {
-                return ZenohUTransport::instance().send(rpcUri, message.payload(), responseAttributes);
+                return ZenohUTransport::instance().send(respMessage);
             }
                    
             return status;
@@ -100,7 +104,6 @@ class TestRPcClient : public ::testing::Test {
             }
 
             ZenohUTransport::instance().registerListener(rpcUri, TestRPcClient::rpcListener);
-
         }
 
         // TearDownTestSuite() is called after all tests in the test suite

@@ -153,9 +153,7 @@ UStatus ZenohUTransport::term() noexcept {
     return status;
 }
 
-UStatus ZenohUTransport::send(const UUri &uri,
-                              const UPayload &payload,
-                              const UAttributes &attributes) noexcept {
+UStatus ZenohUTransport::send(const UMessage &message) noexcept {
     UStatus status;
 
     if (0 == refCount_) {
@@ -170,27 +168,29 @@ UStatus ZenohUTransport::send(const UUri &uri,
         return status;
     }
 
-    if (false == isRPCMethod(uri.resource())) {
-        status.set_code(sendPublish(uri, payload, attributes));
+    if (UMessageType::UMESSAGE_TYPE_PUBLISH == message.attributes().type()){
+        status.set_code(sendPublish(message));
+    } else if (UMessageType::UMESSAGE_TYPE_RESPONSE == message.attributes().type()) {
+         if (false == isRPCMethod(message.attributes().sink())) {
+            spdlog::error("message defined as response but the URI is not RPC ");
+            return status;
+         }
+        status.set_code(sendQueryable(message));
     } else {
-        status.set_code(sendQueryable(payload, attributes));
+        spdlog::error("message not supported");
     }
 
     return status;
 }
-UCode ZenohUTransport::sendPublish(const UUri &uri, 
-                                   const UPayload &payload,
-                                   const UAttributes &attributes) noexcept {
+
+UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
+
     UCode status = UCode::UNAVAILABLE;
 
     do {
-        if (UMessageType::UMESSAGE_TYPE_PUBLISH != attributes.type()) {
-            spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
-            return UCode::INVALID_ARGUMENT;
-        }
-
+      
         /* get hash and check if the publisher for the URI is already exists */
-        auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
+        auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(message.attributes().source()));
         auto handleInfo = pubHandleMap_.find(uriHash);
 
         z_owned_publisher_t pub;
@@ -220,9 +220,9 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
         options.attachment = z_bytes_map_as_attachment(&map);
 
         // Serializing UAttributes
-        size_t attrSize = attributes.ByteSizeLong();
+        size_t attrSize = message.attributes().ByteSizeLong();
         std::vector<uint8_t> serializedAttributes(attrSize);
-        if (!attributes.SerializeToArray(serializedAttributes.data(), attrSize)) {
+        if (!message.attributes().SerializeToArray(serializedAttributes.data(), attrSize)) {
             spdlog::error("SerializeToArray failure");
             return UCode::INTERNAL;
         }
@@ -231,7 +231,7 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
         z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), attrBytes);
     
         // Publish the message
-        if (0 != z_publisher_put(z_loan(pub), payload.data(), payload.size(), &options)) {
+        if (0 != z_publisher_put(z_loan(pub), message.payload().data(), message.payload().size(), &options)) {
             spdlog::error("z_publisher_put failed");
             z_drop(z_move(map));
             break;
@@ -239,21 +239,17 @@ UCode ZenohUTransport::sendPublish(const UUri &uri,
 
         z_drop(z_move(map));
         status = UCode::OK;
+        
     } while (0);
 
     pendingSendRefCnt_.fetch_sub(1);
 
     return status;
 }
-UCode ZenohUTransport::sendQueryable(const UPayload &payload,
-                                     const UAttributes &attributes) noexcept {
 
-    if (UMessageType::UMESSAGE_TYPE_RESPONSE != attributes.type()) {
-        spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
-        return UCode::INVALID_ARGUMENT;
-    }
+UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
-    auto uuidStr = UuidSerializer::serializeToString(attributes.id());
+    auto uuidStr = UuidSerializer::serializeToString(message.attributes().id());
     if (queryMap_.find(uuidStr) == queryMap_.end()) {
         spdlog::error("failed to find UUID = {}", uuidStr);
         return UCode::UNAVAILABLE;
@@ -265,7 +261,7 @@ UCode ZenohUTransport::sendQueryable(const UPayload &payload,
 
     z_encoding_t encoding;
 
-    if (UCode::OK != mapEncoding(payload.format(), encoding)) {
+    if (UCode::OK != mapEncoding(message.payload().format(), encoding)) {
         spdlog::error("mapEncoding failure");
         return UCode::INTERNAL;
     }
@@ -273,9 +269,9 @@ UCode ZenohUTransport::sendQueryable(const UPayload &payload,
     options.encoding = encoding;
 
     // Serialize the UAttributes
-    size_t attrSize = attributes.ByteSizeLong();
+    size_t attrSize = message.attributes().ByteSizeLong();
     std::vector<uint8_t> serializedAttributes(attrSize);
-    if (!attributes.SerializeToArray(serializedAttributes.data(), attrSize)) {
+    if (!message.attributes().SerializeToArray(serializedAttributes.data(), attrSize)) {
         spdlog::error("SerializeToArray failure");
         return UCode::INTERNAL;
     }
@@ -288,7 +284,7 @@ UCode ZenohUTransport::sendQueryable(const UPayload &payload,
 
     z_query_t lquery = z_loan(query);
 
-    if (0 != z_query_reply(&lquery, z_query_keyexpr(&lquery), payload.data(), payload.size(), &options)) {
+    if (0 != z_query_reply(&lquery, z_query_keyexpr(&lquery), message.payload().data(), message.payload().size(), &options)) {
         spdlog::error("z_query_reply failed");
         z_drop(z_move(map));
         return UCode::INTERNAL;
