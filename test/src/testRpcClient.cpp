@@ -48,7 +48,10 @@ class RpcServer : public UListener {
 
             status.set_code(UCode::OK);
             
-            UAttributesBuilder builder(message.attributes().id(), UMessageType::UMESSAGE_TYPE_RESPONSE, UPriority::UPRIORITY_CS0);
+            UAttributesBuilder builder(message.attributes().source(),
+                                       message.attributes().id(), 
+                                       UMessageType::UMESSAGE_TYPE_RESPONSE, 
+                                       UPriority::UPRIORITY_CS0);
 
             UAttributes responseAttributes = builder.build();
 

@@ -195,7 +195,7 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(topic));
         auto uuid = Uuidv8Factory::create();
     
-        UAttributesBuilder builder(uuid, UMessageType::UMESSAGE_TYPE_REQUEST, options.priority());
+        UAttributesBuilder builder(topic, uuid, UMessageType::UMESSAGE_TYPE_REQUEST, options.priority());
 
         if (options.has_ttl()) {
             builder.setTTL(options.ttl());
