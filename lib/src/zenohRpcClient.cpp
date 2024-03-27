@@ -142,14 +142,19 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(topic));
         auto uuid = Uuidv8Factory::create();
     
-        UAttributesBuilder builder(topic, uuid, UMessageType::UMESSAGE_TYPE_REQUEST, options.priority());
+        int32_t ttl;
 
         if (options.has_ttl()) {
-            builder.setTTL(options.ttl());
+            ttl = options.ttl();
             opts.timeout_ms = options.ttl();
         } else {
+            ttl = requestTimeoutMs_;
             opts.timeout_ms = requestTimeoutMs_;
         }
+
+        auto builder = UAttributesBuilder::request(topic /* TODO change to the entity */, topic, options.priority(), ttl);
+
+        builder.setId(uuid);
 
         UAttributes attributes = builder.build();
 

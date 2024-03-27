@@ -56,6 +56,7 @@ ZenohUTransport::ZenohUTransport() noexcept {
 }
 
 ZenohUTransport::~ZenohUTransport() noexcept {
+
     for (auto pub : pubHandleMap_) {
         if (0 != z_undeclare_publisher(z_move(pub.second))) {
             //TODO - print the URI that failed
@@ -91,7 +92,7 @@ UStatus ZenohUTransport::send(const UMessage &message) noexcept {
     
     UStatus status;
 
-    if (UMessageType::UMESSAGE_TYPE_PUBLISH == message.attributes().type()){
+    if (UMessageType::UMESSAGE_TYPE_PUBLISH == message.attributes().type()) {
         status.set_code(sendPublish(message));
     } else if (UMessageType::UMESSAGE_TYPE_RESPONSE == message.attributes().type()) {
          if (false == isRPCMethod(message.attributes().sink())) {
@@ -100,7 +101,8 @@ UStatus ZenohUTransport::send(const UMessage &message) noexcept {
          }
         status.set_code(sendQueryable(message));
     } else {
-        spdlog::error("message not supported");
+        spdlog::error("message type is not supported");
+        status.set_code(UCode::INTERNAL);
     }
 
     return status;
@@ -112,6 +114,11 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 
     do {
       
+        if ((0 == message.payload().size()) || (nullptr == message.payload().data())) {
+            spdlog::error("payload not valid");
+            break;
+        }
+
         /* get hash and check if the publisher for the URI is already exists */
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(message.attributes().source()));
         auto handleInfo = pubHandleMap_.find(uriHash);
@@ -180,14 +187,10 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
     z_query_reply_options_t options = z_query_reply_options_default();
 
-    z_encoding_t encoding;
-
-    if (UCode::OK != mapEncoding(message.payload().format(), encoding)) {
+    if (UCode::OK != mapEncoding(message.payload().format(), options.encoding)) {
         spdlog::error("mapEncoding failure");
         return UCode::INTERNAL;
     }
-
-    options.encoding = encoding;
 
     // Serialize the UAttributes
     size_t attrSize = message.attributes().ByteSizeLong();
@@ -242,8 +245,6 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
         std::lock_guard<std::mutex> lock(subInitMutex_);
 
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
-
-
 
         // check if URI exists 
         if (listenerMap_.find(uriHash) != listenerMap_.end()) {
@@ -460,6 +461,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
        return;
     }
 }
+
 UCode ZenohUTransport::mapEncoding(const UPayloadFormat &payloadFormat, 
                                    z_encoding_t &encoding) noexcept {
     switch (payloadFormat) {
