@@ -28,21 +28,27 @@
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
 
-class upZenohClient : public ZenohUTransport, public ZenohRpcClient {
-    private:
-        struct ConstructToken {};
+namespace uprotocol::client {
 
-    public:
-        upZenohClient(const struct ConstructToken &) {}
-        upZenohClient(const upZenohClient&) = delete;
-        upZenohClient& operator=(const upZenohClient&) = delete;
+    class upZenohClient : public uprotocol::utransport::ZenohUTransport, public uprotocol::rpc::ZenohRpcClient {
 
-        /**
-        * The API provides an instance of the zenoh session
-        * @return instance of upZenohClient
-        */
-        static std::shared_ptr<upZenohClient> instance(void) noexcept;
-};
+        private:
+            struct ConstructToken {};
+
+        public:
+            upZenohClient(const struct ConstructToken &) {}
+            upZenohClient(const upZenohClient&) = delete;
+            upZenohClient& operator=(const upZenohClient&) = delete;
+
+            /**
+            * The API provides an instance of the zenoh session
+            * @return instance of upZenohClient
+            */
+            static std::shared_ptr<upZenohClient> instance(void) noexcept;
+    };
+    
+}
+
 
 #endif /* _UP_ZENOH_CLIENT_H_ */
 

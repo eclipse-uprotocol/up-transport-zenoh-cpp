@@ -26,6 +26,7 @@
 #include <up-core-api/ustatus.pb.h>
 
 using namespace uprotocol::v1;
+using namespace uprotocol::client;
 
 std::shared_ptr<upZenohClient> upZenohClient::instance(void) noexcept {
     static std::weak_ptr<upZenohClient> w_handle;

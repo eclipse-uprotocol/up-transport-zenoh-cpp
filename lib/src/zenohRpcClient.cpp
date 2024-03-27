@@ -75,12 +75,12 @@ ZenohRpcClient::~ZenohRpcClient() noexcept {
     spdlog::info("ZenohRpcClient destructor done");
 }
 
-std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri, 
-                                                   const UPayload &payload, 
-                                                   const UAttributes &attributes) noexcept {
-    std::future<UPayload> future;
+std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic, 
+                                                      const UPayload &payload, 
+                                                      const CallOptions &options) noexcept {
+    std::future<RpcResponse> future;
 
-    if (false == isRPCMethod(uri.resource())) {
+    if (false == isRPCMethod(topic.resource())) {
         spdlog::error("URI is not of RPC type");
         return future;
     }
@@ -103,11 +103,6 @@ UStatus ZenohRpcClient::invokeMethod(const UUri &topic,
     UStatus status;
 
     status.set_code(UCode::INTERNAL);
-
-    if (0 == refCount_) {
-        spdlog::error("ZenohRpcClient is not initialized");
-        return status;
-    }
 
     if (false == isRPCMethod(topic.resource())) {
         spdlog::error("URI is not of RPC type");

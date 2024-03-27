@@ -88,13 +88,8 @@ ZenohUTransport::~ZenohUTransport() noexcept {
 }
 
 UStatus ZenohUTransport::send(const UMessage &message) noexcept {
+    
     UStatus status;
-
-    if ((0 == payload.size()) || (nullptr == payload.data())) {
-        spdlog::error("invalid paylooad");
-        status.set_code(UCode::UNAVAILABLE);
-        return status;
-    }
 
     if (UMessageType::UMESSAGE_TYPE_PUBLISH == message.attributes().type()){
         status.set_code(sendPublish(message));
@@ -169,9 +164,7 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
         status = UCode::OK;
         
     } while (0);
-
-    } while(0);
-    
+   
     return status;
 }
 

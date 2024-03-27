@@ -49,17 +49,13 @@ namespace uprotocol::utransport {
             ZenohUTransport(const ZenohUTransport&) = delete;
             ZenohUTransport& operator=(const ZenohUTransport&) = delete;
 
-        /**
-        * Transmit UPayload to the topic using the attributes defined in UTransportAttributes.
-        * @param topic Resolved UUri topic to send the payload to.
-        * @param payload Actual payload.
-        * @param attributes Additional transport attributes.
-        * @return Returns OKSTATUS if the payload has been successfully sent (ACK'ed), otherwise it
-        * returns FAILSTATUS with the appropriate failure.
-        */
-        UStatus send(const UUri &uri, 
-                     const UPayload &payload,
-                     const UAttributes &attributes) noexcept;
+            /**
+            * Transmit UPayload to the topic using the attributes defined in UTransportAttributes.
+            * @param message message to be sent
+            * @return Returns OKSTATUS if the payload has been successfully sent (ACK'ed), otherwise it
+            * returns FAILSTATUS with the appropriate failure.
+            */
+            uprotocol::v1::UStatus send(const uprotocol::utransport::UMessage &message) noexcept;
 
             /**
             * Register listener to be called when UPayload is received for the specific topic.
@@ -82,18 +78,18 @@ namespace uprotocol::utransport {
             uprotocol::v1::UStatus unregisterListener(const uprotocol::v1::UUri &uri, 
                                                       const uprotocol::utransport::UListener &listener) noexcept;
 
+        protected:
+            /* Initialization success/failure */
+            uprotocol::v1::UStatus uSuccess_;
+
+            ZenohUTransport() noexcept;
+            ~ZenohUTransport() noexcept;
+
         private:
 
-    protected:
-        /* Initialization success/failure */
-	    UStatus uSuccess_;
+            static void OnSubscriberClose(void *arg);
 
-        ZenohUTransport() noexcept;
-        ~ZenohUTransport() noexcept;
-
-    private:
-
-        static void OnSubscriberClose(void *arg);
+            static void OnQueryClose(void *arg);
 
             static void QueryHandler(const z_query_t *query, 
                                     void *context);
