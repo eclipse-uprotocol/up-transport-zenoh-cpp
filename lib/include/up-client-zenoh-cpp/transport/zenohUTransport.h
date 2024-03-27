@@ -49,33 +49,17 @@ namespace uprotocol::utransport {
             ZenohUTransport(const ZenohUTransport&) = delete;
             ZenohUTransport& operator=(const ZenohUTransport&) = delete;
 
-            /**
-            * The API provides an instance of the zenoh session
-            * @return instance of ZenohUTransport
-            */
-            static ZenohUTransport& instance(void) noexcept;
-
-            /**
-            * init the zenohUTransport 
-            * @return Returns OK on SUCCESS and ERROR on failure
-            */
-            uprotocol::v1::UStatus init() noexcept;
-
-            /**
-            * Terminates the zenoh utransport  - the API should be called by any class that called init
-            * @return Returns OK on SUCCESS and ERROR on failure
-            */
-            uprotocol::v1::UStatus term() noexcept; 
-
-            /**
-            * Transmit UPayload to the topic using the attributes defined in UTransportAttributes.
-            * @param topic Resolved UUri topic to send the payload to.
-            * @param payload Actual payload.
-            * @param attributes Additional transport attributes.
-            * @return Returns OKSTATUS if the payload has been successfully sent (ACK'ed), otherwise it
-            * returns FAILSTATUS with the appropriate failure.
-            */
-            uprotocol::v1::UStatus send(const uprotocol::utransport::UMessage &message) noexcept;
+        /**
+        * Transmit UPayload to the topic using the attributes defined in UTransportAttributes.
+        * @param topic Resolved UUri topic to send the payload to.
+        * @param payload Actual payload.
+        * @param attributes Additional transport attributes.
+        * @return Returns OKSTATUS if the payload has been successfully sent (ACK'ed), otherwise it
+        * returns FAILSTATUS with the appropriate failure.
+        */
+        UStatus send(const UUri &uri, 
+                     const UPayload &payload,
+                     const UAttributes &attributes) noexcept;
 
             /**
             * Register listener to be called when UPayload is received for the specific topic.
@@ -100,11 +84,16 @@ namespace uprotocol::utransport {
 
         private:
 
-            ZenohUTransport() {}
+    protected:
+        /* Initialization success/failure */
+	    UStatus uSuccess_;
 
-            static void OnSubscriberClose(void *arg);
+        ZenohUTransport() noexcept;
+        ~ZenohUTransport() noexcept;
 
-            static void OnQueryClose(void *arg);
+    private:
+
+        static void OnSubscriberClose(void *arg);
 
             static void QueryHandler(const z_query_t *query, 
                                     void *context);

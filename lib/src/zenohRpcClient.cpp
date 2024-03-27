@@ -41,94 +41,46 @@ using namespace uprotocol::uri;
 using namespace uprotocol::utils;
 using namespace uprotocol::rpc;
 
-ZenohRpcClient& ZenohRpcClient::instance(void) noexcept {
-    
-    static ZenohRpcClient rpcClient;
+ZenohRpcClient::ZenohRpcClient() noexcept {
+    /* by default initialized to empty strings */
+    ZenohSessionManagerConfig config;
 
-    return rpcClient;
-}
+    if (UCode::OK != ZenohSessionManager::instance().init(config)) {
+       spdlog::error("zenohSessionManager::instance().init() failed");
+       rpcSuccess_.set_code(UCode::UNAVAILABLE);
+       return;
+    }
 
-UStatus ZenohRpcClient::init(ZenohRpcClientConfig *config) noexcept {
-
-    UStatus status;
-
-    if (0 == refCount_) {
-
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        if (0 == refCount_) {
-            /* by default initialized to empty strings */
-            ZenohSessionManagerConfig zenohConfig;
-
-            if (UCode::OK != ZenohSessionManager::instance().init(zenohConfig)) {
-                spdlog::error("zenohSessionManager::instance().init() failed");
-                status.set_code(UCode::UNAVAILABLE);
-                return status;
-            }
-
-            if (ZenohSessionManager::instance().getSession().has_value()) {
-                session_ = ZenohSessionManager::instance().getSession().value();
-            } else {
-                status.set_code(UCode::UNAVAILABLE);
-                return status;
-            }
-
-            if (nullptr != config) {
-                queueSize_ = config->maxQueueSize;
-                maxNumOfCuncurrentRequests_ = config->maxConcurrentRequests;
-            }
-
-            threadPool_ = make_shared<ThreadPool>(queueSize_, maxNumOfCuncurrentRequests_);
-            if (nullptr == threadPool_) {
-                spdlog::error("failed to create thread pool");
-                status.set_code(UCode::UNAVAILABLE);
-                return status;
-            }
-        }
-        refCount_.fetch_add(1);
-
+    if (ZenohSessionManager::instance().getSession().has_value()) {
+        session_ = ZenohSessionManager::instance().getSession().value();
     } else {
-        refCount_.fetch_add(1);
+        rpcSuccess_.set_code(UCode::UNAVAILABLE);
+        return;
     }
 
-    status.set_code(UCode::OK);
+    threadPool_ = make_shared<ThreadPool>(queueSize_, maxNumOfCuncurrentRequests_);
+    if (nullptr == threadPool_) {
+        spdlog::error("failed to create thread pool");
+        rpcSuccess_.set_code(UCode::UNAVAILABLE);
+        return;
+    }
 
-    return status;
+    rpcSuccess_.set_code(UCode::OK);
 }
 
-UStatus ZenohRpcClient::term() noexcept {
-
-    UStatus status;
-    
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    refCount_.fetch_sub(1);
-
-    if (0 == refCount_) {
-
-        if (UCode::OK != ZenohSessionManager::instance().term()) {
-            spdlog::error("zenohSessionManager::instance().term() failed");
-            status.set_code(UCode::UNAVAILABLE);
-            return status;
-        }
+ZenohRpcClient::~ZenohRpcClient() noexcept {
+    if (UCode::OK != ZenohSessionManager::instance().term()) {
+        spdlog::error("zenohSessionManager::instance().term() failed");
     }
-
-    status.set_code(UCode::OK);
-
-    return status;
+    spdlog::info("ZenohRpcClient destructor done");
 }
 
-std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic, 
-                                                      const UPayload &payload, 
-                                                      const CallOptions &options) noexcept {
-    std::future<RpcResponse> future;
+std::future<UPayload> ZenohRpcClient::invokeMethod(const UUri &uri, 
+                                                   const UPayload &payload, 
+                                                   const UAttributes &attributes) noexcept {
+    std::future<UPayload> future;
 
-    if (0 == refCount_) {
-        spdlog::error("ZenohRpcClient is not initialized");
-        return future;
-    }
-
-    if (false == isRPCMethod(topic.resource())) {
+    if (false == isRPCMethod(uri.resource())) {
         spdlog::error("URI is not of RPC type");
         return future;
     }
