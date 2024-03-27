@@ -50,24 +50,6 @@ class ZenohUTransport : public UTransport {
         ZenohUTransport& operator=(const ZenohUTransport&) = delete;
 
         /**
-        * The API provides an instance of the zenoh session
-        * @return instance of ZenohUTransport
-        */
-	static ZenohUTransport& instance(void) noexcept;
-
-        /**
-        * init the zenohUTransport 
-        * @return Returns OK on SUCCESS and ERROR on failure
-        */
-        UStatus init() noexcept;
-
-        /**
-        * Terminates the zenoh utransport  - the API should be called by any class that called init
-        * @return Returns OK on SUCCESS and ERROR on failure
-        */
-        UStatus term() noexcept; 
-
-        /**
         * Transmit UPayload to the topic using the attributes defined in UTransportAttributes.
         * @param topic Resolved UUri topic to send the payload to.
         * @param payload Actual payload.
@@ -104,9 +86,14 @@ class ZenohUTransport : public UTransport {
                         const UPayload &payload, 
                         const UAttributes &attributes) noexcept;
 
-    private:
+    protected:
+        /* Initialization success/failure */
+	    UStatus uSuccess_;
 
-	ZenohUTransport() {}
+        ZenohUTransport() noexcept;
+        ~ZenohUTransport() noexcept;
+
+    private:
 
         static void OnSubscriberClose(void *arg);
 
@@ -131,15 +118,7 @@ class ZenohUTransport : public UTransport {
 
         /* zenoh session handle*/
         z_owned_session_t session_;
-        /* indicate that termination is pending so no new transactions are allowed*/
-        atomic_bool termPending_ = false;
-        /* how many send transactions are currently in progress*/
-        atomic_uint32_t pendingSendRefCnt_ = 0;
-        /* how many times uTransport was initialized*/
-        atomic_uint32_t refCount_ = 0;
         
-        std::mutex mutex_;
-
         using uuriKey = size_t;     
         using uuidStr = std::string;
 
@@ -150,9 +129,6 @@ class ZenohUTransport : public UTransport {
 
         std::mutex pubInitMutex_;
         std::mutex subInitMutex_;
-
-        static constexpr auto termMaxRetries_ = size_t(10);
-        static constexpr auto termRetryTimeout_ = std::chrono::milliseconds(100);
 
         using cbArgumentType = std::tuple<std::shared_ptr<UUri>, ZenohUTransport*, const UListener&>;
 };

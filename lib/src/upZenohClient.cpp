@@ -22,41 +22,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <csignal>
-#include <spdlog/spdlog.h>
 #include <up-client-zenoh-cpp/client/upZenohClient.h>
-#include <gtest/gtest.h>
+#include <up-core-api/ustatus.pb.h>
 
-using namespace uprotocol::utransport;
+using namespace uprotocol::v1;
 
-class upClientZenohCppTest : public ::testing::Test {
+std::shared_ptr<upZenohClient> upZenohClient::instance(void) noexcept {
+    static std::weak_ptr<upZenohClient> w_handle;
 
-    public:
-        static inline std::shared_ptr<upZenohClient> pClient;
+    if (auto handle = w_handle.lock()) {
+        return handle;
+    } else {
+        static std::mutex construction_mtx;
+        std::lock_guard lock(construction_mtx);
 
-        // SetUpTestSuite() is called before all tests in the test suite
-        static void SetUpTestSuite() {
-            pClient = upZenohClient::instance();
-
-            if (nullptr == upClientZenohCppTest::pClient) {
-                spdlog::error("upZenohClient initialization failed");
-                return;
-            }
+        if (handle = w_handle.lock()) {
+            return handle;
         }
 
-        // TearDownTestSuite() is called after all tests in the test suite
-        static void TearDownTestSuite() {
-            pClient = nullptr;
+        handle = std::make_shared<upZenohClient>(ConstructToken());
+        if (handle->rpcSuccess_.code() == UCode::OK && handle->uSuccess_.code() == UCode::OK) {
+            w_handle = handle;
+            return handle;
+        } else {
+            return nullptr;
         }
-};
-
-/* Deprecate non existing topic */
-TEST_F(upClientZenohCppTest, DummyTest) {
-
+    }
 }
 
-//unsubscribe from non existane topic 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
+

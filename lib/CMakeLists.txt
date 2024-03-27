@@ -38,6 +38,7 @@ add_definitions(-DSPDLOG_FMT_EXTERNAL)
 set(SRC_FILES         
     src/zenohUTransport.cpp
     src/zenohRpcClient.cpp
+    src/upZenohClient.cpp
     src/zenohSessionManager.cpp
     src/messageBuilder.cpp
     src/messageParser.cpp)
