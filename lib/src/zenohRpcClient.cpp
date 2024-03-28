@@ -25,7 +25,8 @@
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
 #include <up-client-zenoh-cpp/session/zenohSessionManager.h>
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
-#include <up-cpp/uri/serializer/LongUriSerializer.h>
+#include <up-client-zenoh-cpp/uri/zenohUri.h>
+#include <up-cpp/uri/builder/BuildUResource.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/builder/UAttributesBuilder.h>
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
@@ -137,7 +138,12 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
 
     status.set_code(UCode::INTERNAL);
 
-    auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(topic));
+    auto key = uprotocol::uri::toZenohKeyString(topic);
+    if (key.empty()) {
+        spdlog::error("failed to convert topic to zenoh key");
+        return future;
+    }
+
     auto uuid = Uuidv8Factory::create();
 
     auto builder = UAttributesBuilder::request(topic /* TODO change to the entity */, topic, options.priority(), options.ttl());
@@ -178,7 +184,7 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
         opts.value.payload.start = nullptr;
     }
     
-    if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
+    if (0 != z_get(z_loan(session_), z_keyexpr(key.c_str()), "", z_move(channel->send), &opts)) {
         spdlog::error("z_get failure");
         return future;
     }
