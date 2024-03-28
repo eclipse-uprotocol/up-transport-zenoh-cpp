@@ -37,6 +37,44 @@ using namespace uprotocol::client;
 
 namespace {
 
+enum class InfoLevel {
+    Debug,
+    Informational,
+    Noteworthy,
+    Important,
+    Urgent,
+    Critical
+};
+
+constexpr bool do_info_print = true;
+constexpr InfoLevel info_print_threshold = InfoLevel::Informational;
+
+template<typename T>
+void info_print_args(T const& arg) {
+    std::cout << arg << std::endl;
+}
+
+template<typename T, typename... Ts>
+void info_print_args(T const& arg, Ts const&... args) {
+    std::cout << arg;
+    info_print_args(args...);
+}
+
+template<typename... Ts>
+void info_print(InfoLevel level, Ts const&... args) {
+    if constexpr (do_info_print) {
+        if (level >= info_print_threshold) {
+            std::cout << "\033[0;33m" << "[          ] " << "\033[0;0m";
+            info_print_args(args...);
+        }
+    }
+}
+
+template<typename... Ts>
+void info_print(Ts const&... args) {
+    info_print(InfoLevel::Debug, args...);
+}
+
 UUri const& rpcUri() { 
     static auto uri = BuildUUri()
                       .setAutority(BuildUAuthority().build())
@@ -75,6 +113,8 @@ class RpcServer : public UListener {
 
         UStatus onReceive(UMessage &message) const override {
 
+            info_print("RpcServer::onReceive()");
+
             UStatus status;
 
             status.set_code(UCode::OK);
@@ -111,6 +151,8 @@ class ResponseListener : public UListener {
 
         UStatus onReceive(UMessage &message) const override {
 
+            info_print("ResponseListener::onReceive()");
+
             (void) message;
 
             UStatus status;
@@ -128,6 +170,7 @@ class TestRPcClient : public ::testing::Test {
         // SetUpTestSuite() is called before all tests in the test suite
         static void SetUpTestSuite() {
 
+            info_print("SetUpTestSuite()");
             zenoh_client = upZenohClient::instance();
             zenoh_client->registerListener(rpcUri(), TestRPcClient::rpcListener);
         }
@@ -218,6 +261,8 @@ TEST_F(TestRPcClient, maxSimultaneousRequests) {
     options.set_ttl(5000);
 
     size_t numRequestsUntilQueueIsFull = instance->getMaxConcurrentRequests() + instance->getQueueSize();
+
+    info_print("Invoking method ", numRequestsUntilQueueIsFull, " times to fill queue");
 
     for (size_t i = 0; i < (numRequestsUntilQueueIsFull + 1) ; ++i) {
         std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);

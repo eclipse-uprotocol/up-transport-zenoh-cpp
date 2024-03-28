@@ -33,6 +33,9 @@
 #include <zenoh.h>
 #include <up-core-api/uattributes.pb.h>
 
+// Only for testing
+#include <up-cpp/uri/serializer/LongUriSerializer.h>
+
 using namespace std;
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
@@ -98,10 +101,13 @@ UStatus ZenohUTransport::send(const UMessage &message) noexcept {
         status.set_code(sendPublish(message));
     } else if (UMessageType::UMESSAGE_TYPE_RESPONSE == message.attributes().type()) {
          if (false == isRPCMethod(message.attributes().sink())) {
-            spdlog::error("message defined as response but the URI is not RPC ");
-            return status;
+             spdlog::error("message defined as response but the URI is not RPC ");
+             auto sink = message.attributes().sink();
+             spdlog::info("Sink (micro UUri): {}", toZenohKeyString(sink));
+             spdlog::info("Sink (long UUri): {}", LongUriSerializer::serialize(sink));
+             return status;
          }
-        status.set_code(sendQueryable(message));
+         status.set_code(sendQueryable(message));
     } else {
         spdlog::error("message type is not supported");
         status.set_code(UCode::INTERNAL);
