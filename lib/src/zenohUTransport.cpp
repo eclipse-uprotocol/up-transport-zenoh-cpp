@@ -25,7 +25,9 @@
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
 #include <up-client-zenoh-cpp/session/zenohSessionManager.h>
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
-#include <up-cpp/uri/serializer/LongUriSerializer.h>
+#include <up-client-zenoh-cpp/uri/zenohUri.h>
+#include <up-cpp/uri/builder/BuildUResource.h>
+#include <up-cpp/uri/builder/BuildUUri.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
@@ -113,9 +115,13 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
     pendingSendRefCnt_.fetch_add(1);
     do {
       
-        /* get hash and check if the publisher for the URI is already exists */
-        auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(message.attributes().source()));
-        auto handleInfo = pubHandleMap_.find(uriHash);
+        /* get key and check if the publisher for the URI is already exists */
+        auto key = uprotocol::uri::toZenohKeyString(message.attributes().source());
+        if (key.empty()) {
+            spdlog::error("failed to convert UUri to zenoh key");
+            break;
+        }
+        auto handleInfo = pubHandleMap_.find(key);
 
         z_owned_publisher_t pub;
 
@@ -127,12 +133,12 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
                 pub = handleInfo->second;
             } else {
 
-                pub = z_declare_publisher(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), nullptr);
+                pub = z_declare_publisher(z_loan(session_), z_keyexpr(key.c_str()), nullptr);
                 if (false == z_check(pub)) {
                     spdlog::error("Unable to declare Publisher for key expression!");
                     break;
                 }
-                pubHandleMap_[uriHash] = pub;
+                pubHandleMap_[key] = pub;
             }
         } else {
             pub = handleInfo->second;
@@ -242,14 +248,16 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
 
         std::lock_guard<std::mutex> lock(subInitMutex_);
 
-        auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
-
-
+        auto key = uprotocol::uri::toZenohKeyString(uri);
+        if (key.empty()) {
+            spdlog::error("failed to convert UUri to zenoh key");
+            break;
+        }
 
         // check if URI exists 
-        if (listenerMap_.find(uriHash) != listenerMap_.end()) {
+        if (listenerMap_.find(key) != listenerMap_.end()) {
 
-            listenerContainer = listenerMap_[uriHash];
+            listenerContainer = listenerMap_[key];
 
             for (const UListener *existingListenerPtr : listenerContainer->listenerVector_) {
                 if (existingListenerPtr == &listener) {
@@ -287,7 +295,7 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
 
             z_owned_closure_sample_t callback = z_closure(SubHandler, OnSubscriberClose, arg);
 
-            auto sub = z_declare_subscriber(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), z_move(callback), nullptr);
+            auto sub = z_declare_subscriber(z_loan(session_), z_keyexpr(key.c_str()), z_move(callback), nullptr);
             if (!z_check(sub)) {
                 spdlog::error("z_declare_subscriber failed");
                 status.set_code(UCode::INTERNAL);
@@ -302,7 +310,7 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
 
             z_owned_closure_query_t callback = z_closure(QueryHandler, OnQueryClose, arg);
         
-            auto qable = z_declare_queryable(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), z_move(callback), nullptr);
+            auto qable = z_declare_queryable(z_loan(session_), z_keyexpr(key.c_str()), z_move(callback), nullptr);
             if (!z_check(qable)) {
                 spdlog::error("failed to create queryable");
                 status.set_code(UCode::INTERNAL);
@@ -313,7 +321,7 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
             listenerContainer->listenerVector_.push_back(&listener);
         }
 
-        listenerMap_[uriHash] = listenerContainer;
+        listenerMap_[key] = listenerContainer;
 
         status.set_code(UCode::OK);
 
@@ -340,14 +348,14 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
 
     std::shared_ptr<ListenerContainer> listenerContainer;
 
-    auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
+    auto key = uprotocol::uri::toZenohKeyString(uri);
 
-    if (listenerMap_.find(uriHash) == listenerMap_.end()) {
+    if (key.empty() || listenerMap_.find(key) == listenerMap_.end()) {
         status.set_code(UCode::INVALID_ARGUMENT);
         return status;
     }
 
-    listenerContainer = listenerMap_[uriHash];
+    listenerContainer = listenerMap_[key];
 
     int32_t index = 0;
 
