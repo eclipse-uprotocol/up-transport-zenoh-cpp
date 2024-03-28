@@ -45,23 +45,23 @@ ZenohRpcClient::ZenohRpcClient() noexcept {
     /* by default initialized to empty strings */
     ZenohSessionManagerConfig config;
 
+    rpcSuccess_.set_code(UCode::UNAVAILABLE);
+
     if (UCode::OK != ZenohSessionManager::instance().init(config)) {
        spdlog::error("zenohSessionManager::instance().init() failed");
-       rpcSuccess_.set_code(UCode::UNAVAILABLE);
        return;
     }
 
     if (ZenohSessionManager::instance().getSession().has_value()) {
         session_ = ZenohSessionManager::instance().getSession().value();
     } else {
-        rpcSuccess_.set_code(UCode::UNAVAILABLE);
+        spdlog::error("failed to get zenoh session");
         return;
     }
 
     threadPool_ = make_shared<ThreadPool>(queueSize_, maxNumOfCuncurrentRequests_);
     if (nullptr == threadPool_) {
         spdlog::error("failed to create thread pool");
-        rpcSuccess_.set_code(UCode::UNAVAILABLE);
         return;
     }
 
@@ -71,7 +71,9 @@ ZenohRpcClient::ZenohRpcClient() noexcept {
 ZenohRpcClient::~ZenohRpcClient() noexcept {
     if (UCode::OK != ZenohSessionManager::instance().term()) {
         spdlog::error("zenohSessionManager::instance().term() failed");
+        return;
     }
+
     spdlog::info("ZenohRpcClient destructor done");
 }
 
@@ -229,6 +231,7 @@ RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel,
 
         if (!z_reply_is_ok(&reply)) {
             z_value_t error = z_reply_err(&reply);
+            /* TODO - Need to discuss with zettascale on alternative way to retrive the error */
             if (memcmp("Timeout", error.payload.start, error.payload.len) == 0) {
                 spdlog::error("Timeout received while waiting for response");
                 rpcResponse.status.set_code(UCode::DEADLINE_EXCEEDED);

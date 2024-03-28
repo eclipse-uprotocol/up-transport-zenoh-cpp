@@ -28,8 +28,8 @@
 using namespace uprotocol::v1;
 using namespace uprotocol::client;
 
-std::shared_ptr<upZenohClient> upZenohClient::instance(void) noexcept {
-    static std::weak_ptr<upZenohClient> w_handle;
+std::shared_ptr<UpZenohClient> UpZenohClient::instance(void) noexcept {
+    static std::weak_ptr<UpZenohClient> w_handle;
 
     if (auto handle = w_handle.lock()) {
         return handle;
@@ -41,14 +41,13 @@ std::shared_ptr<upZenohClient> upZenohClient::instance(void) noexcept {
             return handle;
         }
 
-        handle = std::make_shared<upZenohClient>(ConstructToken());
+        handle = std::make_shared<UpZenohClient>(ConstructToken());
         if (handle->rpcSuccess_.code() == UCode::OK && handle->uSuccess_.code() == UCode::OK) {
             w_handle = handle;
             return handle;
         } else {
+            spdlog::error("failed to get instance");
             return nullptr;
         }
     }
 }
-
-

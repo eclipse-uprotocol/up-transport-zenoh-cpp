@@ -27,9 +27,9 @@
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
+#include <up-core-api/uattributes.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
-#include <up-core-api/uattributes.pb.h>
 
 using namespace std;
 using namespace uprotocol::uri;
@@ -224,7 +224,7 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
     std::unique_lock<std::mutex> lock(queryMapMutex_);
     queryMap_.erase(uuidStr);
     lock.unlock();
-    
+
     z_drop(z_move(map));
 
     return UCode::OK;
