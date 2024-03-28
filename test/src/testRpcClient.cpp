@@ -35,8 +35,39 @@ using namespace uprotocol::uri;
 using namespace uprotocol::rpc;
 using namespace uprotocol::client;
 
-UUri rpcUri = LongUriSerializer::deserialize("/test_rpc.app/1/rpc.handler");
-UUri rpcNoServerUri = LongUriSerializer::deserialize("/test_rpc.app/1/rpc.noServer");
+namespace {
+
+UUri const& rpcUri() { 
+    static auto uri = BuildUUri()
+                      .setAutority(BuildUAuthority().build())
+                      .setEntity(BuildUEntity()
+                              .setName("test_rpc.app")
+                              .setMajorVersion(1)
+                              .setId(1)
+                              .build())
+                      .setResource(BuildUResource()
+                              .setRpcRequest("handler", 1)
+                              .build())
+                      .build();
+    return uri;
+}
+
+UUri const& rpcNoServerUri() {
+    static auto uri = BuildUUri()
+                      .setAutority(BuildUAuthority().build())
+                      .setEntity(BuildUEntity()
+                              .setName("test_rpc.app")
+                              .setMajorVersion(1)
+                              .setId(1)
+                              .build())
+                      .setResource(BuildUResource()
+                              .setRpcRequest("noServer", 2)
+                              .build())
+                      .build();
+    return uri;
+}
+
+} // anonymous namespace
 
 class RpcServer : public UListener {
 
@@ -91,12 +122,14 @@ class ResponseListener : public UListener {
 };
 
 class TestRPcClient : public ::testing::Test {
+    static std::shared_ptr<upZenohClient> zenoh_client;
 
     public:
         // SetUpTestSuite() is called before all tests in the test suite
         static void SetUpTestSuite() {
 
-            upZenohClient::instance()->registerListener(rpcUri, TestRPcClient::rpcListener);
+            zenoh_client = upZenohClient::instance();
+            zenoh_client->registerListener(rpcUri(), TestRPcClient::rpcListener);
         }
 
         // TearDownTestSuite() is called after all tests in the test suite
@@ -109,6 +142,7 @@ class TestRPcClient : public ::testing::Test {
 
 };
 
+std::shared_ptr<upZenohClient> TestRPcClient::zenoh_client;
 RpcServer TestRPcClient::rpcListener;
 ResponseListener TestRPcClient::responseListener;
 
@@ -122,7 +156,7 @@ TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
 
     options.set_priority(UPriority::UPRIORITY_CS4);
 
-    std::future<RpcResponse> future = instance->invokeMethod(rpcNoServerUri, payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcNoServerUri(), payload, options);
 
     EXPECT_EQ(future.valid(), true);
     
@@ -141,7 +175,7 @@ TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
 
     options.set_priority(UPriority::UPRIORITY_CS3);
 
-    std::future<RpcResponse> future = instance->invokeMethod(rpcNoServerUri, payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcNoServerUri(), payload, options);
 
     EXPECT_EQ(future.valid(), false);
 }
@@ -160,7 +194,7 @@ TEST_F(TestRPcClient, invokeMethodNoResponse) {
     options.set_priority(UPriority::UPRIORITY_CS4);
     options.set_ttl(1000);
 
-    std::future<RpcResponse> future = instance->invokeMethod(rpcUri, payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
     EXPECT_EQ(future.valid(), true);
     
@@ -186,7 +220,7 @@ TEST_F(TestRPcClient, maxSimultaneousRequests) {
     size_t numRequestsUntilQueueIsFull = instance->getMaxConcurrentRequests() + instance->getQueueSize();
 
     for (size_t i = 0; i < (numRequestsUntilQueueIsFull + 1) ; ++i) {
-        std::future<RpcResponse> future = instance->invokeMethod(rpcUri, payload, options);
+        std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
         if (i < numRequestsUntilQueueIsFull) {
             EXPECT_EQ(future.valid(), true);
@@ -198,7 +232,7 @@ TEST_F(TestRPcClient, maxSimultaneousRequests) {
     /* wait for al futures to return */
     sleep(10);
 
-    std::future<RpcResponse> future = instance->invokeMethod(rpcUri, payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
     EXPECT_EQ(future.valid(), true);
 }
@@ -214,7 +248,7 @@ TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
     options.set_priority(UPriority::UPRIORITY_CS4);
     options.set_ttl(1000);
 
-    std::future<RpcResponse> future = instance->invokeMethod(rpcUri, payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
     EXPECT_EQ(future.valid(), true);
     
@@ -239,7 +273,7 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
     options.set_priority(UPriority::UPRIORITY_CS4);
     options.set_ttl(1000);
 
-    std::future<RpcResponse> future = instance->invokeMethod(rpcUri, payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
     EXPECT_EQ(future.valid(), true);
     
@@ -265,7 +299,7 @@ TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
     options.set_priority(UPriority::UPRIORITY_CS4);
     options.set_ttl(1000);
 
-    auto status = instance->invokeMethod(rpcUri, payload, options, responseListener);
+    auto status = instance->invokeMethod(rpcUri(), payload, options, responseListener);
 
     EXPECT_EQ(status.code(), UCode::OK);  
 }
@@ -284,7 +318,7 @@ TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
     options.set_priority(UPriority::UPRIORITY_CS0);
     options.set_ttl(1000);
 
-    auto status = instance->invokeMethod(rpcUri, payload, options, responseListener);
+    auto status = instance->invokeMethod(rpcUri(), payload, options, responseListener);
 
     EXPECT_NE(status.code(), UCode::OK);  
 }
