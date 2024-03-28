@@ -221,8 +221,10 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
     spdlog::debug("replied on query with uid = {}", uuidStr);
     /* once replied remove the uuid from the map, as it cannot be reused */
+    std::unique_lock<std::mutex> lock(queryMapMutex_);
     queryMap_.erase(uuidStr);
-
+    lock.unlock();
+    
     z_drop(z_move(map));
 
     return UCode::OK;
@@ -375,7 +377,8 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
     return status;
 }
 
-void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
+void ZenohUTransport::SubHandler(const z_sample_t* sample, 
+                                 void* arg) {
 
     if ((nullptr == sample) || (nullptr == arg)) {
        spdlog::error("Invalid arguments for SubHandler");
@@ -414,7 +417,9 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
     }
 }
 
-void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
+void ZenohUTransport::QueryHandler(const z_query_t *query, 
+                                   void *arg) {
+
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
 
     z_attachment_t attachment = z_query_attachment(query);
@@ -446,13 +451,15 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
 
     auto uuidStr = UuidSerializer::serializeToString(attributes.id());
 
-    instance->queryMap_[uuidStr] = z_query_clone(query);
-
     if (UMessageType::UMESSAGE_TYPE_REQUEST != attributes.type()) {
        spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
        return;
     }
 
+    std::unique_lock<std::mutex> lock(instance->queryMapMutex_);
+    instance->queryMap_[uuidStr] = z_query_clone(query);
+    lock.unlock();
+        
     UMessage message(payload, attributes);
 
     if (UCode::OK != listener->onReceive(message).code()) {

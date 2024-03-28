@@ -125,6 +125,7 @@ namespace uprotocol::utransport {
 
             std::mutex pubInitMutex_;
             std::mutex subInitMutex_;
+            std::mutex queryMapMutex_;
 
             static constexpr auto termMaxRetries_ = size_t(10);
             static constexpr auto termRetryTimeout_ = std::chrono::milliseconds(100);
