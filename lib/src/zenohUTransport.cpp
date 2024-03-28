@@ -178,6 +178,7 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
     auto uuidStr = UuidSerializer::serializeToString(message.attributes().id());
+
     if (queryMap_.find(uuidStr) == queryMap_.end()) {
         spdlog::error("failed to find UUID = {}", uuidStr);
         return UCode::UNAVAILABLE;
@@ -459,7 +460,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query,
     std::unique_lock<std::mutex> lock(instance->queryMapMutex_);
     instance->queryMap_[uuidStr] = z_query_clone(query);
     lock.unlock();
-        
+
     UMessage message(payload, attributes);
 
     if (UCode::OK != listener->onReceive(message).code()) {
