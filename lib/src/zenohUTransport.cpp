@@ -112,6 +112,7 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 
     UCode status = UCode::UNAVAILABLE;
 
+    pendingSendRefCnt_.fetch_add(1);
     do {
       
         if ((0 == message.payload().size()) || (nullptr == message.payload().data())) {
