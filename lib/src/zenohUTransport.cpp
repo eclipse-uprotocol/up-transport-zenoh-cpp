@@ -110,6 +110,7 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 
     UCode status = UCode::UNAVAILABLE;
 
+    pendingSendRefCnt_.fetch_add(1);
     do {
       
         /* get hash and check if the publisher for the URI is already exists */
