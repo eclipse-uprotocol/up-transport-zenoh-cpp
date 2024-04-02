@@ -27,7 +27,7 @@
 #include <iostream>
 #include <spdlog/spdlog.h>
 #include <unistd.h> // For sleep
-#include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/client/upZenohClient.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <up-cpp/transport/builder/UAttributesBuilder.h>
@@ -36,6 +36,7 @@ using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
 using namespace uprotocol::v1;
 using namespace uprotocol::uuid;
+using namespace uprotocol::client;
 
 const std::string PING_URI_STRING = "/latency.app/1/ping";
 const std::string PONG_URI_STRING = "/latency.app/1/32bit";
@@ -53,10 +54,11 @@ class CustomListener : public UListener {
 
     public:
 
-        CustomListener() {
-            auto pingUUid = Uuidv8Factory::create();
-            UAttributesBuilder builder(pingUUid, UMessageType::UMESSAGE_TYPE_PUBLISH, UPriority::UPRIORITY_CS0);
+        CustomListener(std::shared_ptr<UpZenohClient> &transport) {
+
+            auto builder = UAttributesBuilder::publish(pongUri, UPriority::UPRIORITY_CS0);
             responseAttributes = builder.build();
+            transport_ = transport;
         }
 
         UStatus onReceive(UMessage &message) const override {
@@ -76,13 +78,14 @@ class CustomListener : public UListener {
 
             UPayload payload(respBuffer, sizeof(respBuffer), UPayloadType::VALUE);
 
+            UMessage respMessage(payload, responseAttributes);
             /* Send the response */
-            return ZenohUTransport::instance().send(pongUri, payload, responseAttributes);
+            return transport_->send(respMessage);
         }
 
         UUri pongUri = LongUriSerializer::deserialize(PONG_URI_STRING);
         UAttributes responseAttributes;
-        uint8_t buffer[1];
+        std::shared_ptr<UpZenohClient> transport_;
 };
 
 /* The sample sub applications demonstrates how to consume data using uTransport -
@@ -96,16 +99,15 @@ int main(int argc,
     signal(SIGINT, signalHandler);
 
     UStatus status;
-    CustomListener listener;
 
-    ZenohUTransport *transport = &ZenohUTransport::instance();
-    
-    /* init zenoh utransport */
-    status = transport->init();
-    if (UCode::OK != status.code()){
-        spdlog::error("ZenohUTransport init failed");
+    std::shared_ptr<UpZenohClient> transport = UpZenohClient::instance();
+    /* Initialize zenoh utransport */
+    if (nullptr == transport) {
+        spdlog::error("UpZenohClientinit failed");
         return -1;
-    }
+    }    
+
+    CustomListener listener(transport);
 
     UUri pingUri = LongUriSerializer::deserialize(PING_URI_STRING); 
        
@@ -122,13 +124,6 @@ int main(int argc,
     status = transport->unregisterListener(pingUri, listener);
     if (UCode::OK != status.code()){
         spdlog::error("unregisterListener failed");
-        return -1;
-    }
-    
-    /* term zenoh utransport */
-    status = transport->term();
-    if (UCode::OK != status.code()) {
-        spdlog::error("ZenohUTransport term failed");
         return -1;
     }
 

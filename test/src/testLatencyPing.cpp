@@ -24,8 +24,7 @@
 #include <csignal>
 #include <atomic>
 #include <spdlog/spdlog.h>
-#include <up-client-zenoh-cpp/transport/zenohUTransport.h>
-#include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
+#include <up-client-zenoh-cpp/client/upZenohClient.h>
 #include <up-cpp/transport/builder/UAttributesBuilder.h>
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
@@ -37,6 +36,7 @@ using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
+using namespace uprotocol::client;
 
 const std::string PING_URI_STRING = "/latency.app/1/ping";
 const std::string PONG_URI_STRING = "/latency.app/1/pong";
@@ -185,18 +185,24 @@ class TestLatencyPing : public ::testing::Test, UListener{
             spdlog::info("Sleeping for 5 seconds to give time for processes to initialize");
             sleep(5);
             
+
+            auto instance = UpZenohClient::instance();
+
+            instance->registerListener(pongUri, *this);    
+
             for (size_t i = 0 ; i < numOfmessages_ ; ++i) {
 
-                auto pingUUid = Uuidv8Factory::create();
-
-                UAttributesBuilder builder(pingUUid, UMessageType::UMESSAGE_TYPE_PUBLISH, UPriority::UPRIORITY_CS0);
-                UAttributes attributes = builder.build();     
+                auto builder = UAttributesBuilder::publish(pingUri, UPriority::UPRIORITY_CS0);
                 
+                UAttributes attributes = builder.build();
+
                 pingTimeMicro = getCurrentTimeMicroseconds();
 
-                UPayload payload(payloadBuffer, bufferSize, UPayloadType::REFERENCE);
-            
-                UStatus status = ZenohUTransport::instance().send(pingUri, payload, attributes);
+                UPayload payload(payloadBuffer, bufferSize, UPayloadType::REFERENCE);          
+   
+                UMessage message(payload, attributes);
+
+                UStatus status = instance->send(message);
                 
                 EXPECT_EQ(status.code(), UCode::OK);
 
@@ -243,28 +249,8 @@ class TestLatencyPing : public ::testing::Test, UListener{
             pidList = getPids();
 
             EXPECT_EQ(pidList.size(), 0);
-        }
 
-        void SetUp() override {
-            ZenohUTransport::instance().registerListener(pongUri, *this);
-        }
-
-        void TearDown() override {
-            ZenohUTransport::instance().unregisterListener(pongUri, *this);
-        }
-
-        static void SetUpTestSuite() {
-            if (UCode::OK != ZenohUTransport::instance().init().code()) {
-                spdlog::error("ZenohUTransport::instance().init failed");
-                return;
-            }
-        }
-
-        static void TearDownTestSuite() {
-            if (UCode::OK != ZenohUTransport::instance().term().code()) {
-                spdlog::error("ZenohUTransport::instance().term() failed");
-                return;
-            }
+            instance->unregisterListener(pongUri, *this);
         }
     
         void waitUntilAllCallbacksInvoked() {
