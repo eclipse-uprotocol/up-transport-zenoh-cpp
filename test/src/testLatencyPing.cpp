@@ -39,7 +39,7 @@ using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
 
 const std::string PING_URI_STRING = "/latency.app/1/ping";
-const std::string PONG_URI_STRING = "/latency.app/1/32bit";
+const std::string PONG_URI_STRING = "/latency.app/1/pong";
 
 bool gTerminate = false;
 
@@ -63,15 +63,21 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
         UStatus onReceive(UMessage &message) const override {
             
+            UStatus status;
+
+            status.set_code(UCode::INTERNAL);
+
             auto payload = message.payload();
 
             if ((sizeof(uint64_t) + sizeof(pid_t)) != payload.size()){
-                spdlog::error("wrong size received");
+                spdlog::error("wrong payload size received {} expected {}" , payload.size(), (sizeof(uint64_t) + sizeof(pid_t)));
+                return status;
             }
 
             responseCounterTotal_.fetch_add(1);
             responseCounter_.fetch_add(1);
 
+            /* start the measurments after all "warmup" messages recevied */
             if (responseCounterTotal_.load() >= (numOfWarmupMessages_ * maxSubscribers_)) {
                
                 uint64_t pongTimeMicro;
@@ -82,46 +88,46 @@ class TestLatencyPing : public ::testing::Test, UListener{
                 
                 latencyTotal_.fetch_add(pongTimeMicro - pingTimeMicro);
 
-
                 LatencyPerPID entry = processTable[pid];
                 uint64_t latency = pongTimeMicro - pingTimeMicro;
 
+                /* store the peak latency */
                 if (entry.peakLatency < latency){
                     entry.peakLatency = latency;
                 }
 
+                /* store the min latency */
                 if ((entry.minLatency > latency) || (entry.minLatency == 0 )) {
                     entry.minLatency = latency;
                 }
 
-                entry.latencyTotal += pongTimeMicro - pingTimeMicro;
+                entry.latencyTotal += (pongTimeMicro - pingTimeMicro);
                 entry.samplesCount += 1;
 
                 processTable[pid] = entry;
             }
 
-
+            /* notfiy the main thread when all messages received*/
             if (maxSubscribers_ == responseCounter_) {
                 cv.notify_one();
             }
 
-            UStatus status;
             status.set_code(UCode::OK);         
 
             return status;
         }
 
         uint64_t getCurrentTimeMicroseconds() {
+          
             auto currentTime = std::chrono::high_resolution_clock::now();
-
             auto duration = currentTime.time_since_epoch();
-
             auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 
             return microseconds;
         }
 
         std::vector<int> getPids() {
+
             std::vector<int> pidList;
             char buffer[128];
             std::shared_ptr<FILE> pipe(popen("ps -ef | grep testLatencyPong | grep -v grep | awk '{print $2}'", "r"), pclose);
@@ -129,7 +135,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
             while (!feof(pipe.get())) {
                 if (fgets(buffer, 128, pipe.get()) != nullptr) {
-                    // Split the output into tokens and store the PID
+                    /* Split the output into tokens and store the PID */
                     std::istringstream iss(buffer);
                     int pid;
                     if (iss >> pid) {
@@ -137,6 +143,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
                     }
                 }
             }
+
             return pidList;
         }
 
@@ -147,10 +154,12 @@ class TestLatencyPing : public ::testing::Test, UListener{
             responseCounter_ = 0;
             latencyTotal_ = 0;
             responseCounterTotal_ = 0;
+            
             processTable.clear();
 
             uint8_t payloadBuffer[bufferSize];
 
+            /* the testLatencyPong exec should be in the same folder as the test latency ping */
             std::string currentPath = std::filesystem::current_path().string();
 
             currentPath.append("/testLatencyPong > /dev/null &");
@@ -219,6 +228,8 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
             spdlog::info("Sleeping for 5 seconds to all processes to terminate");
             sleep(5);
+
+            /* if any of the processes did not gratefuly terminated , kill -9 it */
             pidList = getPids();
 
             if (0 != pidList.size()) {
