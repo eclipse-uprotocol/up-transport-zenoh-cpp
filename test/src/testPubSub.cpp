@@ -34,6 +34,10 @@
 #include <vector>
 #include <tuple>
 #include <chrono>
+#include <sys/socket.h>
+#include <poll.h>
+#include <unistd.h>
+#include <signal.h>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::v1;
@@ -42,24 +46,46 @@ using namespace uprotocol::uuid;
 using namespace uprotocol::client;
 
 // capture and queue onReceive() for verification by the sender
+
+template <bool INTERPROC> 
 class MessageCapture : public UListener {
     typedef std::vector<std::uint8_t>    Data;
-
     std::condition_variable cv;
     std::mutex mtx;
     std::deque<Data>    queue;
+    int sp[2];
 public:
+    MessageCapture()
+    {
+        if constexpr (INTERPROC) {
+            socketpair(AF_UNIX, SOCK_DGRAM, 0, sp);
+        }
+    }
+
+    ~MessageCapture()
+    {
+        if constexpr (INTERPROC) {
+            close(sp[0]);
+            close(sp[1]);
+        }
+    }
+
     void operator()(UMessage& message)
     {
         using namespace std;
 
-        Data data(message.payload().size());
-        auto ptr = message.payload().data();
-        copy(ptr, ptr+message.payload().size(), data.data());
-        { 
-            lock_guard<mutex> lock(mtx);
-            queue.emplace_back(data);
-            cv.notify_one();
+        if constexpr (INTERPROC) {
+            send(sp[0], message.payload().data(), message.payload().size(), 0);
+        }
+        else {
+            Data data(message.payload().size());
+            auto ptr = message.payload().data();
+            copy(ptr, ptr+message.payload().size(), data.data());
+            { 
+                lock_guard<mutex> lock(mtx);
+                queue.emplace_back(data);
+                cv.notify_one();
+            }
         }
     }
 
@@ -79,16 +105,32 @@ public:
         using namespace std::chrono;
 
         auto end_time = steady_clock::now() + milliseconds(milliseconds_max);
-        size_t count;
-        Data data;
-        {
-            unique_lock<mutex> lock(mtx);
-            while ((count = queue.size()) < 1) cv.wait_until(lock, end_time);
+        if constexpr (INTERPROC) {
+            Data data(2048);
+            struct pollfd fds[1];
+            fds[0].fd = sp[1];
+            fds[0].events = POLLIN;
+            fds[0].revents = 0;
+            auto ret = poll(fds, 1, milliseconds_max);
+            if (ret <= 0) return make_tuple(size_t(0), Data(), end_time);
+            ret = recv(sp[1], data.data(), 2048, 0);
+            if (ret <= 0) return make_tuple(size_t(0), Data(), end_time);
             end_time = steady_clock::now();
-            data = queue.front();
-            queue.pop_front();
+            data.resize(ret);
+            return make_tuple(1, data, end_time);
         }
-        return make_tuple(count, data, end_time);
+        else {
+            size_t count;
+            Data data;
+            {
+                unique_lock<mutex> lock(mtx);
+                while ((count = queue.size()) < 1) cv.wait_until(lock, end_time);
+                end_time = steady_clock::now();
+                data = queue.front();
+                queue.pop_front();
+            }
+            return make_tuple(count, data, end_time);
+        }
     }
 };
 
@@ -145,12 +187,56 @@ struct TestPubSub : public ::testing::Test {
         static void TearDownTestSuite() {}
 };
 
-TEST_F(TestPubSub, pub) {
+TEST_F(TestPubSub, interprocess) {
+    using namespace std::chrono;
+
+    UUri uuri = LongUriSerializer::deserialize("/test.app/1/milliseconds");
+    MessageCapture<true> callback;
+    auto child_pid = fork();
+    if (child_pid == 0) {
+        auto transport = UpZenohClient::instance();
+        UStatus listen_status = transport->registerListener(uuri, callback);
+        if (UCode::OK != listen_status.code()) {
+            cerr << "child process listen failed" << endl;
+            exit(-1);
+        }
+        sleep(30);
+        // EXPECT_EQ(UCode::OK, listen_status.code());
+        exit(0);
+    }
+    else {
+        auto transport = UpZenohClient::instance();
+        sleep(1);
+        auto builder = UAttributesBuilder::publish(uuri, UPriority::UPRIORITY_CS0);
+        UAttributes attributes = builder.build();
+
+        const size_t cnt = 10;
+        for (size_t out_data = 0; out_data < cnt; out_data++) {
+            decltype(out_data) in_data;
+            UPayload payload((uint8_t*)&out_data, sizeof(out_data), UPayloadType::VALUE);
+            UMessage message(payload, attributes);
+            auto send_time = steady_clock::now();
+            UStatus send_status = transport->send(message);
+            EXPECT_EQ(UCode::OK, send_status.code());
+            auto [ sz, in_vector, cap_time ] = callback.get(2000);
+            EXPECT_EQ(1, sz);
+            EXPECT_EQ(sizeof(out_data), in_vector.size());
+            copy(in_vector.data(), in_vector.data()+sizeof(in_data), &in_data);
+            EXPECT_EQ(out_data == in_data, true);
+            cout << "us = " << duration_cast<microseconds>(cap_time - send_time).count() << endl;
+        }
+        // listen_status = transport->unregisterListener(uuri, callback);
+        // EXPECT_EQ(UCode::OK, listen_status.code());
+        kill(child_pid, SIGINT);
+    }
+}
+
+TEST_F(TestPubSub, interthread) {
     using namespace std::chrono;
     auto transport = UpZenohClient::instance();
 
     UUri uuri = LongUriSerializer::deserialize("/test.app/1/milliseconds");
-    MessageCapture callback;
+    MessageCapture<false> callback;
     UStatus listen_status = transport->registerListener(uuri, callback);
     EXPECT_EQ(UCode::OK, listen_status.code());
 
