@@ -165,6 +165,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
             currentPath.append("/testLatencyPong > /dev/null &");
            
             for (size_t i = 0 ; i < maxSubscribers_ ; ++i) {
+                std::cout << currentPath << std::endl;
                 std::system(currentPath.c_str());
             }
             
