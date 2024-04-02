@@ -56,10 +56,7 @@ target_link_libraries(testLatencyPing
 		pthread
 )
 
-target_compile_definitions(testLatencyPing PUBLIC LATENCY_PONG_BIN_PATH="${CMAKE_BINARY_DIR}/bin/testLatencyPong > /dev/null &")
-
 add_test("t-18-testLatencyPing" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPing)
-
 
 add_executable(testLatencyPong
 	src/testLatencyPong.cpp)
