@@ -186,10 +186,13 @@ class TestLatencyPing : public ::testing::Test, UListener{
             spdlog::info("Sleeping for 5 seconds to give time for processes to initialize");
             sleep(5);
             
-
             auto instance = UpZenohClient::instance();
 
-            instance->registerListener(pongUri, *this);    
+            EXPECT_NE(instance , nullptr);
+
+            auto status = instance->registerListener(pongUri, *this);    
+
+            EXPECT_EQ(status.code(), UCode::OK);
 
             for (size_t i = 0 ; i < numOfmessages_ ; ++i) {
 
@@ -251,7 +254,9 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
             EXPECT_EQ(pidList.size(), 0);
 
-            instance->unregisterListener(pongUri, *this);
+            status = instance->unregisterListener(pongUri, *this);
+
+            EXPECT_EQ(status.code(), UCode::OK);
         }
     
         void waitUntilAllCallbacksInvoked() {
@@ -271,7 +276,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
         mutable std::atomic<size_t> responseCounterTotal_ = 0;
         mutable std::unordered_map<pid_t, LatencyPerPID> processTable;
         static constexpr auto numOfmessages_ = size_t(2000);
-        static constexpr auto numOfWarmupMessages_ = size_t(numOfmessages_/2);
+        static constexpr auto numOfWarmupMessages_ = size_t(numOfmessages_ / 2);
 };
 
 TEST_F(TestLatencyPing, LatencyTests1Kb1Sub) {

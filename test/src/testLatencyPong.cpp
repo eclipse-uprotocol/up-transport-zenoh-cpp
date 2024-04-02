@@ -63,6 +63,8 @@ class CustomListener : public UListener {
 
         UStatus onReceive(UMessage &message) const override {
                      
+            (void) message;
+            
             timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts); // Get current time
             // Convert seconds to microseconds and add nanoseconds converted to microseconds
