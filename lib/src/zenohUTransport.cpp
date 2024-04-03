@@ -236,7 +236,6 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
                                           const UListener &listener) noexcept {
    
     UStatus status;
-
     cbArgumentType* arg;
     std::shared_ptr<ListenerContainer> listenerContainer;
 
@@ -249,7 +248,6 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
         std::lock_guard<std::mutex> lock(subInitMutex_);
 
         auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(uri));
-
         // check if URI exists 
         if (listenerMap_.find(uriHash) != listenerMap_.end()) {
 

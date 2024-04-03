@@ -39,7 +39,7 @@ using namespace uprotocol::uuid;
 using namespace uprotocol::client;
 
 const std::string PING_URI_STRING = "/latency.app/1/ping";
-const std::string PONG_URI_STRING = "/latency.app/1/32bit";
+const std::string PONG_URI_STRING = "/latency.app/1/pong";
 
 bool gTerminate = false;
 
@@ -62,9 +62,9 @@ class CustomListener : public UListener {
         }
 
         UStatus onReceive(UMessage &message) const override {
-                     
-            (void) message;
-            
+
+            (void)message;
+
             timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts); // Get current time
             // Convert seconds to microseconds and add nanoseconds converted to microseconds
