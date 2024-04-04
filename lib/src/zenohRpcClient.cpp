@@ -194,8 +194,8 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
             spdlog::error("z_get failure");
             break;
         }
-       
-        future = threadPool_->submit([=] { return handleReply(channel, listener); });
+    
+        future = threadPool_->submit([channel, listener] { return handleReply(channel, listener); });
         if (false == future.valid()) {
             spdlog::error("invalid future received");
             break;
