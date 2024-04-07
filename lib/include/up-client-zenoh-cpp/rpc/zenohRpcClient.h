@@ -103,12 +103,12 @@ namespace uprotocol::rpc {
             static uprotocol::utransport::UPayload handleReply(z_owned_reply_channel_t *channel);
 
             std::future<uprotocol::rpc::RpcResponse> invokeMethodInternal(const uprotocol::v1::UUri &topic,
-                                                                            const uprotocol::utransport::UPayload &payload,
-                                                                            const uprotocol::v1::CallOptions &options,
-                                                                            const uprotocol::utransport::UListener *callback = nullptr) noexcept;
+                                                                          const uprotocol::utransport::UPayload &payload,
+                                                                          const uprotocol::v1::CallOptions &options,
+                                                                          const uprotocol::utransport::UListener *callback = nullptr) noexcept;
 
-            static uprotocol::rpc::RpcResponse handleReply(z_owned_reply_channel_t *channel, 
-                                                            const uprotocol::utransport::UListener *callback = nullptr) noexcept;
+            static uprotocol::rpc::RpcResponse handleReply(const std::shared_ptr<z_owned_reply_channel_t> &channel, 
+                                                           const uprotocol::utransport::UListener *callback = nullptr) noexcept;
             
             static constexpr auto requestTimeoutMs_ = 5000;
             static constexpr auto queueSizeDefault_ = size_t(20);

@@ -26,8 +26,7 @@ project(test VERSION 0.1.0 LANGUAGES CXX)
 
 find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+find_package(Boost REQUIRED)
 
 # include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 add_executable(testRpcClient
@@ -54,6 +53,7 @@ target_link_libraries(testLatencyPing
 		GTest::gtest_main
 		GTest::gmock    
 		pthread
+		${Boost_LIBRARIES}
 )
 
 add_test("t-18-testLatencyPing" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPing)

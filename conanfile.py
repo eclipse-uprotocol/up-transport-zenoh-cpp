@@ -42,6 +42,7 @@ class UpClientZenoh(ConanFile):
         self.requires("spdlog/1.13.0")
         if self.options.build_testing:
             self.requires("gtest/1.14.0")
+            self.requires("boost/1.84.0")
         if self.options.build_unbundled: #each componenet is built independently 
             self.requires("up-cpp/0.1.1-dev")
             if self.options.zenoh_package:

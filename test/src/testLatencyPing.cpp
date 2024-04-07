@@ -24,31 +24,23 @@
 #include <csignal>
 #include <atomic>
 #include <spdlog/spdlog.h>
-#include <up-client-zenoh-cpp/transport/zenohUTransport.h>
-#include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
+#include <up-client-zenoh-cpp/client/upZenohClient.h>
 #include <up-cpp/transport/builder/UAttributesBuilder.h>
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
 #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <gtest/gtest.h>
-#include <iostream>
 #include <filesystem>
+#include <boost/process.hpp>
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uri;
 using namespace uprotocol::uuid;
 using namespace uprotocol::v1;
+using namespace uprotocol::client;
+using namespace boost::process;
 
 const std::string PING_URI_STRING = "/latency.app/1/ping";
 const std::string PONG_URI_STRING = "/latency.app/1/pong";
-
-bool gTerminate = false;
-
-void signalHandler(int signal) {
-    if (signal == SIGINT) {
-        std::cout << "Ctrl+C received. Exiting..." << std::endl;
-        gTerminate = true;
-    }
-}
 
 struct LatencyPerPID {
     uint64_t latencyTotal;
@@ -57,7 +49,7 @@ struct LatencyPerPID {
     size_t samplesCount;
 };
 
-class TestLatencyPing : public ::testing::Test, UListener{
+class TestLatencyPing : public ::testing::Test, UListener {
 
     public:
 
@@ -76,7 +68,6 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
             responseCounterTotal_.fetch_add(1);
             responseCounter_.fetch_add(1);
-
             /* start the measurments after all "warmup" messages recevied */
             if (responseCounterTotal_.load() >= (numOfWarmupMessages_ * maxSubscribers_)) {
                
@@ -88,7 +79,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
                 
                 latencyTotal_.fetch_add(pongTimeMicro - pingTimeMicro);
 
-                LatencyPerPID entry = processTable[pid];
+                LatencyPerPID entry = processTable_[pid];
                 uint64_t latency = pongTimeMicro - pingTimeMicro;
 
                 /* store the peak latency */
@@ -104,7 +95,7 @@ class TestLatencyPing : public ::testing::Test, UListener{
                 entry.latencyTotal += (pongTimeMicro - pingTimeMicro);
                 entry.samplesCount += 1;
 
-                processTable[pid] = entry;
+                processTable_[pid] = entry;
             }
 
             /* notfiy the main thread when all messages received*/
@@ -126,148 +117,83 @@ class TestLatencyPing : public ::testing::Test, UListener{
             return microseconds;
         }
 
-        std::vector<int> getPids() {
+        void runGTest() {
 
-            std::vector<int> pidList;
-            char buffer[128];
-            std::shared_ptr<FILE> pipe(popen("ps -ef | grep testLatencyPong | grep -v grep | awk '{print $2}'", "r"), pclose);
-            if (!pipe) throw std::runtime_error("popen() failed!");
+            uint8_t payloadBuffer[payloadSize_];
 
-            while (!feof(pipe.get())) {
-                if (fgets(buffer, 128, pipe.get()) != nullptr) {
-                    /* Split the output into tokens and store the PID */
-                    std::istringstream iss(buffer);
-                    int pid;
-                    if (iss >> pid) {
-                        pidList.push_back(pid);
-                    }
-                }
-            }
+            std::vector<child> childProcVector;
 
-            return pidList;
-        }
-
-        void runTest(size_t bufferSize, 
-                     size_t numSub) {
-
-            maxSubscribers_ = numSub;
             responseCounter_ = 0;
             latencyTotal_ = 0;
             responseCounterTotal_ = 0;
             
-            processTable.clear();
-
-            uint8_t payloadBuffer[bufferSize];
-
+            processTable_.clear();
             /* the testLatencyPong exec should be in the same folder as the test latency ping */
             std::string currentPath = std::filesystem::current_path().string();
 
             currentPath.append("/testLatencyPong > /dev/null &");
            
             for (size_t i = 0 ; i < maxSubscribers_ ; ++i) {
-                std::system(currentPath.c_str());
+
+                child childProc(currentPath);
+
+                childProcVector.push_back(std::move(childProc));
             }
             
-            std::vector<int> pidList = getPids();
-
-            EXPECT_EQ(pidList.size(), maxSubscribers_);
-
-            for (int pid : pidList) {
-                LatencyPerPID entry;
-
-                entry.latencyTotal = 0;
-                entry.samplesCount = 0;
-                entry.peakLatency = 0;
-                entry.minLatency = 0;
-                processTable[pid] = entry;
+            for (const auto&  childProc: childProcVector) {              
+                LatencyPerPID entry = LatencyPerPID{};;
+                processTable_[childProc.id()] = entry;
             }
-
-            spdlog::info("Sleeping for 5 seconds to give time for processes to initialize");
+          
+            auto instance = UpZenohClient::instance();
+            spdlog::info("sleeping for 5 seconds to allow session creation");
             sleep(5);
-            
+            spdlog::info("Starting test");
+           
+            EXPECT_EQ(childProcVector.size(), maxSubscribers_);
+            EXPECT_NE(instance, nullptr);
+            EXPECT_EQ(instance->registerListener(pongUri, *this).code(), UCode::OK);
+
             for (size_t i = 0 ; i < numOfmessages_ ; ++i) {
 
-                auto pingUUid = Uuidv8Factory::create();
-
-                UAttributesBuilder builder(pingUUid, UMessageType::UMESSAGE_TYPE_PUBLISH, UPriority::UPRIORITY_CS0);
-                UAttributes attributes = builder.build();     
+                auto builder = UAttributesBuilder::publish(pingUri, UPriority::UPRIORITY_CS0);
                 
+                UAttributes attributes = builder.build();
+
                 pingTimeMicro = getCurrentTimeMicroseconds();
 
-                UPayload payload(payloadBuffer, bufferSize, UPayloadType::REFERENCE);
-            
-                UStatus status = ZenohUTransport::instance().send(pingUri, payload, attributes);
-                
-                EXPECT_EQ(status.code(), UCode::OK);
+                UPayload payload(payloadBuffer, payloadSize_, UPayloadType::REFERENCE);          
+   
+                UMessage message(payload, attributes);
+              
+                EXPECT_EQ(instance->send(message).code(), UCode::OK);
 
-                waitUntilAllCallbacksInvoked();
+                waitForResponse();
 
                 responseCounter_ = 0;
             }
 
-            spdlog::info("Sleeping for 5 seconds to finish get all of the responses");
-            sleep (5);
             spdlog::info("*** message size , total samples received , total latency , average latency  ***" );
             spdlog::info("***  {} , \t\t{} , \t\t\t{} , \t{} ***" , 
-                bufferSize, responseCounterTotal_.load(), latencyTotal_.load() , (latencyTotal_.load() / (responseCounterTotal_.load()/2))); 
+                payloadSize_, responseCounterTotal_.load(), latencyTotal_.load() , (latencyTotal_.load() / (responseCounterTotal_.load()/2))); 
 
             spdlog::info("*** PID , \t\tsamples count , total latency , average latency , peak latency , minimum latency  ***");
-            for (int pid : pidList) {
+            for (const auto& childProc: childProcVector) {    
 
-                LatencyPerPID entry = processTable[pid];
+                LatencyPerPID entry = processTable_[childProc.id()];
                 spdlog::info("*** {} , \t\t{} , \t\t\t{} , \t{} , \t\t{} , \t\t{} ***", 
-                    pid, entry.samplesCount, entry.latencyTotal, entry.latencyTotal / entry.samplesCount, entry.peakLatency, entry.minLatency);
+                    childProc.id(), entry.samplesCount, entry.latencyTotal, entry.latencyTotal / entry.samplesCount, entry.peakLatency, entry.minLatency);
             }
 
-            for (int pid : pidList) {
-                int result = kill(pid, SIGINT);
-                if (result != 0) {
-                    spdlog::error("Failed to send SIGINT signal to process with PID {}", pid);
-                }
+            for (auto& childProc: childProcVector) {          
+                childProc.terminate();
+                childProc.wait();
             }
 
-            spdlog::info("Sleeping for 5 seconds to all processes to terminate");
-            sleep(5);
-
-            /* if any of the processes did not gratefuly terminated , kill -9 it */
-            pidList = getPids();
-
-            if (0 != pidList.size()) {
-                for (int pid : pidList) {
-                   kill(pid, SIGKILL);
-                }
-                spdlog::info("Sleeping for 5 seconds to all processes to terminate");
-                sleep(5);
-            }
-
-            pidList = getPids();
-
-            EXPECT_EQ(pidList.size(), 0);
-        }
-
-        void SetUp() override {
-            ZenohUTransport::instance().registerListener(pongUri, *this);
-        }
-
-        void TearDown() override {
-            ZenohUTransport::instance().unregisterListener(pongUri, *this);
-        }
-
-        static void SetUpTestSuite() {
-            if (UCode::OK != ZenohUTransport::instance().init().code()) {
-                spdlog::error("ZenohUTransport::instance().init failed");
-                return;
-            }
-        }
-
-        static void TearDownTestSuite() {
-            if (UCode::OK != ZenohUTransport::instance().term().code()) {
-                spdlog::error("ZenohUTransport::instance().term() failed");
-                return;
-            }
+            EXPECT_EQ(instance->unregisterListener(pongUri, *this).code(), UCode::OK);
         }
     
-        void waitUntilAllCallbacksInvoked() {
+        void waitForResponse() {
             std::unique_lock<std::mutex> lock(mutex_);
             cv.wait(lock, [this](){ return responseCounter_ >= maxSubscribers_; });
         }
@@ -277,54 +203,35 @@ class TestLatencyPing : public ::testing::Test, UListener{
 
         uint64_t pingTimeMicro;
         std::mutex mutex_;
+        size_t maxSubscribers_;
+        size_t payloadSize_;
         mutable std::condition_variable cv;
-        size_t maxSubscribers_ = 0;
-        mutable std::atomic<size_t> responseCounter_ = 0;
-        mutable std::atomic<uint64_t> latencyTotal_ = 0;
-        mutable std::atomic<size_t> responseCounterTotal_ = 0;
-        mutable std::unordered_map<pid_t, LatencyPerPID> processTable;
+        mutable std::atomic<size_t> responseCounter_;
+        mutable std::atomic<uint64_t> latencyTotal_;
+        mutable std::atomic<size_t> responseCounterTotal_;
+        mutable std::unordered_map<pid_t, LatencyPerPID> processTable_;
+
         static constexpr auto numOfmessages_ = size_t(2000);
-        static constexpr auto numOfWarmupMessages_ = size_t(numOfmessages_/2);
+        static constexpr auto numOfWarmupMessages_ = size_t(numOfmessages_ / 2);
 };
 
 TEST_F(TestLatencyPing, LatencyTests1Kb1Sub) {
-    runTest(1024, 1);
-}
+    
+    size_t payloadSize[] = {1024, 1024 * 10 , 1024 * 100};
+    size_t subscribersCount[] = {1, 10, 20};
 
-TEST_F(TestLatencyPing, LatencyTests1Kb5Sub) {
-    runTest(1024, 5);
-}
+    for (size_t size : payloadSize) {
+        for (size_t count : subscribersCount) {
 
-TEST_F(TestLatencyPing, LatencyTests1Kb20Sub) {
-    runTest(1024, 20);
-}
+            maxSubscribers_ = count;  
+            payloadSize_ = size;
 
-TEST_F(TestLatencyPing, LatencyTests10Kb1Sub) {
-    runTest(1024 * 10 , 1);
-}
-
-TEST_F(TestLatencyPing, LatencyTests10Kb5Sub) {
-    runTest(1024 * 10 , 5);
-}
-
-TEST_F(TestLatencyPing, LatencyTests10Kb20Sub) {
-    runTest(1024 * 10, 20);
-}
-
-TEST_F(TestLatencyPing, LatencyTests100Kb1Sub) {
-    runTest(1024 * 100, 1);
-}
-
-TEST_F(TestLatencyPing, LatencyTests100Kb5Sub) {
-    runTest(1024 * 100, 5);
-}
-
-TEST_F(TestLatencyPing, LatencyTests100Kb20Sub) {
-    runTest(1024 * 100, 20);
+            runGTest();      
+        }
+    }
 }
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }
-

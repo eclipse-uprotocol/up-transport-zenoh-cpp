@@ -25,6 +25,8 @@
 #include "up-client-zenoh-cpp/session/zenohSessionManager.h"
 #include <spdlog/spdlog.h>
 
+using namespace uprotocol::v1;
+
 ZenohSessionManager& ZenohSessionManager::instance(void) noexcept {
 
 	static ZenohSessionManager sessionManager;
