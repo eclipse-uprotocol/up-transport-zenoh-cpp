@@ -66,6 +66,10 @@ std::string toZenohKeyString(const uprotocol::v1::UUri &u_uri) {
         }
     } else if (auto uri = Serializer::serialize(u_uri); uri.empty()) {
         spdlog::error("Serialized micro URI is empty");
+    } else if (uri.size() < Serializer::LocalMicroUriLength) {
+        spdlog::error(
+                "Serialized micro URI has unexpected length of {} (should be "
+                "at least {})", uri.size(), Serializer::LocalMicroUriLength);
     } else {
         if (uri.size() == Serializer::LocalMicroUriLength) {
             topic << local_prefix << separator;
