@@ -31,7 +31,7 @@ class UpClientZenoh(ConanFile):
     default_options = {
         "shared": False,
         "fPIC": False,
-        "build_testing": False,
+        "build_testing": True,
         "build_unbundled": True,
         "zenoh_package": False,
         "build_cross_compiling": False,
@@ -42,14 +42,18 @@ class UpClientZenoh(ConanFile):
         self.requires("spdlog/1.13.0")
         if self.options.build_testing:
             self.requires("gtest/1.14.0")
+            self.requires("boost/1.84.0")
         if self.options.build_unbundled: #each componenet is built independently 
             self.requires("up-cpp/0.1.1-dev")
             if self.options.zenoh_package:
                 self.requires("zenohc/cci.20240213")
+        if self.options.build_cross_compiling :
+            self.requires("zenohc/cci.20240213")
 
     def generate(self):
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTING"] = self.options.build_testing
+        tc.variables["CROSS_COMPILE"] = self.options.build_cross_compiling
         tc.generate()
 
     def build(self):

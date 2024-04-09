@@ -22,25 +22,33 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _MESSAGE_COMMON_H_
-#define _MESSAGE_COMMON_H_
+#ifndef _UP_ZENOH_CLIENT_H_
+#define _UP_ZENOH_CLIENT_H_
 
-enum class Tag
-{
-    UURI = 0,
-    ID = 1, 
-    TYPE = 2,
-    PRIORITY = 3,
-    TTL = 4,
-    TOKEN = 5,
-    HINT = 6,
-    SINK = 7,
-    PLEVEL = 8,
-    COMMSTATUS = 9,
-    REQID = 10,
-    PAYLOAD = 11, 
+#include <up-client-zenoh-cpp/transport/zenohUTransport.h>
+#include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
 
-    UNDEFINED = 12
-};
+namespace uprotocol::client {
 
-#endif /* _MESSAGE_COMMON_H_ */
+    class UpZenohClient : public uprotocol::utransport::ZenohUTransport, public uprotocol::rpc::ZenohRpcClient {
+
+        private:
+            struct ConstructToken {};
+
+        public:
+            UpZenohClient(const struct ConstructToken &) {}
+            UpZenohClient(const UpZenohClient&) = delete;
+            UpZenohClient& operator=(const UpZenohClient&) = delete;
+
+            /**
+            * The API provides an instance of the zenoh session
+            * @return instance of UpZenohClient
+            */
+            static std::shared_ptr<UpZenohClient> instance(void) noexcept;
+    };
+    
+}
+
+
+#endif /* _UP_ZENOH_CLIENT_H_ */
+
