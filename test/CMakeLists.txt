@@ -24,35 +24,59 @@
 cmake_minimum_required(VERSION 3.20)
 project(test VERSION 0.1.0 LANGUAGES CXX)
 
+if(BUILD_UNBUNDLED)
+    find_package(zenohc REQUIRED)
+    set(ZENOH_LIBRARY zenohc::lib)
+else()
+    if(CROSS_COMPILE)
+        find_package(zenohc REQUIRED)
+	set(ZENOH_LIBRARY zenohc::lib)
+    else()
+        find_library(ZENOH_LIB zenohc)
+	set(ZENOH_LIBRARY ${ZENOH_LIB})
+    endif()
+endif()
+
 find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(Boost REQUIRED)
 
-# include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 add_executable(testRpcClient
 	src/testRpcClient.cpp)
+
+ target_include_directories(testRpcClient
+	PUBLIC
+		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
+  
 target_link_libraries(testRpcClient 
 	PUBLIC
 		up-client-zenoh-cpp::up-client-zenoh-cpp
-        spdlog::spdlog
+	        spdlog::spdlog
 	PRIVATE
 		GTest::gtest_main
 		GTest::gmock    
 		pthread
+  		${ZENOH_LIBRARY}
 )
 
 add_test("t-18-testRpcClient" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testRpcClient)
 
 add_executable(testLatencyPing
 	src/testLatencyPing.cpp)
+
+ target_include_directories(testLatencyPing
+	PUBLIC
+		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
+  
 target_link_libraries(testLatencyPing 
 	PUBLIC
 		up-client-zenoh-cpp::up-client-zenoh-cpp
-        spdlog::spdlog
+        	spdlog::spdlog
 	PRIVATE
 		GTest::gtest_main
 		GTest::gmock    
 		pthread
+  		${ZENOH_LIBRARY}
 		${Boost_LIBRARIES}
 )
 
@@ -60,10 +84,16 @@ add_test("t-18-testLatencyPing" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPin
 
 add_executable(testLatencyPong
 	src/testLatencyPong.cpp)
+
+ target_include_directories(testLatencyPong
+	PUBLIC
+		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
+  
 target_link_libraries(testLatencyPong 
 	PUBLIC
 		up-client-zenoh-cpp::up-client-zenoh-cpp
-        spdlog::spdlog
+        	spdlog::spdlog
 	PRIVATE
 		pthread
+  		${ZENOH_LIBRARY}
 )
