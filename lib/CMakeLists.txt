@@ -23,7 +23,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 find_package(Protobuf REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(Boost REQUIRED)
 
 if(BUILD_UNBUNDLED)
     find_package(up-cpp REQUIRED)
