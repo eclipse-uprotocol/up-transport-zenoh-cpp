@@ -60,7 +60,7 @@ std::string toZenohKeyString(const uprotocol::v1::UUri &u_uri) {
                 !authority.empty()) {
             topic << remote_prefix << separator;
             hexlify(topic, authority.begin(), authority.end());
-            topic << wildcard_suffix;
+            topic << separator << wildcard_suffix;
         } else {
             spdlog::error("Serialized micro URI Authority is empty");
         }

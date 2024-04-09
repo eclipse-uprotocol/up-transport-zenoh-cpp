@@ -61,6 +61,19 @@ target_link_libraries(testRpcClient
 
 add_test("t-18-testRpcClient" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testRpcClient)
 
+add_executable(testZenohUri
+	src/testZenohUri.cpp)
+target_link_libraries(testZenohUri 
+	PUBLIC
+		up-client-zenoh-cpp::up-client-zenoh-cpp
+		spdlog::spdlog
+	PRIVATE
+		GTest::gtest_main
+		GTest::gmock
+)
+
+add_test("t-18-testZenohUri" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testZenohUri)
+
 add_executable(testLatencyPing
 	src/testLatencyPing.cpp)
 
