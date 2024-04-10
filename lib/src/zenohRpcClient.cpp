@@ -25,7 +25,8 @@
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
 #include <up-client-zenoh-cpp/session/zenohSessionManager.h>
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
-#include <up-cpp/uri/serializer/LongUriSerializer.h>
+#include <up-client-zenoh-cpp/uri/zenohUri.h>
+#include <up-cpp/uri/builder/BuildUResource.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
 #include <up-cpp/transport/builder/UAttributesBuilder.h>
 #include <up-cpp/uuid/factory/Uuidv8Factory.h>
@@ -134,87 +135,77 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
     std::future<RpcResponse> future;
     z_owned_bytes_map_t map = z_bytes_map_new();
     z_get_options_t opts = z_get_options_default();
-    z_owned_reply_channel_t *channel = nullptr;
+    std::shared_ptr<z_owned_reply_channel_t> channel = nullptr;
     UStatus status;
 
-    do {
+    status.set_code(UCode::INTERNAL);
 
-        status.set_code(UCode::INTERNAL);
-
-        auto uriHash = std::hash<std::string>{}(LongUriSerializer::serialize(topic));
-        auto uuid = Uuidv8Factory::create();
-    
-        int32_t ttl;
-
-        if (options.has_ttl()) {
-            ttl = options.ttl();
-            opts.timeout_ms = options.ttl();
-        } else {
-            ttl = requestTimeoutMs_;
-            opts.timeout_ms = requestTimeoutMs_;
-        }
-
-        auto builder = UAttributesBuilder::request(topic /* TODO change to the entity */, topic, options.priority(), ttl);
-
-        builder.setId(uuid);
-
-        UAttributes attributes = builder.build();
-
-        // Serialize UAttributes
-        size_t attrSize = attributes.ByteSizeLong();
-        std::vector<uint8_t> serializedAttributes(attrSize);
-        if (!attributes.SerializeToArray(serializedAttributes.data(), attrSize)) {
-            spdlog::error("attributes SerializeToArray failure");
-            break;
-        }
-
-        z_bytes_t bytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
-        
-        z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), bytes);
-
-        channel = new z_owned_reply_channel_t;
-        if (nullptr == channel) {
-            spdlog::error("failed to allocate channel");
-            break;
-        }
-
-        *channel = zc_reply_fifo_new(16);
-
-        opts.attachment = z_bytes_map_as_attachment(&map);
-
-        if ((0 != payload.size()) && (nullptr != payload.data())) {
-            opts.value.payload.len =  payload.size();
-            opts.value.payload.start = payload.data();
-        } else {
-            opts.value.payload.len = 0;
-            opts.value.payload.start = nullptr;
-        }
-        
-        if (0 != z_get(z_loan(session_), z_keyexpr(std::to_string(uriHash).c_str()), "", z_move(channel->send), &opts)) {
-            spdlog::error("z_get failure");
-            break;
-        }
-    
-        future = threadPool_->submit([channel, listener] { return handleReply(channel, listener); });
-        if (false == future.valid()) {
-            spdlog::error("invalid future received");
-            break;
-        }
-    
-        status.set_code(UCode::OK);
-
-    } while(0);
-
-    if (UCode::OK != status.code()) {
-        delete channel;
+    auto key = uprotocol::uri::toZenohKeyString(topic);
+    if (key.empty()) {
+        spdlog::error("failed to convert topic to zenoh key");
+        return future;
     }
+
+    auto uuid = Uuidv8Factory::create();
+
+    auto builder = UAttributesBuilder::request(topic /* TODO change to the entity */, topic, options.priority(), options.ttl());
+
+    builder.setId(uuid);
+    builder.setTTL(options.ttl());
+
+    UAttributes attributes = builder.build();
+
+    // Serialize UAttributes
+    size_t attrSize = attributes.ByteSizeLong();
+    std::vector<uint8_t> serializedAttributes(attrSize);
+    if (!attributes.SerializeToArray(serializedAttributes.data(), attrSize)) {
+        spdlog::error("attributes SerializeToArray failure");
+        return future;
+    }
+
+    z_bytes_t bytes = {.len = serializedAttributes.size(), .start = serializedAttributes.data()};
+    
+    z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), bytes);
+
+    channel = std::make_shared<z_owned_reply_channel_t>();
+    if (nullptr == channel) {
+        spdlog::error("failed to allocate channel");
+        return future;
+    }
+
+    *channel = zc_reply_fifo_new(16);
+
+    opts.attachment = z_bytes_map_as_attachment(&map);
+    opts.timeout_ms = options.ttl();
+
+    if ((0 != payload.size()) && (nullptr != payload.data())) {
+        opts.value.payload.len =  payload.size();
+        opts.value.payload.start = payload.data();
+    } else {
+        opts.value.payload.len = 0;
+        opts.value.payload.start = nullptr;
+    }
+    
+    if (0 != z_get(z_loan(session_), z_keyexpr(key.c_str()), "", z_move(channel->send), &opts)) {
+        spdlog::error("z_get failure");
+        return future;
+    }
+    
+    future = threadPool_->submit([channel, listener] { return handleReply(std::move(channel), listener); });
+
+    if (false == future.valid()) {
+        spdlog::error("invalid future received");
+        return future;
+    }
+
+    status.set_code(UCode::OK);
 
     z_drop(&map);
 
     return future;
 }
 
-RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel,
+RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_channel_t> &channel,
                                         const UListener *listener) noexcept {
 
     z_owned_reply_t reply = z_reply_null();
@@ -222,16 +213,10 @@ RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel,
 
     rpcResponse.status.set_code(UCode::INTERNAL);
 
-    if (nullptr == channel) {
-        spdlog::error("channel is nullptr");
-        return rpcResponse;
-    }
-
     while (z_call(channel->recv, &reply), z_check(reply)) {
 
         if (!z_reply_is_ok(&reply)) {
             z_value_t error = z_reply_err(&reply);
-            /* TODO - Need to discuss with zettascale on alternative way to retrive the error */
             if (memcmp("Timeout", error.payload.start, error.payload.len) == 0) {
                 spdlog::error("Timeout received while waiting for response");
                 rpcResponse.status.set_code(UCode::DEADLINE_EXCEEDED);
@@ -271,9 +256,7 @@ RpcResponse ZenohRpcClient::handleReply(z_owned_reply_channel_t *channel,
         z_drop(z_move(reply));
     }
 
-    z_drop((z_owned_reply_channel_t*)channel);
-
-    delete channel;
+    z_drop(channel.get());
 
     /* TODO - how to send an error to the user*/
     if ((nullptr != listener) && (UCode::OK == rpcResponse.status.code())) {

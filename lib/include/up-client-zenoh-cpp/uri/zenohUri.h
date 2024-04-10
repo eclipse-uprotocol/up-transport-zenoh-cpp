@@ -22,33 +22,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <up-client-zenoh-cpp/client/upZenohClient.h>
-#include <up-core-api/ustatus.pb.h>
+#ifndef _ZENOH_URI_
+#define _ZENOH_URI_
 
-using namespace uprotocol::v1;
-using namespace uprotocol::client;
+#include <string>
+#include <up-core-api/uri.pb.h>
 
-std::shared_ptr<UpZenohClient> UpZenohClient::instance(void) noexcept {
-    static std::weak_ptr<UpZenohClient> w_handle;
+namespace uprotocol::uri {
 
-    if (auto handle = w_handle.lock()) {
-        return handle;
-    } else {
-        static std::mutex construction_mtx;
-        std::lock_guard lock(construction_mtx);
+/// @returns Empty string if unable to serialize the UUri, otherwise UUri
+///          converted to a Zenoh key string
+[[ nodiscard ]] std::string toZenohKeyString(const uprotocol::v1::UUri &u_uri);
 
-        if (handle = w_handle.lock()) {
-            return handle;
-        }
+} // namespace uprotocol::tools
 
-        handle = std::make_shared<UpZenohClient>(ConstructToken());
-        if (handle->rpcSuccess_.code() == UCode::OK && handle->uSuccess_.code() == UCode::OK) {
-            w_handle = handle;
-            return handle;
-        } else {
-            return nullptr;
-        }
-    }
-}
-
-
+#endif /*_ZENOH_URI_*/

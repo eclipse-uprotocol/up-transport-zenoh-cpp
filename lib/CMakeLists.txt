@@ -42,6 +42,7 @@ include_directories(${CMAKE_INSTALL_PREFIX}/include)
 add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
 set(SRC_FILES         
+    src/zenohUri.cpp
     src/zenohUTransport.cpp
     src/zenohRpcClient.cpp
     src/upZenohClient.cpp

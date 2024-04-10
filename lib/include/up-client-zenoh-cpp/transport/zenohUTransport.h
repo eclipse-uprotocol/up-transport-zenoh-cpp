@@ -115,7 +115,7 @@ namespace uprotocol::utransport {
             
             std::mutex mutex_;
 
-            using uuriKey = size_t;     
+            using uuriKey = std::string;     
             using uuidStr = std::string;
 
             std::unordered_map<uuriKey, z_owned_publisher_t> pubHandleMap_;

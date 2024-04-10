@@ -30,9 +30,6 @@
 #include <zenoh.h>
 #include <up-core-api/ustatus.pb.h>
 
-using namespace std;
-using namespace uprotocol::v1;
-
 struct ZenohSessionManagerConfig
 {
     /* used for static connection between zenoh peers */
@@ -63,13 +60,13 @@ class ZenohSessionManager {
         * @param sessionConfig provide configuration for the zenoh session
         * @return Returns OK on SUCCESS and ERROR on failure
         */
-        UCode init(ZenohSessionManagerConfig &sessionConfig) noexcept;
+        uprotocol::v1::UCode init(ZenohSessionManagerConfig &sessionConfig) noexcept;
 
         /**
         * Terminates the zenoh session manager - the API should be called by any class that called init
         * @return Returns OK on SUCCESS and ERROR on failure
         */
-        UCode term() noexcept;
+        uprotocol::v1::UCode term() noexcept;
 
         /**
         * Get instance of the zenoh session
@@ -80,7 +77,7 @@ class ZenohSessionManager {
     private:
 
         z_owned_session_t session_;
-        atomic_uint32_t refCount_ = 0;
+        std::atomic_uint32_t refCount_ = 0;
         std::mutex mutex_;
 };
 
