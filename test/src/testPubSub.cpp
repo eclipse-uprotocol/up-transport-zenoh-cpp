@@ -183,6 +183,7 @@ TEST_F(TestPubSub, interprocess) {
     auto child_pid = fork();
     if (child_pid == 0) {
         auto transport = UpZenohClient::instance();
+        if (transport == nullptr) exit(-1);
         UStatus listen_status = transport->registerListener(uuri, callback);
         if (UCode::OK != listen_status.code()) {
             cerr << "child process listen failed" << endl;
@@ -194,6 +195,7 @@ TEST_F(TestPubSub, interprocess) {
     else {
         sleep(1);
         auto transport = UpZenohClient::instance();
+        EXPECT_NE(transport, nullptr);
 
         auto builder = UAttributesBuilder::publish(uuri, UPriority::UPRIORITY_CS0);
         UAttributes attributes = builder.build();
@@ -222,6 +224,7 @@ TEST_F(TestPubSub, interprocess) {
 TEST_F(TestPubSub, interthread) {
     using namespace std::chrono;
     auto transport = UpZenohClient::instance();
+    EXPECT_NE(transport, nullptr);
 
     auto uuri = BuildUUri()
                       .setAutority(BuildUAuthority().build())
