@@ -102,7 +102,7 @@ public:
         return status;
     }
 
-    std::tuple<size_t, Data, std::chrono::time_point<std::chrono::steady_clock>> get(std::chrono::milliseconds max_delay = std::chrono::seconds(2))
+    std::tuple<size_t, Data, std::chrono::steady_clock::time_point> get(std::chrono::milliseconds max_delay = 2s)
     {
         using namespace std;
         using namespace std::chrono;
@@ -206,7 +206,6 @@ TEST_F(TestPubSub, interprocess) {
             // cout << "test length = " << out_data.size() << endl;
             UPayload payload((uint8_t*)out_data.data(), out_data.size(), UPayloadType::VALUE);
             UMessage message(payload, attributes);
-            // auto send_time = steady_clock::now();
             UStatus send_status = transport->send(message);
             EXPECT_EQ(UCode::OK, send_status.code());
             auto [ sz, in_data, cap_time ] = callback.get(std::chrono::seconds(2));
@@ -249,7 +248,6 @@ TEST_F(TestPubSub, interthread) {
         // cout << "test length = " << out_data.size() << endl;
         UPayload payload((uint8_t*)out_data.data(), out_data.size(), UPayloadType::VALUE);
         UMessage message(payload, attributes);
-        // auto send_time = steady_clock::now();
         UStatus send_status = transport->send(message);
         EXPECT_EQ(UCode::OK, send_status.code());
         auto [ sz, in_data, cap_time ] = callback.get(std::chrono::seconds(2));
