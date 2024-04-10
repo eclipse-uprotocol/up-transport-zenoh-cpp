@@ -126,8 +126,7 @@ target_link_libraries(testPubSub
         	spdlog::spdlog
 	PRIVATE
 		GTest::gtest_main
-		GTest::gmock    
-		pthread
+		GTest::gmock
 		pthread
   		${ZENOH_LIBRARY}
 )
