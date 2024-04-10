@@ -93,7 +93,7 @@ UStatus ZenohUTransport::send(const UMessage &message) noexcept {
     
     UStatus status;
 
-    if (UMessageType::UMESSAGE_TYPE_PUBLISH == message.attributes().type()){
+    if (UMessageType::UMESSAGE_TYPE_PUBLISH == message.attributes().type()) {
         status.set_code(sendPublish(message));
     } else if (UMessageType::UMESSAGE_TYPE_RESPONSE == message.attributes().type()) {
          if (false == isRPCMethod(message.attributes().sink())) {
@@ -102,7 +102,8 @@ UStatus ZenohUTransport::send(const UMessage &message) noexcept {
          }
         status.set_code(sendQueryable(message));
     } else {
-        spdlog::error("message not supported");
+        spdlog::error("message type is not supported");
+        status.set_code(UCode::INTERNAL);
     }
 
     return status;
@@ -111,16 +112,21 @@ UStatus ZenohUTransport::send(const UMessage &message) noexcept {
 UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 
     UCode status = UCode::UNAVAILABLE;
-
-    pendingSendRefCnt_.fetch_add(1);
+   
     do {
       
+        if ((0 == message.payload().size()) || (nullptr == message.payload().data())) {
+            spdlog::error("payload not valid");
+            break;
+        }
+
         /* get key and check if the publisher for the URI is already exists */
         auto key = uprotocol::uri::toZenohKeyString(message.attributes().source());
         if (key.empty()) {
             spdlog::error("failed to convert UUri to zenoh key");
             break;
         }
+      
         auto handleInfo = pubHandleMap_.find(key);
 
         z_owned_publisher_t pub;
@@ -187,14 +193,10 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
     z_query_reply_options_t options = z_query_reply_options_default();
 
-    z_encoding_t encoding;
-
-    if (UCode::OK != mapEncoding(message.payload().format(), encoding)) {
+    if (UCode::OK != mapEncoding(message.payload().format(), options.encoding)) {
         spdlog::error("mapEncoding failure");
         return UCode::INTERNAL;
     }
-
-    options.encoding = encoding;
 
     // Serialize the UAttributes
     size_t attrSize = message.attributes().ByteSizeLong();
@@ -225,7 +227,9 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
     spdlog::debug("replied on query with uid = {}", uuidStr);
     /* once replied remove the uuid from the map, as it cannot be reused */
+    std::unique_lock<std::mutex> lock(queryMapMutex_);
     queryMap_.erase(uuidStr);
+    lock.unlock();
 
     z_drop(z_move(map));
 
@@ -236,7 +240,6 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
                                           const UListener &listener) noexcept {
    
     UStatus status;
-
     cbArgumentType* arg;
     std::shared_ptr<ListenerContainer> listenerContainer;
 
@@ -460,6 +463,10 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
        spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
        return;
     }
+
+    std::unique_lock<std::mutex> lock(instance->queryMapMutex_);
+    instance->queryMap_[uuidStr] = z_query_clone(query);
+    lock.unlock();
 
     UMessage message(payload, attributes);
 
