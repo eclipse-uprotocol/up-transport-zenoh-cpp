@@ -31,12 +31,14 @@
 namespace uprotocol::uri {
 
 namespace {
-void hexlify(auto& topic, const uint8_t byte) {
+template<typename TopicT>
+void hexlify(TopicT& topic, const uint8_t byte) {
     topic << std::hex << std::setw(2) << std::setfill('0');
     topic << static_cast<int>(byte);
 }
 
-void hexlify(auto& topic, const auto &&start, const auto &&end) {
+template<typename TopicT, typename IteratorT>
+void hexlify(TopicT& topic, const IteratorT &&start, const IteratorT &&end) {
     for (auto i = start; i < end; ++i) {
         hexlify(topic, *i);
     }
