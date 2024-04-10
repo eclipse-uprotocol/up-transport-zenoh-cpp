@@ -110,3 +110,23 @@ target_link_libraries(testLatencyPong
 		pthread
   		${ZENOH_LIBRARY}
 )
+
+add_test("t-18-testPubSub" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testPubSub)
+
+add_executable(testPubSub
+	src/testPubSub.cpp)
+
+ target_include_directories(testPubSub
+	PUBLIC
+		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
+  
+target_link_libraries(testPubSub 
+	PUBLIC
+		up-client-zenoh-cpp::up-client-zenoh-cpp
+        	spdlog::spdlog
+	PRIVATE
+		GTest::gtest_main
+		GTest::gmock
+		pthread
+  		${ZENOH_LIBRARY}
+)
