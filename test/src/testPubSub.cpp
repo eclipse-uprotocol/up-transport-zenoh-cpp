@@ -25,7 +25,6 @@
 #include <spdlog/spdlog.h>
 #include <up-client-zenoh-cpp/client/upZenohClient.h>
 #include <up-cpp/transport/builder/UAttributesBuilder.h>
-// #include <up-cpp/uri/serializer/LongUriSerializer.h>
 #include <up-cpp/uri/serializer/MicroUriSerializer.h>
 #include <gtest/gtest.h>
 
@@ -52,7 +51,7 @@ using namespace uprotocol::client;
 template <bool INTERPROC> 
 class MessageCapture : public UListener {
 public:
-    typedef std::vector<std::uint8_t>    Data;
+    using Data = std::vector<std::uint8_t>;
 private:
     std::condition_variable cv;
     std::mutex mtx;
@@ -103,19 +102,19 @@ public:
         return status;
     }
 
-    std::tuple<size_t, Data, std::chrono::time_point<std::chrono::steady_clock>> get(size_t milliseconds_max = 1000)
+    std::tuple<size_t, Data, std::chrono::time_point<std::chrono::steady_clock>> get(std::chrono::milliseconds max_delay = std::chrono::seconds(2))
     {
         using namespace std;
         using namespace std::chrono;
 
-        auto end_time = steady_clock::now() + milliseconds(milliseconds_max);
+        auto end_time = steady_clock::now() + max_delay;
         if constexpr (INTERPROC) {
             Data data(2048);
             struct pollfd fds[1];
             fds[0].fd = sp[1];
             fds[0].events = POLLIN;
             fds[0].revents = 0;
-            auto ret = poll(fds, 1, milliseconds_max);
+            auto ret = poll(fds, 1, max_delay.count());
             if (ret <= 0) return make_tuple(0, Data(), end_time);
             ret = recv(sp[1], data.data(), 2048, 0);
             if (ret <= 0) return make_tuple(0, Data(), end_time);
@@ -128,7 +127,7 @@ public:
             Data data;
             {
                 unique_lock<mutex> lock(mtx);
-                while ((count = queue.size()) < 1) cv.wait_until(lock, end_time);
+                cv.wait_until(lock, end_time, [&] () { count = queue.size(); return count >= 1; });
                 if (count > 0) {
                     end_time = steady_clock::now();
                     data = queue.front();
@@ -208,7 +207,7 @@ TEST_F(TestPubSub, interprocess) {
             // auto send_time = steady_clock::now();
             UStatus send_status = transport->send(message);
             EXPECT_EQ(UCode::OK, send_status.code());
-            auto [ sz, in_data, cap_time ] = callback.get(2000);
+            auto [ sz, in_data, cap_time ] = callback.get(std::chrono::seconds(2));
             EXPECT_EQ(1, sz);
             EXPECT_EQ(out_data.size(), in_data.size());
             EXPECT_EQ(out_data == in_data, true);
@@ -251,7 +250,7 @@ TEST_F(TestPubSub, interthread) {
         // auto send_time = steady_clock::now();
         UStatus send_status = transport->send(message);
         EXPECT_EQ(UCode::OK, send_status.code());
-        auto [ sz, in_data, cap_time ] = callback.get(2000);
+        auto [ sz, in_data, cap_time ] = callback.get(std::chrono::seconds(2));
         EXPECT_EQ(1, sz);
         EXPECT_EQ(out_data.size(), in_data.size());
         EXPECT_EQ(out_data == in_data, true);
