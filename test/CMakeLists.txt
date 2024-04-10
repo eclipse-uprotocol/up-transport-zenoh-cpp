@@ -39,7 +39,7 @@ endif()
 
 find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONNENTS interprocess)
 
 add_executable(testRpcClient
 	src/testRpcClient.cpp)
@@ -118,7 +118,9 @@ add_executable(testPubSub
 
  target_include_directories(testPubSub
 	PUBLIC
-		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
+		$ENV{CMAKE_ZENOH_INCLUDE_PATH}
+		${Boost_INCLUDE_DIR}
+)
   
 target_link_libraries(testPubSub 
 	PUBLIC
@@ -129,4 +131,17 @@ target_link_libraries(testPubSub
 		GTest::gmock
 		pthread
   		${ZENOH_LIBRARY}
+)
+
+add_executable(subproc_test
+	src/subproc_test.cpp)
+
+ target_include_directories(subproc_test
+	PUBLIC
+		${Boost_INCLUDE_DIR}
+)
+  
+target_link_libraries(subproc_test 
+	PRIVATE
+		pthread
 )
