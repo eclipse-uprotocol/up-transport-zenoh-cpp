@@ -112,20 +112,21 @@ UStatus ZenohUTransport::send(const UMessage &message) noexcept {
 UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 
     UCode status = UCode::UNAVAILABLE;
-
-    pendingSendRefCnt_.fetch_add(1);
+   
     do {
-      
-        /* get key and check if the publisher for the URI is already exists */
-        auto key = uprotocol::uri::toZenohKeyString(message.attributes().source());
-        if (key.empty()) {
-            spdlog::error("failed to convert UUri to zenoh key");
-            break;
       
         if ((0 == message.payload().size()) || (nullptr == message.payload().data())) {
             spdlog::error("payload not valid");
             break;
         }
+
+        /* get key and check if the publisher for the URI is already exists */
+        auto key = uprotocol::uri::toZenohKeyString(message.attributes().source());
+        if (key.empty()) {
+            spdlog::error("failed to convert UUri to zenoh key");
+            break;
+        }
+      
         auto handleInfo = pubHandleMap_.find(key);
 
         z_owned_publisher_t pub;

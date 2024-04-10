@@ -106,10 +106,7 @@ namespace uprotocol::utransport {
 
             /* zenoh session handle*/
             z_owned_session_t session_;
-            /* indicate that termination is pending so no new transactions are allowed*/
-            std::atomic_bool termPending_ = false;
-            /* how many send transactions are currently in progress*/
-            std::atomic_uint32_t pendingSendRefCnt_ = 0;
+
             /* how many times uTransport was initialized*/
             std::atomic_uint32_t refCount_ = 0;
             
