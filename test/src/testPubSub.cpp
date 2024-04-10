@@ -215,8 +215,7 @@ TEST_F(TestPubSub, interprocess) {
             EXPECT_EQ(out_data == in_data, true);
             // cout << "us = " << duration_cast<microseconds>(cap_time - send_time).count() << endl;
         }
-        // listen_status = transport->unregisterListener(uuri, callback);
-        // EXPECT_EQ(UCode::OK, listen_status.code());
+        // note that unregsiterListener cannot be checked in child process, and child process exit should be enough.
         kill(child_pid, SIGINT);
     }
 }
