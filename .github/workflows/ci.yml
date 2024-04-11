@@ -155,13 +155,13 @@ jobs:
           cmake ../ -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/local
           cmake --build . --target install --config Release -- -j
 
-      - name: Upload artifacts
+      - name: Upload test binaries
         uses: actions/upload-artifact@v4
         with:
-          name: up-client-zenoh-cpp
-          path: ~/local
+          name: tests_up-client-zenoh-cpp
+          path: |
+            build/bin
           retention-days: 1
-
 
   # NOTE: In GitHub repository settings, the "Require status checks to pass
   # before merging" branch protection rule ensures that commits are only merged
