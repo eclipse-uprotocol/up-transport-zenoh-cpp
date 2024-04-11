@@ -28,13 +28,8 @@ if(BUILD_UNBUNDLED)
     find_package(zenohc REQUIRED)
     set(ZENOH_LIBRARY zenohc::lib)
 else()
-    if(CROSS_COMPILE)
-        find_package(zenohc REQUIRED)
-	set(ZENOH_LIBRARY zenohc::lib)
-    else()
-        find_library(ZENOH_LIB zenohc)
+	find_library(ZENOH_LIB zenohc)
 	set(ZENOH_LIBRARY ${ZENOH_LIB})
-    endif()
 endif()
 
 find_package(GTest REQUIRED)
@@ -51,7 +46,7 @@ add_executable(testRpcClient
 target_link_libraries(testRpcClient 
 	PUBLIC
 		up-client-zenoh-cpp::up-client-zenoh-cpp
-	        spdlog::spdlog
+	    spdlog::spdlog
 	PRIVATE
 		GTest::gtest_main
 		GTest::gmock    
