@@ -27,6 +27,7 @@
 
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
+#include <up-core-api/uri.pb.h>
 
 namespace uprotocol::client {
 
@@ -44,7 +45,13 @@ namespace uprotocol::client {
             * The API provides an instance of the zenoh session
             * @return instance of UpZenohClient
             */
-            static std::shared_ptr<UpZenohClient> instance(void) noexcept;
+            static std::shared_ptr<UpZenohClient> instance() noexcept;
+
+            /**
+            * The API provides an instance of the zenoh session
+            * @return instance of UpZenohClient
+            */
+            static std::shared_ptr<UpZenohClient> instance(const uprotocol::v1::UAuthority& src_authority) noexcept;
     };
     
 }

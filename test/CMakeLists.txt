@@ -46,12 +46,14 @@ add_executable(testRpcClient
 
  target_include_directories(testRpcClient
 	PUBLIC
-		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
+		$ENV{CMAKE_ZENOH_INCLUDE_PATH}
+		${Boost_INCLUDE_DIR}
+)
   
 target_link_libraries(testRpcClient 
 	PUBLIC
 		up-client-zenoh-cpp::up-client-zenoh-cpp
-	        spdlog::spdlog
+	    spdlog::spdlog
 	PRIVATE
 		GTest::gtest_main
 		GTest::gmock    
@@ -84,7 +86,7 @@ add_executable(testLatencyPing
 target_link_libraries(testLatencyPing 
 	PUBLIC
 		up-client-zenoh-cpp::up-client-zenoh-cpp
-        	spdlog::spdlog
+        spdlog::spdlog
 	PRIVATE
 		GTest::gtest_main
 		GTest::gmock    
@@ -105,7 +107,7 @@ add_executable(testLatencyPong
 target_link_libraries(testLatencyPong 
 	PUBLIC
 		up-client-zenoh-cpp::up-client-zenoh-cpp
-        	spdlog::spdlog
+        spdlog::spdlog
 	PRIVATE
 		pthread
   		${ZENOH_LIBRARY}
@@ -125,7 +127,7 @@ add_executable(testPubSub
 target_link_libraries(testPubSub 
 	PUBLIC
 		up-client-zenoh-cpp::up-client-zenoh-cpp
-        	spdlog::spdlog
+        spdlog::spdlog
 	PRIVATE
 		GTest::gtest_main
 		GTest::gmock
@@ -133,15 +135,15 @@ target_link_libraries(testPubSub
   		${ZENOH_LIBRARY}
 )
 
-add_executable(subproc_test
-	src/subproc_test.cpp)
+# add_executable(subproc_test
+# 	src/subproc_test.cpp)
 
- target_include_directories(subproc_test
-	PUBLIC
-		${Boost_INCLUDE_DIR}
-)
+#  target_include_directories(subproc_test
+# 	PUBLIC
+# 		${Boost_INCLUDE_DIR}
+# )
   
-target_link_libraries(subproc_test 
-	PRIVATE
-		pthread
-)
+# target_link_libraries(subproc_test 
+# 	PRIVATE
+# 		pthread
+# )
