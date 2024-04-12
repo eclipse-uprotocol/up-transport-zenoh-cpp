@@ -93,6 +93,12 @@ UStatus ZenohUTransport::send(const UMessage &message) noexcept {
     
     UStatus status;
 
+    // {
+    //     using namespace std;
+    //     cout << "in send  ##########################" << endl;
+    //     cout << message.attributes().DebugString() << endl;
+    // }
+
     if (UMessageType::UMESSAGE_TYPE_PUBLISH == message.attributes().type()) {
         status.set_code(sendPublish(message));
     } else if (UMessageType::UMESSAGE_TYPE_RESPONSE == message.attributes().type()) {

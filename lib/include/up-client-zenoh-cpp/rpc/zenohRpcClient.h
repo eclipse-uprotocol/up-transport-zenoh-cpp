@@ -91,6 +91,8 @@ namespace uprotocol::rpc {
                 return queueSize_;
             }
 
+            uprotocol::v1::UAuthority clientAuthority;
+            
         protected:
             /* Initialization success/failure status */
             uprotocol::v1::UStatus rpcSuccess_;
