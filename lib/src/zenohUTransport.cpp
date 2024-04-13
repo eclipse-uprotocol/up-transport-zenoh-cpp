@@ -32,6 +32,9 @@
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
 #include <up-core-api/uattributes.pb.h>
+#include <up-client-zenoh-cpp/trace_hook.hpp>
+
+IMPL_TRACEHOOK()
 
 using namespace std;
 using namespace uprotocol::uri;
@@ -40,6 +43,7 @@ using namespace uprotocol::v1;
 using namespace uprotocol::utransport;
 
 ZenohUTransport::ZenohUTransport() noexcept {
+    TRACE();
     /* by default initialized to empty strings */
     ZenohSessionManagerConfig sessionConfig;
 
@@ -58,6 +62,7 @@ ZenohUTransport::ZenohUTransport() noexcept {
 }
 
 ZenohUTransport::~ZenohUTransport() noexcept {
+    TRACE();
     for (auto pub : pubHandleMap_) {
         if (0 != z_undeclare_publisher(z_move(pub.second))) {
             //TODO - print the URI that failed
@@ -90,7 +95,7 @@ ZenohUTransport::~ZenohUTransport() noexcept {
 }
 
 UStatus ZenohUTransport::send(const UMessage &message) noexcept {
-    
+    TRACE();
     UStatus status;
 
     // {
@@ -116,7 +121,7 @@ UStatus ZenohUTransport::send(const UMessage &message) noexcept {
 }
 
 UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
-
+    TRACE();
     UCode status = UCode::UNAVAILABLE;
    
     do {
@@ -188,7 +193,7 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 }
 
 UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
-
+    TRACE();
     auto uuidStr = UuidSerializer::serializeToString(message.attributes().id());
     if (queryMap_.find(uuidStr) == queryMap_.end()) {
         spdlog::error("failed to find UUID = {}", uuidStr);
@@ -244,7 +249,7 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
 UStatus ZenohUTransport::registerListener(const UUri &uri,
                                           const UListener &listener) noexcept {
-   
+    TRACE();
     UStatus status;
     cbArgumentType* arg;
     std::shared_ptr<ListenerContainer> listenerContainer;
@@ -352,7 +357,7 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
 
 UStatus ZenohUTransport::unregisterListener(const UUri &uri, 
                                             const UListener &listener) noexcept {
-
+    TRACE();
     UStatus status;
 
     std::shared_ptr<ListenerContainer> listenerContainer;
@@ -393,7 +398,7 @@ UStatus ZenohUTransport::unregisterListener(const UUri &uri,
 }
 
 void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
-
+    TRACE();
     if ((nullptr == sample) || (nullptr == arg)) {
        spdlog::error("Invalid arguments for SubHandler");
        return;
@@ -432,6 +437,7 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
 }
 
 void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
+    TRACE();
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
 
     z_attachment_t attachment = z_query_attachment(query);
@@ -484,6 +490,7 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
 }
 UCode ZenohUTransport::mapEncoding(const UPayloadFormat &payloadFormat, 
                                    z_encoding_t &encoding) noexcept {
+    TRACE();
     switch (payloadFormat) {
         case UPayloadFormat::PROTOBUF:
         case UPayloadFormat::PROTOBUF_WRAPPED_IN_ANY:
@@ -511,7 +518,7 @@ UCode ZenohUTransport::mapEncoding(const UPayloadFormat &payloadFormat,
 }
 
 void ZenohUTransport::OnSubscriberClose(void *arg) {
-
+    TRACE();
     if (nullptr == arg) {
         spdlog::error("arg is nullptr");
     } else {
@@ -524,7 +531,7 @@ void ZenohUTransport::OnSubscriberClose(void *arg) {
 }
 
 void ZenohUTransport::OnQueryClose(void *arg) {
-
+    TRACE();
     if (nullptr == arg) {
         spdlog::error("arg is nullptr");
     } else {
