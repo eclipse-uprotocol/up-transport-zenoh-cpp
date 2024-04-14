@@ -44,8 +44,8 @@ cmake_layout
 $ cd up-cpp-client-zenoh
 $ mkdir build
 $ cd build
-$ conan install ../ 
-$ cmake ../ -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+$ conan install .. -o build_testing=True -o build_unbundled=False 
+$ cmake .. -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_UNBUNDLED=False -DBUILD_TESTING=True
 $ cmake --build . --config Release -- -j
 ```
 
@@ -53,7 +53,7 @@ $ cmake --build . --config Release -- -j
 
 ```
 $ cd up-cpp-client-zenoh
-$ conan create . 
+$ conan create . x.y.z@ -o build_unbundled=False --build=missing
 ```
 
 ## Show your support
