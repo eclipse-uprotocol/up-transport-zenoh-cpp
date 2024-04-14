@@ -37,11 +37,11 @@ class UpClientZenoh(ConanFile):
     def requirements(self):
         self.requires("protobuf/3.21.12" + ("@cross/cross" if self.options.build_cross_compiling else ""))
         self.requires("spdlog/1.13.0")
+        self.requires("up-cpp/x.y.z")
         if self.options.build_testing:
             self.requires("gtest/1.14.0")
             self.requires("boost/1.84.0")
         if self.options.build_unbundled: #each componenet is built independently 
-            self.requires("up-cpp/x.y.z")
             self.requires("zenohc/cci.20240213")
 
     def generate(self):
