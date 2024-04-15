@@ -36,7 +36,7 @@ jobs:
           git clone https://github.com/eclipse-uprotocol/up-cpp.git
           cd up-cpp
           git submodule update --init --recursive
-          conan create . --build=missing
+          conan create . x.y.z@ --build=missing
 
       - name: Build and install Zenoh-C
         shell: bash
@@ -53,8 +53,8 @@ jobs:
           export CMAKE_ZENOH_INCLUDE_PATH="$HOME/local/include"
           mkdir build
           cd build
-          conan install ../ -o build_unbundled=True -o zenoh_package=False
-          cmake ../ -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/local
+          conan install .. -o build_testing=True -o build_unbundled=False
+          cmake .. -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_UNBUNDLED=False -DBUILD_TESTING=True -DCMAKE_INSTALL_PREFIX=~/local
           cmake --build . --target install --config Release -- -j
 
 
