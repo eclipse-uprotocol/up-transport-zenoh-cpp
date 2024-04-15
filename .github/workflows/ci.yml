@@ -108,7 +108,7 @@ jobs:
         run: |
           cd up-cpp
           git submodule update --init --recursive
-          conan create . x.y.z@ --build=missing
+          conan create . --version=x.y.z --build=missing
 
       - name: Clean up conan build files
         if: ${{ steps.cache-conan2.outputs.cache-hit != 'true' }}
