@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       Zenoh_C_Repo: https://github.com/eclipse-zenoh/zenoh-c.git
-      Zenoh_C_Cache_PFX: libzenohc
+      Zenoh_C_Cache_PFX: libzenohc-${{ github.workflow_sha }}
     outputs:
       Zenoh_C_Cache: ${{ env.Zenoh_C_Cache_PFX }}-${{ steps.zenoh-c-head.outputs.Zenoh_C_HEAD }}
 
@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UP_CPP_Repo: https://github.com/eclipse-uprotocol/up-cpp.git
-      UP_CPP_Cache_PFX: up-cpp-conan2
+      UP_CPP_Cache_PFX: up-cpp-conan2-${{ github.workflow_sha }}
     outputs:
       UP_CPP_Cache: ${{ env.UP_CPP_Cache_PFX }}-${{ steps.up-cpp-head.outputs.UP_CPP_HEAD }}
 
