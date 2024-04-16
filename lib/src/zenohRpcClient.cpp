@@ -240,6 +240,7 @@ RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_chan
 
     rpcResponse.status.set_code(UCode::INTERNAL);
 
+    TRACE();
     while (z_call(channel->recv, &reply), z_check(reply)) {
         TRACE();
         if (!z_reply_is_ok(&reply)) {

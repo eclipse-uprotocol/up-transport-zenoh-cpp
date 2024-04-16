@@ -1,0 +1,44 @@
+#!/usr/bin/env bpftrace
+
+usdt:/home/gzy3g3/projects/uspace/ultifi/build-x86_64-release-build_tests/bin/testRpcClient:*
+{
+    @pids[pid] = 1;
+    printf("%d %d %08llx %d %s %s\n", pid, tid, elapsed, arg0, str(arg1), str(arg2));
+}
+
+
+
+uprobe:./m/lib64/libc.so.6:fork /@pids[pid]/
+{
+    printf("%d %d %08llx %s\n", pid, tid, elapsed, probe);
+}
+
+uretprobe:./m/lib64/libc.so.6:fork /@pids[pid]/
+{
+    printf("%d %d %08llx %s %d\n", pid, tid, elapsed, probe, retval);
+}
+
+
+
+uprobe:./m/lib64/libc.so.6:pthread_create /@pids[pid]/
+{
+    printf("%d %d %08llx %s\n", pid, tid, elapsed, probe);
+}
+
+uretprobe:./m/lib64/libc.so.6:pthread_create  /@pids[pid]/
+{
+    printf("%d %d %08llx %s %d\n", pid, tid, elapsed, probe, retval);
+}
+
+
+
+uprobe:./m/usr/local/lib64/libzenohc.so:z_*
+{
+    printf("%d %d %08llx %s\n", pid, tid, elapsed, probe);
+}
+
+
+uretprobe:./m/usr/local/lib64/libzenohc.so:z_*
+{
+    printf("%d %d %08llx %s %d\n", pid, tid, elapsed, probe, retval);
+}

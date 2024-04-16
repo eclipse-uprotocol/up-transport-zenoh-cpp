@@ -27,6 +27,8 @@
 #include <up-client-zenoh-cpp/client/upZenohClient.h>
 #include <up-cpp/transport/builder/UAttributesBuilder.h>
 #include <up-cpp/uri/serializer/MicroUriSerializer.h>
+#include <sys/types.h>
+#include <signal.h>
 #include <gtest/gtest.h>
 #include <boost/core/demangle.hpp>
 #include <up-client-zenoh-cpp/trace_hook.hpp>
@@ -100,17 +102,19 @@ class RpcServer : public UListener {
             UPayload outPayload = message.payload();
 
             UMessage respMessage(outPayload, responseAttributes);
-
+            TRACE();
             if (nullptr != message.payload().data()) {
 
                 std::string cmd(message.payload().data(), message.payload().data() + message.payload().size());
 
                 if ("No Response" != cmd) {
+                    TRACE();
                     auto result =  UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
                     TRACE(); 
                     return result;
                 }
             } else {
+                TRACE();
                 auto result = UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
                 TRACE(); 
                 return result;
@@ -125,7 +129,7 @@ class ResponseListener : public UListener {
      public:
 
         UStatus onReceive(UMessage &message) const override {
-
+            TRACE();
             (void) message;
 
             UStatus status;
@@ -297,50 +301,70 @@ ResponseListener TestRPcClient::responseListener;
 // }
 
 TEST_F(TestRPcClient, invokeMethodWithResponse) {
+    using namespace std;
+
     TRACE();
     std::string message = "Response";
     std::vector<uint8_t> data(message.begin(), message.end());
 
-    auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
+    auto child_pid = fork();
+    if (child_pid) {
+        TRACE();
+        auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_server").build());
+        if (instance == nullptr) {
+            TRACE();
+            cerr << "server instance allocation failed" << endl;
+            exit(-1);
+        }
+        TRACE();
+        auto status = instance->registerListener(rpcUri(), TestRPcClient::rpcListener);
+        if (status.code() != UCode::OK) {
+            TRACE();
+            cerr << "server instance registerListener failed" << endl;
+            exit(-1);
+        }
+        TRACE();
+        sleep(100000);
+    }
+    else {
+        TRACE();
+        auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
+        EXPECT_NE(instance, nullptr);
+        TRACE();
 
-    EXPECT_NE(instance, nullptr);
+        UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
 
-    using namespace std;
-    auto status = instance->registerListener(rpcUri(), TestRPcClient::rpcListener);
+        CallOptions options;
 
-    EXPECT_EQ(status.code(), UCode::OK);
+        options.set_priority(UPriority::UPRIORITY_CS4);
+        options.set_ttl(1000);
 
-    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
+        for (size_t i = 0; i < 1; i++) {
+            sleep(1);
+            TRACE();
+            std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
-    CallOptions options;
+            EXPECT_EQ(future.valid(), true);
+            TRACE();
+            auto response = future.get();
+            TRACE();
+            // cout << "response ###################################################################" << endl;
+            // cout << response.message.attributes().DebugString() << endl;
+            // if (response.message.payload().size() > 0) {
+            //     auto& data = response.message.payload(); 
+            //     cout << "[ ";
+            //     for (size_t i = 0; i < data.size(); i++) cout << data.data()[i];
+            //     cout << " ]" << endl;
+            // }
+            
+            EXPECT_EQ(response.status.code(), UCode::OK);
+            EXPECT_NE(response.message.payload().data(), nullptr);
+            EXPECT_NE(response.message.payload().size(), 0);
+        }
 
-    options.set_priority(UPriority::UPRIORITY_CS4);
-    options.set_ttl(1000);
+        kill(child_pid, SIGKILL);
+    }
 
-    TRACE();
-    std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
-
-    EXPECT_EQ(future.valid(), true);
-    TRACE();
-    auto response = future.get();
-    TRACE();
-    // cout << "response ###################################################################" << endl;
-    // cout << response.message.attributes().DebugString() << endl;
-    // if (response.message.payload().size() > 0) {
-    //     auto& data = response.message.payload(); 
-    //     cout << "[ ";
-    //     for (size_t i = 0; i < data.size(); i++) cout << data.data()[i];
-    //     cout << " ]" << endl;
-    // }
-    
-    // EXPECT_EQ(response.status.code(), UCode::OK);
-
-    EXPECT_NE(response.message.payload().data(), nullptr);
-    EXPECT_NE(response.message.payload().size(), 0);
-
-    status = instance->unregisterListener(rpcUri(), TestRPcClient::rpcListener);
-
-    EXPECT_EQ(status.code(), UCode::OK);
     TRACE();
 }
 
@@ -362,7 +386,7 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
 
 //     auto status = instance->invokeMethod(rpcUri(), payload, options, responseListener);
 
-//     EXPECT_EQ(status.code(), UCode::OK);  
+//     // EXPECT_EQ(status.code(), UCode::OK);  
 // }
 
 // TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
