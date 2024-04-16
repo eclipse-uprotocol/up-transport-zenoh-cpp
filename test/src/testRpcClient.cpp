@@ -32,6 +32,7 @@
 #include <gtest/gtest.h>
 #include <boost/core/demangle.hpp>
 #include <up-client-zenoh-cpp/trace_hook.hpp>
+#include <sstream>
 
 
 using namespace uprotocol::utransport;
@@ -88,8 +89,13 @@ class RpcServer : public UListener {
 
         UStatus onReceive(UMessage &message) const override {
             TRACE();
-            using namespace std;
-            cout << "onReceive called in " << getpid() << endl;
+            {
+                using namespace std;
+                cout << "onReceive called in " << getpid() << ' ' << get_type(message.payload()) << endl;
+                auto ptr = message.payload().data();
+                for (size_t i = 0; i < message.payload().size(); i++) cout << ptr[i] << ' ';
+                cout << endl;
+            }
             // cout << message.attributes().DebugString() << endl;
             UStatus status;
 
@@ -334,32 +340,34 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
         TRACE();
         auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
         EXPECT_NE(instance, nullptr);
-        TRACE();
-
-        UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
+        TRACE();  
 
         CallOptions options;
 
         options.set_priority(UPriority::UPRIORITY_CS4);
         options.set_ttl(1000);
 
-        for (size_t i = 0; i < 1; i++) {
+        for (size_t i = 0; i < 5; i++) {
             sleep(1);
             TRACE();
+            using namespace std;
+            stringstream ss;
+            ss << "Hello world " << i;
+            UPayload payload((const uint8_t*)ss.str().data(), ss.str().size(), UPayloadType::VALUE);  
             std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
             EXPECT_EQ(future.valid(), true);
             TRACE();
             auto response = future.get();
             TRACE();
-            // cout << "response ###################################################################" << endl;
+            cout << "response ###################################################################" << endl;
             // cout << response.message.attributes().DebugString() << endl;
-            // if (response.message.payload().size() > 0) {
-            //     auto& data = response.message.payload(); 
-            //     cout << "[ ";
-            //     for (size_t i = 0; i < data.size(); i++) cout << data.data()[i];
-            //     cout << " ]" << endl;
-            // }
+            if (response.message.payload().size() > 0) {
+                auto& data = response.message.payload(); 
+                cout << "[ ";
+                for (size_t i = 0; i < data.size(); i++) cout << data.data()[i];
+                cout << " ]" << endl;
+            }
             
             EXPECT_EQ(response.status.code(), UCode::OK);
             EXPECT_NE(response.message.payload().data(), nullptr);
