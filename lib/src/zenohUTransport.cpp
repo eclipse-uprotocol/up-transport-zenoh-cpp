@@ -324,6 +324,7 @@ UStatus ZenohUTransport::registerListener(const UUri &uri,
 
             z_owned_closure_query_t callback = z_closure(QueryHandler, OnQueryClose, arg);
         
+            cout << "about to call z_declare_queryable with " << key << " in " << getpid() << endl;
             auto qable = z_declare_queryable(z_loan(session_), z_keyexpr(key.c_str()), z_move(callback), nullptr);
             if (!z_check(qable)) {
                 spdlog::error("failed to create queryable");
