@@ -88,14 +88,14 @@ class RpcServer : public UListener {
 
         UStatus onReceive(UMessage &message) const override {
             TRACE();
-            // using namespace std;
-            // cout << "onReceive ###################################################################" << endl;
+            using namespace std;
+            cout << "onReceive called in " << getpid() << endl;
             // cout << message.attributes().DebugString() << endl;
             UStatus status;
 
             status.set_code(UCode::OK);
             
-            auto builder = UAttributesBuilder::response(message.attributes().sink(), message.attributes().source(), UPriority::UPRIORITY_CS0, message.attributes().id());
+            auto builder = UAttributesBuilder::response(message.attributes().source(), message.attributes().sink(), UPriority::UPRIORITY_CS0, message.attributes().id());
 
             UAttributes responseAttributes = builder.build();
 
@@ -308,7 +308,8 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
     std::vector<uint8_t> data(message.begin(), message.end());
 
     auto child_pid = fork();
-    if (child_pid) {
+    if (child_pid == 0) {
+        cout << "after fork child=" << getpid() << " sees parent=" << getppid() << dec << endl;
         TRACE();
         auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_server").build());
         if (instance == nullptr) {
@@ -327,6 +328,9 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
         sleep(100000);
     }
     else {
+        sleep(2);
+        TRACE();
+        cout << "after fork parent=" << getpid() << " sees child=" << child_pid << dec << endl;
         TRACE();
         auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
         EXPECT_NE(instance, nullptr);

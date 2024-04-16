@@ -3,42 +3,62 @@
 usdt:/home/gzy3g3/projects/uspace/ultifi/build-x86_64-release-build_tests/bin/testRpcClient:*
 {
     @pids[pid] = 1;
-    printf("%d %d %08llx %d %s %s\n", pid, tid, elapsed, arg0, str(arg1), str(arg2));
+    printf("%8x %8x %12d %d %s %s\n", pid, tid, elapsed/1000000, arg0, str(arg1), str(arg2));
 }
 
 
 
 uprobe:./m/lib64/libc.so.6:fork /@pids[pid]/
 {
-    printf("%d %d %08llx %s\n", pid, tid, elapsed, probe);
+    printf("%8x %8x %12d %s\n", pid, tid, elapsed/1000000, probe);
 }
 
 uretprobe:./m/lib64/libc.so.6:fork /@pids[pid]/
 {
-    printf("%d %d %08llx %s %d\n", pid, tid, elapsed, probe, retval);
+    printf("%8x %8x %12d %s %x\n", pid, tid, elapsed/1000000, probe, retval);
+}
+
+uretprobe:./m/lib64/libc.so.6:getpid /@pids[pid]/
+{
+    printf("%8x %8x %12d %s %x\n", pid, tid, elapsed/1000000, probe, retval);
+}
+
+uretprobe:./m/lib64/libc.so.6:getppid /@pids[pid]/
+{
+    printf("%8x %8x %12d %s %x\n", pid, tid, elapsed/1000000, probe, retval);
+}
+
+uprobe:./m/usr/local/lib64/libzenohc.so:z_get
+{
+    printf("%8x %8x %12d %s %x %x\n", pid, tid, elapsed/1000000, probe, arg0, arg1);
 }
 
 
-
-uprobe:./m/lib64/libc.so.6:pthread_create /@pids[pid]/
+uretprobe:./m/usr/local/lib64/libzenohc.so:z_get
 {
-    printf("%d %d %08llx %s\n", pid, tid, elapsed, probe);
-}
-
-uretprobe:./m/lib64/libc.so.6:pthread_create  /@pids[pid]/
-{
-    printf("%d %d %08llx %s %d\n", pid, tid, elapsed, probe, retval);
+    printf("%8x %8x %12d %s %x\n", pid, tid, elapsed/1000000, probe, retval);
 }
 
 
-
-uprobe:./m/usr/local/lib64/libzenohc.so:z_*
+uprobe:./m/usr/local/lib64/libzenohc.so:z_declare_queryable
 {
-    printf("%d %d %08llx %s\n", pid, tid, elapsed, probe);
+    printf("%8x %8x %12d %s %x %x\n", pid, tid, elapsed/1000000, probe, arg0, arg1);
 }
 
 
-uretprobe:./m/usr/local/lib64/libzenohc.so:z_*
+uretprobe:./m/usr/local/lib64/libzenohc.so:z_declare_queryable
 {
-    printf("%d %d %08llx %s %d\n", pid, tid, elapsed, probe, retval);
+    printf("%8x %8x %12d %s %x\n", pid, tid, elapsed/1000000, probe, retval);
+}
+
+
+uprobe:./m/usr/local/lib64/libzenohc.so:z_query_reply
+{
+    printf("%8x %8x %12d %s %x %x\n", pid, tid, elapsed/1000000, probe, arg0, arg1);
+}
+
+
+uretprobe:./m/usr/local/lib64/libzenohc.so:z_query_reply
+{
+    printf("%8x %8x %12d %s %x\n", pid, tid, elapsed/1000000, probe, retval);
 }

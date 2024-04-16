@@ -174,7 +174,8 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
     //     cout << "in invokeMethodInternal " << client_uri.DebugString() << endl;
     // }
 
-    auto builder = UAttributesBuilder::request(client_uri, topic, options.priority(), options.ttl());
+    auto builder = UAttributesBuilder::request(topic, topic, options.priority(), options.ttl());
+    // auto builder = UAttributesBuilder::request(client_uri, topic, options.priority(), options.ttl())
 
     builder.setId(uuid);
     builder.setTTL(options.ttl());
@@ -212,6 +213,7 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
         opts.value.payload.start = nullptr;
     }
     
+    cout << "about to call z_get with " << key << " in " << getpid() << endl;
     TRACE();
     if (0 != z_get(z_loan(session_), z_keyexpr(key.c_str()), "", z_move(channel->send), &opts)) {
         spdlog::error("z_get failure");
@@ -240,6 +242,11 @@ RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_chan
 
     rpcResponse.status.set_code(UCode::INTERNAL);
 
+    {
+        using namespace std;
+        cout << "about to call z_call in " << getpid() << endl;
+    }
+    
     TRACE();
     while (z_call(channel->recv, &reply), z_check(reply)) {
         TRACE();
