@@ -30,7 +30,6 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <gtest/gtest.h>
-#include <boost/core/demangle.hpp>
 #include <up-client-zenoh-cpp/trace_hook.hpp>
 #include <sstream>
 
@@ -40,12 +39,6 @@ using namespace uprotocol::v1;
 using namespace uprotocol::uri;
 using namespace uprotocol::rpc;
 using namespace uprotocol::client;
-
-template <typename T>
-std::string get_type(const T& t)
-{
-    return boost::core::demangle(typeid(t).name());
-}
 
 IMPL_TRACEHOOK()
 
@@ -83,6 +76,8 @@ UUri const& rpcNoServerUri() {
 
 } // anonymous namespace
 
+static size_t cntr;
+
 class RpcServer : public UListener {
 
      public:
@@ -92,20 +87,32 @@ class RpcServer : public UListener {
             {
                 using namespace std;
                 cout << "onReceive called in " << getpid() << ' ' << get_type(message.payload()) << endl;
-                auto ptr = message.payload().data();
-                for (size_t i = 0; i < message.payload().size(); i++) cout << ptr[i] << ' ';
-                cout << endl;
+                // auto ptr = message.payload().data();
+                // for (size_t i = 0; i < message.payload().size(); i++) cout << ptr[i] << ' ';
+                // cout << endl;
             }
+            // cout << "Request attributes #######################################" << endl;
             // cout << message.attributes().DebugString() << endl;
             UStatus status;
 
             status.set_code(UCode::OK);
             
-            auto builder = UAttributesBuilder::response(message.attributes().source(), message.attributes().sink(), UPriority::UPRIORITY_CS0, message.attributes().id());
+            auto builder = UAttributesBuilder::response(
+                message.attributes().source(),
+                message.attributes().sink(),
+                UPriority::UPRIORITY_CS0,
+                message.attributes().id());
+            builder.setReqid(message.attributes().id());
 
             UAttributes responseAttributes = builder.build();
+            // cout << "Response attributes #######################################" << endl;
+            // cout << responseAttributes.DebugString() << endl;
 
-            UPayload outPayload = message.payload();
+            // UPayload outPayload = message.payload();
+            using namespace std;
+            stringstream ss;
+            ss << "Reply " << cntr++;
+            UPayload outPayload((const uint8_t*)ss.str().data(), ss.str().size(), UPayloadType::VALUE);
 
             UMessage respMessage(outPayload, responseAttributes);
             TRACE();
@@ -347,7 +354,7 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
         options.set_priority(UPriority::UPRIORITY_CS4);
         options.set_ttl(1000);
 
-        for (size_t i = 0; i < 5; i++) {
+        for (size_t i = 0; i < 1; i++) {
             sleep(1);
             TRACE();
             using namespace std;

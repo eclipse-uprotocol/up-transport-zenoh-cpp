@@ -1,6 +1,11 @@
 #pragma once
 
 #include <sys/sdt.h>
+#include <boost/core/demangle.hpp>
+#include <type_traits>
+#include <string>
+#include <iostream>
+// #include <zenoh_commons.h>
 
 #if 1
 
@@ -30,3 +35,15 @@
 #define TRACE()
 
 #endif
+
+template <typename T>
+static std::string get_type(const T& t)
+{
+    return boost::core::demangle(typeid(t).name());
+}
+
+static std::ostream& operator<<(std::ostream& os, const z_query_t& arg)
+{
+    os << "z_query_t(" << arg._0 << ')';
+    return os;
+}

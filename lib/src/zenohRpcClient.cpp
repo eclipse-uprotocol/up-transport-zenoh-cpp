@@ -46,6 +46,12 @@ using namespace uprotocol::uri;
 using namespace uprotocol::utils;
 using namespace uprotocol::rpc;
 
+static std::ostream& operator<<(std::ostream& os, const z_owned_query_t& arg)
+{
+    os << "z_owned_query_t(" << arg._0 << ')';
+    return os;
+}
+
 ZenohRpcClient::ZenohRpcClient() noexcept {
     TRACE();
     /* by default initialized to empty strings */
@@ -174,10 +180,10 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
     //     cout << "in invokeMethodInternal " << client_uri.DebugString() << endl;
     // }
 
-    auto builder = UAttributesBuilder::request(topic, topic, options.priority(), options.ttl());
-    // auto builder = UAttributesBuilder::request(client_uri, topic, options.priority(), options.ttl())
+    // auto builder = UAttributesBuilder::request(topic, topic, options.priority(), options.ttl());
+    auto builder = UAttributesBuilder::request(client_uri, topic, options.priority(), options.ttl());
 
-    builder.setId(uuid);
+    // builder.setReqid(uuid);
     builder.setTTL(options.ttl());
 
     UAttributes attributes = builder.build();
@@ -214,8 +220,11 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
     }
     
     cout << "about to call z_get with " << key << " in " << getpid() << endl;
+    auto ke = z_keyexpr(key.c_str());
+    cout << "key=" << key << " keyexpr=" << get_type(ke) << endl;
     TRACE();
-    if (0 != z_get(z_loan(session_), z_keyexpr(key.c_str()), "", z_move(channel->send), &opts)) {
+    // if (0 != z_get(z_loan(session_), z_keyexpr(key.c_str()), "", z_move(channel->send), &opts)) {
+    if (0 != z_get(z_loan(session_), ke, "", z_move(channel->send), &opts)) {
         spdlog::error("z_get failure");
         return future;
     }
@@ -231,11 +240,13 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
 
     z_drop(&map);
 
+    TRACE();
     return future;
 }
 
 RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_channel_t> &channel,
                                         const UListener *listener) noexcept {
+    using namespace std;
     TRACE();
     z_owned_reply_t reply = z_reply_null();
     RpcResponse rpcResponse;
@@ -247,10 +258,15 @@ RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_chan
         cout << "about to call z_call in " << getpid() << endl;
     }
     
+    cout << "before" << endl;
+    auto before = std::chrono::steady_clock::now();
     TRACE();
     while (z_call(channel->recv, &reply), z_check(reply)) {
         TRACE();
+        auto after = std::chrono::steady_clock::now();
+        cout << "z_call delay=" << std::chrono::duration_cast<std::chrono::microseconds>(after - before).count() << endl;
         if (!z_reply_is_ok(&reply)) {
+            cout << "z_reply_is_ok is false" << endl;
             z_value_t error = z_reply_err(&reply);
             if (memcmp("Timeout", error.payload.start, error.payload.len) == 0) {
                 spdlog::error("Timeout received while waiting for response");
@@ -261,6 +277,7 @@ RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_chan
 
             break;
         }
+        cout << "z_reply_is_ok is true" << endl;
 
         TRACE();
         z_sample_t sample = z_reply_ok(&reply);
