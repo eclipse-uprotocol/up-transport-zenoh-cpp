@@ -21,6 +21,7 @@ project(up-client-zenoh-cpp VERSION 0.1.0 LANGUAGES CXX)
 
 find_package(Protobuf REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(Boost REQUIRED)
 
 if(BUILD_UNBUNDLED)
     find_package(up-cpp REQUIRED)
@@ -55,6 +56,7 @@ target_include_directories(${PROJECT_NAME}
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
         $ENV{CMAKE_ZENOH_INCLUDE_PATH}
         ${HOME}/include
+        ${Boost_INCLUDE_DIR}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
