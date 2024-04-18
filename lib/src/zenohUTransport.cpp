@@ -184,10 +184,21 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
     auto uuidStr = UuidSerializer::serializeToString(message.attributes().reqid());
     if (queryMap_.find(uuidStr) == queryMap_.end()) {
         spdlog::error("failed to find UUID = {}", uuidStr);
+        {
+            using namespace std;
+            cout << "num keys = " << queryMap_.size() << " this=" << this << endl;
+            for(const auto& [k,v] : queryMap_) {
+                cout << "key=" << k << endl;
+            }
+        }
         return UCode::UNAVAILABLE;
     }
 
     auto query = queryMap_[uuidStr];
+    {
+        using namespace std;
+        cout << "found " << uuidStr << " in sendQueryable" << endl;
+    }
 
     z_query_reply_options_t options = z_query_reply_options_default();
 
@@ -452,7 +463,15 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
 
     auto uuidStr = UuidSerializer::serializeToString(attributes.id());
 
+    {
+        using namespace std;
+        cout << "inserting " << uuidStr << " in QueryHandler instance=" << instance << endl;
+    }
     instance->queryMap_[uuidStr] = z_query_clone(query);
+    {
+        using namespace std;
+        cout << "after insert num keys = " << instance->queryMap_.size() << endl;
+    }
 
     if (UMessageType::UMESSAGE_TYPE_REQUEST != attributes.type()) {
        spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));

@@ -28,8 +28,9 @@
 using namespace uprotocol::v1;
 using namespace uprotocol::client;
 
+static std::weak_ptr<UpZenohClient> w_handle;
+
 std::shared_ptr<UpZenohClient> UpZenohClient::instance() noexcept {
-    static std::weak_ptr<UpZenohClient> w_handle;
 
     if (auto handle = w_handle.lock()) {
         return handle;
@@ -52,8 +53,6 @@ std::shared_ptr<UpZenohClient> UpZenohClient::instance() noexcept {
 }
 
 std::shared_ptr<UpZenohClient> UpZenohClient::instance(const uprotocol::v1::UAuthority& src_authority) noexcept {
-    static std::weak_ptr<UpZenohClient> w_handle;
-
     if (auto handle = w_handle.lock()) {
         return handle;
     } else {
