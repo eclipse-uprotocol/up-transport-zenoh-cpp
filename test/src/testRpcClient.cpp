@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <gtest/gtest.h>
+#include <string_view>
 
 
 using namespace uprotocol::utransport;
@@ -78,28 +79,27 @@ class RpcServer : public UListener {
      public:
 
         UStatus onReceive(UMessage &message) const override {
-            {
-                using namespace std;
-                cout << "onReceive called" << endl;
-                cout << "Request attributes #######################################" << endl;
-                cout << message.attributes().DebugString() << endl;
-            }
+            // {
+            //     using namespace std;
+            //     cout << "onReceive called" << endl;
+            //     cout << "Request attributes #######################################" << endl;
+            //     cout << message.attributes().DebugString() << endl;
+            // }
             UStatus status;
 
             status.set_code(UCode::OK);
             
             auto builder = UAttributesBuilder::response(
-                message.attributes().source(),
                 message.attributes().sink(),
-                UPriority::UPRIORITY_CS0,
-                message.attributes().id());
+                message.attributes().source(),
+                UPriority::UPRIORITY_CS0);
             builder.setReqid(message.attributes().id());
 
             UAttributes responseAttributes = builder.build();
-            {
-                cout << "Response attributes #######################################" << endl;
-                cout << responseAttributes.DebugString() << endl;
-            }
+            // {
+            //     cout << "Response attributes #######################################" << endl;
+            //     cout << responseAttributes.DebugString() << endl;
+            // }
 
             UPayload outPayload = message.payload();
 
@@ -114,7 +114,7 @@ class RpcServer : public UListener {
             } else {
                 return UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
             }
-            
+
             return status;
         }
 };
@@ -295,6 +295,46 @@ TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithResponse) {
+    std::string message = "Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
+
+    auto instance = UpZenohClient::instance();
+
+    EXPECT_NE(instance, nullptr);
+
+    auto status = instance->registerListener(rpcUri(), TestRPcClient::rpcListener);
+
+    EXPECT_EQ(status.code(), UCode::OK);
+
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
+
+    CallOptions options;
+
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(1000);
+
+    std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
+
+    EXPECT_EQ(future.valid(), true);
+    
+    auto response = future.get();
+    
+    // EXPECT_EQ(response.status.code(), UCode::OK);
+
+    EXPECT_NE(response.message.payload().data(), nullptr);
+    EXPECT_NE(response.message.payload().size(), 0);
+    {
+        using namespace std;
+        cout << "response size = " << response.message.payload().size() << endl;
+        cout << "response = " << string_view((const char*)response.message.payload().data(), response.message.payload().size()) << endl;
+    }
+
+    status = instance->unregisterListener(rpcUri(), TestRPcClient::rpcListener);
+
+    EXPECT_EQ(status.code(), UCode::OK);
+}
+
+TEST_F(TestRPcClient, invokeMethodWithResponseForked) {
     using namespace std;
 
     std::string message = "Response";
@@ -325,28 +365,20 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
         options.set_priority(UPriority::UPRIORITY_CS4);
         options.set_ttl(1000);
 
-        for (size_t i = 0; i < 1; i++) {
-            sleep(1);
-            using namespace std;
-            stringstream ss;
-            ss << "Hello world " << i;
-            UPayload payload((const uint8_t*)ss.str().data(), ss.str().size(), UPayloadType::VALUE);  
-            std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
+        UPayload payload(data.data(), data.size(), UPayloadType::VALUE);  
+        std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
-            EXPECT_EQ(future.valid(), true);
-            auto response = future.get();
-            cout << "response ###################################################################" << endl;
-            // cout << response.message.attributes().DebugString() << endl;
-            if (response.message.payload().size() > 0) {
-                auto& data = response.message.payload(); 
-                cout << "[ ";
-                for (size_t i = 0; i < data.size(); i++) cout << data.data()[i];
-                cout << " ]" << endl;
-            }
-            
-            // EXPECT_EQ(response.status.code(), UCode::OK);
-            EXPECT_NE(response.message.payload().data(), nullptr);
-            EXPECT_NE(response.message.payload().size(), 0);
+        EXPECT_EQ(future.valid(), true);
+
+        auto response = future.get();
+
+        // EXPECT_EQ(response.status.code(), UCode::OK);
+        EXPECT_NE(response.message.payload().data(), nullptr);
+        EXPECT_NE(response.message.payload().size(), 0);
+        {
+            using namespace std;
+            cout << "response size = " << response.message.payload().size() << endl;
+            cout << "response = " << string_view((const char*)response.message.payload().data(), response.message.payload().size()) << endl;
         }
 
         kill(child_pid, SIGKILL);
@@ -397,6 +429,5 @@ TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    auto result = RUN_ALL_TESTS();
-    return result;
+    return RUN_ALL_TESTS();
 }

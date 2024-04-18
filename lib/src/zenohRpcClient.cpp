@@ -163,10 +163,8 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
                         .build())
                 .build();
 
-    // auto builder = UAttributesBuilder::request(topic, topic, options.priority(), options.ttl());
     auto builder = UAttributesBuilder::request(client_uri, topic, options.priority(), options.ttl());
 
-    // builder.setReqid(uuid);
     builder.setTTL(options.ttl());
 
     UAttributes attributes = builder.build();

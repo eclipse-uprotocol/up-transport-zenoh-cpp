@@ -183,7 +183,6 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
     auto uuidStr = UuidSerializer::serializeToString(message.attributes().reqid());
     if (queryMap_.find(uuidStr) == queryMap_.end()) {
-        cerr << "failed to find UUID" << endl;
         spdlog::error("failed to find UUID = {}", uuidStr);
         return UCode::UNAVAILABLE;
     }
@@ -193,7 +192,6 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
     z_query_reply_options_t options = z_query_reply_options_default();
 
     if (UCode::OK != mapEncoding(message.payload().format(), options.encoding)) {
-        cerr << "mapEncoding failure" << endl;
         spdlog::error("mapEncoding failure");
         return UCode::INTERNAL;
     }
@@ -202,7 +200,6 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
     size_t attrSize = message.attributes().ByteSizeLong();
     std::vector<uint8_t> serializedAttributes(attrSize);
     if (!message.attributes().SerializeToArray(serializedAttributes.data(), attrSize)) {
-        cerr << "SerializeToArray failure" << endl;
         spdlog::error("SerializeToArray failure");
         return UCode::INTERNAL;
     }
@@ -216,7 +213,6 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
     z_query_t lquery = z_loan(query);
 
     if (0 != z_query_reply(&lquery, z_query_keyexpr(&lquery), message.payload().data(), message.payload().size(), &options)) {
-        cerr << "z_query_reply failed" << endl;
         spdlog::error("z_query_reply failed");
         z_drop(z_move(map));
         return UCode::INTERNAL;
