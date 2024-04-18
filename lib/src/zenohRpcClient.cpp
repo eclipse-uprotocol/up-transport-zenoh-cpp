@@ -36,6 +36,7 @@
 #include <up-core-api/uattributes.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
+#include <unistd.h>
 
 
 using namespace uprotocol::utransport;
