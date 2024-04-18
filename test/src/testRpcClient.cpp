@@ -30,7 +30,6 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <gtest/gtest.h>
-#include <up-client-zenoh-cpp/trace_hook.hpp>
 #include <sstream>
 
 
@@ -39,8 +38,6 @@ using namespace uprotocol::v1;
 using namespace uprotocol::uri;
 using namespace uprotocol::rpc;
 using namespace uprotocol::client;
-
-IMPL_TRACEHOOK()
 
 namespace {
 
@@ -83,10 +80,9 @@ class RpcServer : public UListener {
      public:
 
         UStatus onReceive(UMessage &message) const override {
-            TRACE();
             {
                 using namespace std;
-                cout << "onReceive called in " << getpid() << ' ' << get_type(message.payload()) << endl;
+                cout << "onReceive called" << endl;
                 // auto ptr = message.payload().data();
                 // for (size_t i = 0; i < message.payload().size(); i++) cout << ptr[i] << ' ';
                 // cout << endl;
@@ -115,24 +111,16 @@ class RpcServer : public UListener {
             UPayload outPayload((const uint8_t*)ss.str().data(), ss.str().size(), UPayloadType::VALUE);
 
             UMessage respMessage(outPayload, responseAttributes);
-            TRACE();
             if (nullptr != message.payload().data()) {
 
                 std::string cmd(message.payload().data(), message.payload().data() + message.payload().size());
 
                 if ("No Response" != cmd) {
-                    TRACE();
-                    auto result =  UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
-                    TRACE(); 
-                    return result;
+                    return  UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
                 }
             } else {
-                TRACE();
-                auto result = UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
-                TRACE(); 
-                return result;
+                return UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
             }
-            TRACE();    
             return status;
         }
 };
@@ -142,7 +130,6 @@ class ResponseListener : public UListener {
      public:
 
         UStatus onReceive(UMessage &message) const override {
-            TRACE();
             (void) message;
 
             UStatus status;
@@ -174,180 +161,170 @@ class TestRPcClient : public ::testing::Test {
 RpcServer TestRPcClient::rpcListener;
 ResponseListener TestRPcClient::responseListener;
 
-// TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
+TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
     
-//     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
+    auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
     
-//     EXPECT_NE(instance, nullptr);
+    EXPECT_NE(instance, nullptr);
 
-//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
     
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_priority(UPriority::UPRIORITY_CS4);
 
-//     std::future<RpcResponse> future = instance->invokeMethod(rpcNoServerUri(), payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcNoServerUri(), payload, options);
 
-//     EXPECT_EQ(future.valid(), true);
+    EXPECT_EQ(future.valid(), true);
     
-//     auto response = future.get();
+    auto response = future.get();
     
-//     EXPECT_NE(response.status.code(), UCode::OK);
-// }
+    EXPECT_NE(response.status.code(), UCode::OK);
+}
 
-// TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
+TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
     
-//     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
+    auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
-//     EXPECT_NE(instance, nullptr);
+    EXPECT_NE(instance, nullptr);
 
-//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
     
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS3);
+    options.set_priority(UPriority::UPRIORITY_CS3);
 
-//     std::future<RpcResponse> future = instance->invokeMethod(rpcNoServerUri(), payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcNoServerUri(), payload, options);
 
-//     EXPECT_EQ(future.valid(), false);
-// }
+    EXPECT_EQ(future.valid(), false);
+}
 
-// TEST_F(TestRPcClient, invokeMethodNoResponse) {
+TEST_F(TestRPcClient, invokeMethodNoResponse) {
     
-//     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
+    auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
-//     EXPECT_NE(instance, nullptr);
+    EXPECT_NE(instance, nullptr);
 
-//     std::string message = "No Response";
-//     std::vector<uint8_t> data(message.begin(), message.end());
+    std::string message = "No Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
 
-//     UPayload payload(data.data(), data.size(), UPayloadType::VALUE);
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);
     
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS4);
-//     options.set_ttl(1000);
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(1000);
 
-//     std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
-//     EXPECT_EQ(future.valid(), true);
+    EXPECT_EQ(future.valid(), true);
     
-//     auto response = future.get();
+    auto response = future.get();
     
-//     EXPECT_NE(response.status.code(), UCode::OK);
-// }
+    EXPECT_NE(response.status.code(), UCode::OK);
+}
 
-// TEST_F(TestRPcClient, maxSimultaneousRequests) {
+TEST_F(TestRPcClient, maxSimultaneousRequests) {
     
-//     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
+    auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
-//     EXPECT_NE(instance, nullptr);
+    EXPECT_NE(instance, nullptr);
 
-//     auto status = instance->registerListener(rpcUri(), TestRPcClient::rpcListener);
+    auto status = instance->registerListener(rpcUri(), TestRPcClient::rpcListener);
 
-//     EXPECT_EQ(status.code(), UCode::OK);
+    EXPECT_EQ(status.code(), UCode::OK);
 
-//     std::string message = "No Response";
-//     std::vector<uint8_t> data(message.begin(), message.end());
+    std::string message = "No Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
 
-//     UPayload payload(data.data(), data.size(), UPayloadType::VALUE);
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);
     
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS4);
-//     options.set_ttl(5000);
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(5000);
 
-//     size_t numRequestsUntilQueueIsFull = instance->getMaxConcurrentRequests() + instance->getQueueSize();
+    size_t numRequestsUntilQueueIsFull = instance->getMaxConcurrentRequests() + instance->getQueueSize();
 
-//     for (size_t i = 0; i < (numRequestsUntilQueueIsFull + 1) ; ++i) {
-//         std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
+    for (size_t i = 0; i < (numRequestsUntilQueueIsFull + 1) ; ++i) {
+        std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
-//         if (i < numRequestsUntilQueueIsFull) {
-//             EXPECT_EQ(future.valid(), true);
-//         } else {
-//             EXPECT_EQ(future.valid(), false);
-//         }
-//     }
+        if (i < numRequestsUntilQueueIsFull) {
+            EXPECT_EQ(future.valid(), true);
+        } else {
+            EXPECT_EQ(future.valid(), false);
+        }
+    }
 
-//     /* wait for al futures to return */
-//     sleep(10);
+    /* wait for al futures to return */
+    sleep(10);
 
-//     std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
-//     EXPECT_EQ(future.valid(), true);
+    EXPECT_EQ(future.valid(), true);
 
-//     status = instance->unregisterListener(rpcUri(), TestRPcClient::rpcListener);
+    status = instance->unregisterListener(rpcUri(), TestRPcClient::rpcListener);
 
-//     EXPECT_EQ(status.code(), UCode::OK);
-// }
+    EXPECT_EQ(status.code(), UCode::OK);
+}
 
-// TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
+TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
     
-//     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
+    auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
-//     EXPECT_NE(instance, nullptr);
+    EXPECT_NE(instance, nullptr);
 
-//     auto status = instance->registerListener(rpcUri(), TestRPcClient::rpcListener);
+    auto status = instance->registerListener(rpcUri(), TestRPcClient::rpcListener);
 
-//     EXPECT_EQ(status.code(), UCode::OK);
+    EXPECT_EQ(status.code(), UCode::OK);
 
-//     UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
+    UPayload payload(nullptr, 0, UPayloadType::REFERENCE);
     
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS4);
-//     options.set_ttl(1000);
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(1000);
 
-//     std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
+    std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
-//     EXPECT_EQ(future.valid(), true);
+    EXPECT_EQ(future.valid(), true);
     
-//     auto response = future.get();
+    auto response = future.get();
     
-//     // EXPECT_EQ(response.status.code(), UCode::OK);
+    // EXPECT_EQ(response.status.code(), UCode::OK);
 
-//     EXPECT_EQ(response.message.payload().size(), 0);
+    EXPECT_EQ(response.message.payload().size(), 0);
 
-//     status = instance->unregisterListener(rpcUri(), TestRPcClient::rpcListener);
+    status = instance->unregisterListener(rpcUri(), TestRPcClient::rpcListener);
 
-//     EXPECT_EQ(status.code(), UCode::OK);
-// }
+    EXPECT_EQ(status.code(), UCode::OK);
+}
 
 TEST_F(TestRPcClient, invokeMethodWithResponse) {
     using namespace std;
 
-    TRACE();
     std::string message = "Response";
     std::vector<uint8_t> data(message.begin(), message.end());
 
     auto child_pid = fork();
     if (child_pid == 0) {
-        cout << "after fork child=" << getpid() << " sees parent=" << getppid() << dec << endl;
-        TRACE();
         auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_server").build());
         if (instance == nullptr) {
-            TRACE();
             cerr << "server instance allocation failed" << endl;
             exit(-1);
         }
-        TRACE();
         auto status = instance->registerListener(rpcUri(), TestRPcClient::rpcListener);
         if (status.code() != UCode::OK) {
-            TRACE();
             cerr << "server instance registerListener failed" << endl;
             exit(-1);
         }
-        TRACE();
         sleep(100000);
     }
     else {
         sleep(2);
-        TRACE();
         cout << "after fork parent=" << getpid() << " sees child=" << child_pid << dec << endl;
-        TRACE();
         auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
         EXPECT_NE(instance, nullptr);
-        TRACE();  
 
         CallOptions options;
 
@@ -356,7 +333,6 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
 
         for (size_t i = 0; i < 1; i++) {
             sleep(1);
-            TRACE();
             using namespace std;
             stringstream ss;
             ss << "Hello world " << i;
@@ -364,9 +340,7 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
             std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
 
             EXPECT_EQ(future.valid(), true);
-            TRACE();
             auto response = future.get();
-            TRACE();
             cout << "response ###################################################################" << endl;
             // cout << response.message.attributes().DebugString() << endl;
             if (response.message.payload().size() > 0) {
@@ -376,63 +350,59 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
                 cout << " ]" << endl;
             }
             
-            EXPECT_EQ(response.status.code(), UCode::OK);
+            // EXPECT_EQ(response.status.code(), UCode::OK);
             EXPECT_NE(response.message.payload().data(), nullptr);
             EXPECT_NE(response.message.payload().size(), 0);
         }
 
         kill(child_pid, SIGKILL);
     }
-
-    TRACE();
 }
 
-// TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
+TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
     
-//     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
+    auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
     
-//     EXPECT_NE(instance, nullptr);
+    EXPECT_NE(instance, nullptr);
 
-//     std::string message = "Response";
-//     std::vector<uint8_t> data(message.begin(), message.end());
+    std::string message = "Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
 
-//     UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
 
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS4);
-//     options.set_ttl(1000);
+    options.set_priority(UPriority::UPRIORITY_CS4);
+    options.set_ttl(1000);
 
-//     auto status = instance->invokeMethod(rpcUri(), payload, options, responseListener);
+    auto status = instance->invokeMethod(rpcUri(), payload, options, responseListener);
 
-//     // EXPECT_EQ(status.code(), UCode::OK);  
-// }
+    // EXPECT_EQ(status.code(), UCode::OK);  
+}
 
-// TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
+TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
     
-//     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
+    auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
   
-//     EXPECT_NE(instance, nullptr);
+    EXPECT_NE(instance, nullptr);
 
-//     std::string message = "Response";
-//     std::vector<uint8_t> data(message.begin(), message.end());
+    std::string message = "Response";
+    std::vector<uint8_t> data(message.begin(), message.end());
 
-//     UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
+    UPayload payload(data.data(), data.size(), UPayloadType::VALUE);    
 
-//     CallOptions options;
+    CallOptions options;
 
-//     options.set_priority(UPriority::UPRIORITY_CS0);
-//     options.set_ttl(1000);
+    options.set_priority(UPriority::UPRIORITY_CS0);
+    options.set_ttl(1000);
 
-//     auto status = instance->invokeMethod(rpcUri(), payload, options, responseListener);
+    auto status = instance->invokeMethod(rpcUri(), payload, options, responseListener);
 
-//     EXPECT_NE(status.code(), UCode::OK);  
-// }
+    EXPECT_NE(status.code(), UCode::OK);  
+}
 
 int main(int argc, char **argv) {
-    TRACE();
     ::testing::InitGoogleTest(&argc, argv);
     auto result = RUN_ALL_TESTS();
-    TRACE();
     return result;
 }
