@@ -75,4 +75,8 @@ std::shared_ptr<UpZenohClient> UpZenohClient::instance(const uprotocol::v1::UAut
     }
 }
 
+void UpZenohClient::purge() noexcept
+{
+    w_handle.reset();
+}
 

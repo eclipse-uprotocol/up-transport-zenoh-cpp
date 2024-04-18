@@ -52,6 +52,8 @@ namespace uprotocol::client {
             * @return instance of UpZenohClient
             */
             static std::shared_ptr<UpZenohClient> instance(const uprotocol::v1::UAuthority& src_authority) noexcept;
+
+            static void purge() noexcept;
     };
     
 }
