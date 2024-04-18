@@ -183,7 +183,7 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 
 UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
-    auto uuidStr = UuidSerializer::serializeToString(message.attributes().id());
+    auto uuidStr = UuidSerializer::serializeToString(message.attributes().reqid());
     if (queryMap_.find(uuidStr) == queryMap_.end()) {
         spdlog::error("failed to find UUID = {}", uuidStr);
         return UCode::UNAVAILABLE;
