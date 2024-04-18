@@ -39,6 +39,7 @@ endif()
 
 find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(Boost REQUIRED COMPONNENTS interprocess)
 
 add_executable(testRpcClient
 	src/testRpcClient.cpp)
@@ -46,6 +47,7 @@ add_executable(testRpcClient
  target_include_directories(testRpcClient
 	PUBLIC
 		$ENV{CMAKE_ZENOH_INCLUDE_PATH}
+		${Boost_INCLUDE_DIR}
 )
   
 target_link_libraries(testRpcClient 
@@ -90,6 +92,7 @@ target_link_libraries(testLatencyPing
 		GTest::gmock    
 		pthread
   		${ZENOH_LIBRARY}
+		${Boost_LIBRARIES}
 )
 
 add_test("t-18-testLatencyPing" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPing)
@@ -118,6 +121,7 @@ add_executable(testPubSub
  target_include_directories(testPubSub
 	PUBLIC
 		$ENV{CMAKE_ZENOH_INCLUDE_PATH}
+		${Boost_INCLUDE_DIR}
 )
   
 target_link_libraries(testPubSub 
@@ -130,3 +134,4 @@ target_link_libraries(testPubSub
 		pthread
   		${ZENOH_LIBRARY}
 )
+
