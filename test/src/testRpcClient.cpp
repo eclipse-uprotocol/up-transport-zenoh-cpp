@@ -30,7 +30,6 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <gtest/gtest.h>
-#include <sstream>
 
 
 using namespace uprotocol::utransport;
@@ -73,7 +72,6 @@ UUri const& rpcNoServerUri() {
 
 } // anonymous namespace
 
-static size_t cntr;
 
 class RpcServer : public UListener {
 
@@ -83,12 +81,9 @@ class RpcServer : public UListener {
             {
                 using namespace std;
                 cout << "onReceive called" << endl;
-                // auto ptr = message.payload().data();
-                // for (size_t i = 0; i < message.payload().size(); i++) cout << ptr[i] << ' ';
-                // cout << endl;
+                cout << "Request attributes #######################################" << endl;
+                cout << message.attributes().DebugString() << endl;
             }
-            // cout << "Request attributes #######################################" << endl;
-            // cout << message.attributes().DebugString() << endl;
             UStatus status;
 
             status.set_code(UCode::OK);
@@ -101,14 +96,12 @@ class RpcServer : public UListener {
             builder.setReqid(message.attributes().id());
 
             UAttributes responseAttributes = builder.build();
-            // cout << "Response attributes #######################################" << endl;
-            // cout << responseAttributes.DebugString() << endl;
+            {
+                cout << "Response attributes #######################################" << endl;
+                cout << responseAttributes.DebugString() << endl;
+            }
 
-            // UPayload outPayload = message.payload();
-            using namespace std;
-            stringstream ss;
-            ss << "Reply " << cntr++;
-            UPayload outPayload((const uint8_t*)ss.str().data(), ss.str().size(), UPayloadType::VALUE);
+            UPayload outPayload = message.payload();
 
             UMessage respMessage(outPayload, responseAttributes);
             if (nullptr != message.payload().data()) {
@@ -121,6 +114,7 @@ class RpcServer : public UListener {
             } else {
                 return UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
             }
+            
             return status;
         }
 };
