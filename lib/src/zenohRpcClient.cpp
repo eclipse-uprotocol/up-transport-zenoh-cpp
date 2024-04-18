@@ -36,9 +36,7 @@
 #include <up-core-api/uattributes.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
-#include <up-client-zenoh-cpp/trace_hook.hpp>
 
-IMPL_TRACEHOOK()
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
@@ -46,14 +44,8 @@ using namespace uprotocol::uri;
 using namespace uprotocol::utils;
 using namespace uprotocol::rpc;
 
-static std::ostream& operator<<(std::ostream& os, const z_owned_query_t& arg)
-{
-    os << "z_owned_query_t(" << arg._0 << ')';
-    return os;
-}
 
 ZenohRpcClient::ZenohRpcClient() noexcept {
-    TRACE();
     /* by default initialized to empty strings */
     ZenohSessionManagerConfig config;
 
@@ -81,7 +73,6 @@ ZenohRpcClient::ZenohRpcClient() noexcept {
 }
 
 ZenohRpcClient::~ZenohRpcClient() noexcept {
-    TRACE();
     if (UCode::OK != ZenohSessionManager::instance().term()) {
         spdlog::error("zenohSessionManager::instance().term() failed");
         return;
@@ -93,7 +84,6 @@ ZenohRpcClient::~ZenohRpcClient() noexcept {
 std::future<RpcResponse> ZenohRpcClient::invokeMethod(const UUri &topic, 
                                                       const UPayload &payload, 
                                                       const CallOptions &options) noexcept {
-    TRACE();
     std::future<RpcResponse> future;
 
     if (false == isRPCMethod(topic.resource())) {
@@ -116,7 +106,6 @@ UStatus ZenohRpcClient::invokeMethod(const UUri &topic,
                                      const UPayload &payload,
                                      const CallOptions &options,
                                      const UListener &listener) noexcept {
-    TRACE();
     UStatus status;
 
     status.set_code(UCode::INTERNAL);
@@ -146,7 +135,6 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
                                                               const UPayload &payload,
                                                               const CallOptions &options,
                                                               const UListener *listener) noexcept {
-    TRACE();
     std::future<RpcResponse> future;
     z_owned_bytes_map_t map = z_bytes_map_new();
     z_get_options_t opts = z_get_options_default();
@@ -174,11 +162,6 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
                         .setRpcRequest("handler", 1)
                         .build())
                 .build();
-
-    // {
-    //     using namespace std;
-    //     cout << "in invokeMethodInternal " << client_uri.DebugString() << endl;
-    // }
 
     // auto builder = UAttributesBuilder::request(topic, topic, options.priority(), options.ttl());
     auto builder = UAttributesBuilder::request(client_uri, topic, options.priority(), options.ttl());
@@ -219,17 +202,13 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
         opts.value.payload.start = nullptr;
     }
     
-    cout << "about to call z_get with " << key << " in " << getpid() << endl;
-    auto ke = z_keyexpr(key.c_str());
-    cout << "key=" << key << " keyexpr=" << get_type(ke) << endl;
-    TRACE();
-    // if (0 != z_get(z_loan(session_), z_keyexpr(key.c_str()), "", z_move(channel->send), &opts)) {
-    if (0 != z_get(z_loan(session_), ke, "", z_move(channel->send), &opts)) {
+
+    if (0 != z_get(z_loan(session_), z_keyexpr(key.c_str()), "", z_move(channel->send), &opts)) {
         spdlog::error("z_get failure");
         return future;
     }
     
-    future = threadPool_->submit([channel, listener] { TRACE(); return handleReply(std::move(channel), listener); });
+    future = threadPool_->submit([channel, listener] { return handleReply(std::move(channel), listener); });
 
     if (false == future.valid()) {
         spdlog::error("invalid future received");
@@ -240,33 +219,18 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
 
     z_drop(&map);
 
-    TRACE();
     return future;
 }
 
 RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_channel_t> &channel,
                                         const UListener *listener) noexcept {
-    using namespace std;
-    TRACE();
     z_owned_reply_t reply = z_reply_null();
     RpcResponse rpcResponse;
 
     rpcResponse.status.set_code(UCode::INTERNAL);
 
-    {
-        using namespace std;
-        cout << "about to call z_call in " << getpid() << endl;
-    }
-    
-    cout << "before" << endl;
-    auto before = std::chrono::steady_clock::now();
-    TRACE();
     while (z_call(channel->recv, &reply), z_check(reply)) {
-        TRACE();
-        auto after = std::chrono::steady_clock::now();
-        cout << "z_call delay=" << std::chrono::duration_cast<std::chrono::microseconds>(after - before).count() << endl;
         if (!z_reply_is_ok(&reply)) {
-            cout << "z_reply_is_ok is false" << endl;
             z_value_t error = z_reply_err(&reply);
             if (memcmp("Timeout", error.payload.start, error.payload.len) == 0) {
                 spdlog::error("Timeout received while waiting for response");
@@ -277,20 +241,15 @@ RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_chan
 
             break;
         }
-        cout << "z_reply_is_ok is true" << endl;
 
-        TRACE();
         z_sample_t sample = z_reply_ok(&reply);
-        TRACE();
 
         if (!z_check(sample.attachment)) {
             spdlog::error("No attachment found in the reply");
             break;
         }       
 
-        TRACE();
         z_bytes_t serializedAttributes = z_attachment_get(sample.attachment, z_bytes_new("attributes"));
-        TRACE();
         
         if ((0 == serializedAttributes.len) || (nullptr == serializedAttributes.start)) {
             spdlog::error("Serialized attributes not found in the attachment");
@@ -309,7 +268,6 @@ RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_chan
         rpcResponse.message.setAttributes(attributes);
         rpcResponse.status.set_code(UCode::OK);
 
-        TRACE();
         z_drop(z_move(reply));
     }
 
