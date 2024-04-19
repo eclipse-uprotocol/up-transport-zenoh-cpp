@@ -25,7 +25,6 @@
 #ifndef _UP_ZENOH_CLIENT_H_
 #define _UP_ZENOH_CLIENT_H_
 
-#include <optional>
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
 #include <up-core-api/uri.pb.h>
