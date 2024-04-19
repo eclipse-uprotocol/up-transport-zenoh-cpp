@@ -36,15 +36,12 @@
 #include <up-core-api/uattributes.pb.h>
 #include <spdlog/spdlog.h>
 #include <zenoh.h>
-#include <unistd.h>
-
 
 using namespace uprotocol::utransport;
 using namespace uprotocol::uuid;
 using namespace uprotocol::uri;
 using namespace uprotocol::utils;
 using namespace uprotocol::rpc;
-
 
 ZenohRpcClient::ZenohRpcClient() noexcept {
     /* by default initialized to empty strings */
@@ -230,7 +227,7 @@ RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_chan
     rpcResponse.status.set_code(UCode::INTERNAL);
 
     while (z_call(channel->recv, &reply), z_check(reply)) {
-        
+
         if (!z_reply_is_ok(&reply)) {
             z_value_t error = z_reply_err(&reply);
             if (memcmp("Timeout", error.payload.start, error.payload.len) == 0) {
