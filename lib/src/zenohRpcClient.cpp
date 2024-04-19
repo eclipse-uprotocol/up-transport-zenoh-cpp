@@ -198,7 +198,6 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
         opts.value.payload.start = nullptr;
     }
     
-
     if (0 != z_get(z_loan(session_), z_keyexpr(key.c_str()), "", z_move(channel->send), &opts)) {
         spdlog::error("z_get failure");
         return future;

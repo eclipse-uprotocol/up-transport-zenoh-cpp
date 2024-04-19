@@ -32,7 +32,6 @@
 #include <gtest/gtest.h>
 #include <string_view>
 
-
 using namespace uprotocol::utransport;
 using namespace uprotocol::v1;
 using namespace uprotocol::uri;
@@ -73,18 +72,12 @@ UUri const& rpcNoServerUri() {
 
 } // anonymous namespace
 
-
 class RpcServer : public UListener {
 
      public:
 
         UStatus onReceive(UMessage &message) const override {
-            // {
-            //     using namespace std;
-            //     cout << "onReceive called" << endl;
-            //     cout << "Request attributes #######################################" << endl;
-            //     cout << message.attributes().DebugString() << endl;
-            // }
+
             UStatus status;
 
             status.set_code(UCode::OK);
@@ -93,13 +86,8 @@ class RpcServer : public UListener {
                 message.attributes().sink(),
                 message.attributes().source(),
                 UPriority::UPRIORITY_CS0, message.attributes().id());
-            // builder.setReqid(message.attributes().id());
 
             UAttributes responseAttributes = builder.build();
-            // {
-            //     cout << "Response attributes #######################################" << endl;
-            //     cout << responseAttributes.DebugString() << endl;
-            // }
 
             UPayload outPayload = message.payload();
 
@@ -124,6 +112,7 @@ class ResponseListener : public UListener {
      public:
 
         UStatus onReceive(UMessage &message) const override {
+
             (void) message;
 
             UStatus status;
@@ -156,6 +145,7 @@ RpcServer TestRPcClient::rpcListener;
 ResponseListener TestRPcClient::responseListener;
 
 TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
+
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
     
     EXPECT_NE(instance, nullptr);
@@ -176,6 +166,7 @@ TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
 }
 
 TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
+
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
     EXPECT_NE(instance, nullptr);
@@ -192,6 +183,7 @@ TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
 }
 
 TEST_F(TestRPcClient, invokeMethodNoResponse) {
+
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
     EXPECT_NE(instance, nullptr);
@@ -216,6 +208,7 @@ TEST_F(TestRPcClient, invokeMethodNoResponse) {
 }
 
 TEST_F(TestRPcClient, maxSimultaneousRequests) {
+
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
     EXPECT_NE(instance, nullptr);
@@ -259,6 +252,7 @@ TEST_F(TestRPcClient, maxSimultaneousRequests) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
+
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
     EXPECT_NE(instance, nullptr);
@@ -290,6 +284,7 @@ TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithResponse) {
+
     std::string message = "Response";
     std::vector<uint8_t> data(message.begin(), message.end());
 
@@ -330,6 +325,7 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithResponseForked) {
+
     using namespace std;
 
     std::string message = "Response";
@@ -381,6 +377,7 @@ TEST_F(TestRPcClient, invokeMethodWithResponseForked) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
+
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
     
     EXPECT_NE(instance, nullptr);
@@ -401,6 +398,7 @@ TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
+    
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
   
     EXPECT_NE(instance, nullptr);
