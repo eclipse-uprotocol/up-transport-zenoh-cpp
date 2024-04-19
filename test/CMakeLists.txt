@@ -39,7 +39,7 @@ endif()
 
 find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(Boost REQUIRED COMPONNENTS interprocess)
+find_package(Boost REQUIRED)
 
 add_executable(testRpcClient
 	src/testRpcClient.cpp)
@@ -113,7 +113,7 @@ target_link_libraries(testLatencyPong
   		${ZENOH_LIBRARY}
 )
 
-add_test("t-18-testPubSub" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testPubSub)
+add_test("t-18-testLatencyPong" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPong)
 
 add_executable(testPubSub
 	src/testPubSub.cpp)
@@ -135,3 +135,4 @@ target_link_libraries(testPubSub
   		${ZENOH_LIBRARY}
 )
 
+add_test("t-18-testPubSub" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testPubSub)

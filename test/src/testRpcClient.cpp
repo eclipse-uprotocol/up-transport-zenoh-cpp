@@ -155,61 +155,7 @@ class TestRPcClient : public ::testing::Test {
 RpcServer TestRPcClient::rpcListener;
 ResponseListener TestRPcClient::responseListener;
 
-TEST_F(TestRPcClient, invokeMethodWithResponseForkedFirst) {
-    using namespace std;
-    sleep(2);
-    UpZenohClient::purge();
-
-    std::string message = "Response";
-    std::vector<uint8_t> data(message.begin(), message.end());
-
-    auto child_pid = fork();
-    if (child_pid == 0) {
-        auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_server").build());
-        if (instance == nullptr) {
-            cerr << "server instance allocation failed" << endl;
-            exit(-1);
-        }
-        auto status = instance->registerListener(rpcUri(), TestRPcClient::rpcListener);
-        if (status.code() != UCode::OK) {
-            cerr << "server instance registerListener failed" << endl;
-            exit(-1);
-        }
-        sleep(100000);
-    }
-    else {
-        sleep(3);
-        cout << "after fork parent=" << getpid() << " sees child=" << child_pid << dec << endl;
-        auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
-        EXPECT_NE(instance, nullptr);
-
-        CallOptions options;
-
-        options.set_priority(UPriority::UPRIORITY_CS4);
-        options.set_ttl(1000);
-
-        UPayload payload(data.data(), data.size(), UPayloadType::VALUE);  
-        std::future<RpcResponse> future = instance->invokeMethod(rpcUri(), payload, options);
-
-        EXPECT_EQ(future.valid(), true);
-
-        auto response = future.get();
-
-        // EXPECT_EQ(response.status.code(), UCode::OK);
-        EXPECT_NE(response.message.payload().data(), nullptr);
-        EXPECT_NE(response.message.payload().size(), 0);
-        {
-            using namespace std;
-            cout << "response size = " << response.message.payload().size() << endl;
-            cout << "response = " << string_view((const char*)response.message.payload().data(), response.message.payload().size()) << endl;
-        }
-
-        kill(child_pid, SIGKILL);
-    }
-}
-
 TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
-    UpZenohClient::purge();
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
     
     EXPECT_NE(instance, nullptr);
@@ -230,7 +176,6 @@ TEST_F(TestRPcClient, InvokeMethodWithoutServer) {
 }
 
 TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
-    UpZenohClient::purge();
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
     EXPECT_NE(instance, nullptr);
@@ -247,7 +192,6 @@ TEST_F(TestRPcClient, InvokeMethodWithLowPriority) {
 }
 
 TEST_F(TestRPcClient, invokeMethodNoResponse) {
-    UpZenohClient::purge();
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
     EXPECT_NE(instance, nullptr);
@@ -272,7 +216,6 @@ TEST_F(TestRPcClient, invokeMethodNoResponse) {
 }
 
 TEST_F(TestRPcClient, maxSimultaneousRequests) {
-    UpZenohClient::purge();
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
     EXPECT_NE(instance, nullptr);
@@ -316,7 +259,6 @@ TEST_F(TestRPcClient, maxSimultaneousRequests) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
-    UpZenohClient::purge();
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
 
     EXPECT_NE(instance, nullptr);
@@ -348,7 +290,6 @@ TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithResponse) {
-    UpZenohClient::purge();
     std::string message = "Response";
     std::vector<uint8_t> data(message.begin(), message.end());
 
@@ -390,8 +331,6 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
 
 TEST_F(TestRPcClient, invokeMethodWithResponseForked) {
     using namespace std;
-    sleep(2);
-    UpZenohClient::purge();
 
     std::string message = "Response";
     std::vector<uint8_t> data(message.begin(), message.end());
@@ -411,7 +350,7 @@ TEST_F(TestRPcClient, invokeMethodWithResponseForked) {
         sleep(100000);
     }
     else {
-        sleep(3);
+        sleep(1);
         cout << "after fork parent=" << getpid() << " sees child=" << child_pid << dec << endl;
         auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
         EXPECT_NE(instance, nullptr);
@@ -442,7 +381,6 @@ TEST_F(TestRPcClient, invokeMethodWithResponseForked) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
-    UpZenohClient::purge();
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
     
     EXPECT_NE(instance, nullptr);
@@ -463,7 +401,6 @@ TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
 }
 
 TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
-    UpZenohClient::purge();
     auto instance = UpZenohClient::instance(BuildUAuthority().setName("rpc_client").build());
   
     EXPECT_NE(instance, nullptr);

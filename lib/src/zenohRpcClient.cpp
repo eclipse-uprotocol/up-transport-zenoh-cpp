@@ -155,7 +155,7 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
     auto client_uri = BuildUUri()
                 .setAutority(clientAuthority)
                 .setEntity(BuildUEntity()
-                        .setName("test_rpc.client")
+                        .setName("rpc.client")
                         .setMajorVersion(1)
                         .setId(1)
                         .build())
