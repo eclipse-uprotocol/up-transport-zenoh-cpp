@@ -48,9 +48,8 @@ std::shared_ptr<UpZenohClient> UpZenohClient::instance(
         if (!src_authority || !src_entity) return nullptr;
 
         handle = std::make_shared<UpZenohClient>(ConstructToken());
-        auto rpc_handle = static_pointer_cast<ZenohRpcClient>(handle);
-        rpc_handle->clientAuthority = *src_authority;
-        rpc_handle->clientEntity = *src_entity;
+        handle->clientAuthority = *src_authority;
+        handle->clientEntity = *src_entity;
         if (handle->rpcSuccess_.code() == UCode::OK && handle->uSuccess_.code() == UCode::OK) {
             w_handle = handle;
             return handle;
