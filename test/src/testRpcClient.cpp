@@ -112,10 +112,10 @@ class RpcServer : public UListener {
                 std::string cmd(message.payload().data(), message.payload().data() + message.payload().size());
 
                 if ("No Response" != cmd) {
-                    return  UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
+                    return  UpZenohClient::instance()->send(respMessage);
                 }
             } else {
-                return UpZenohClient::instance(message.attributes().source().authority())->send(respMessage);
+                return UpZenohClient::instance()->send(respMessage);
             }
 
             return status;
@@ -279,7 +279,7 @@ TEST_F(TestRPcClient, invokeMethodWithNullResponse) {
     
     auto response = future.get();
     
-    // EXPECT_EQ(response.status.code(), UCode::OK);
+    EXPECT_EQ(response.status.code(), UCode::OK);
 
     EXPECT_EQ(response.message.payload().size(), 0);
 
@@ -312,7 +312,7 @@ TEST_F(TestRPcClient, invokeMethodWithResponse) {
     
     auto response = future.get();
     
-    // EXPECT_EQ(response.status.code(), UCode::OK);
+    EXPECT_EQ(response.status.code(), UCode::OK);
 
     EXPECT_NE(response.message.payload().data(), nullptr);
     EXPECT_NE(response.message.payload().size(), 0);
@@ -365,7 +365,7 @@ TEST_F(TestRPcClient, invokeMethodWithResponseForked) {
 
         auto response = future.get();
 
-        // EXPECT_EQ(response.status.code(), UCode::OK);
+        EXPECT_EQ(response.status.code(), UCode::OK);
         EXPECT_NE(response.message.payload().data(), nullptr);
         EXPECT_NE(response.message.payload().size(), 0);
         {
@@ -394,7 +394,7 @@ TEST_F(TestRPcClient, invokeMethodWithCbResponse) {
 
     auto status = instance->invokeMethod(rpcUri(), payload, options, responseListener);
 
-    // EXPECT_EQ(status.code(), UCode::OK);  
+    EXPECT_EQ(status.code(), UCode::OK);  
 }
 
 TEST_F(TestRPcClient, invokeMethodWithCbResponseFailure) {
