@@ -48,18 +48,21 @@ using namespace uprotocol::client;
 
 // capture and queue onReceive() for verification by the sender
 
-// The singleton reference shared by all tests has to be cleared on exit, or it causes a crash
-static std::shared_ptr<UpZenohClient> common_instance = nullptr;
-
 std::shared_ptr<UpZenohClient> getInstance()
 {
-    if (!common_instance) {
-        common_instance = UpZenohClient::instance(
-            BuildUAuthority().setName("device1").build(),
-            BuildUEntity().setName("rpc.client").setMajorVersion(1).setId(1).build());
-        EXPECT_NE(common_instance, nullptr);
-    }
-    return common_instance;
+    auto ptr =  UpZenohClient::instance(
+        BuildUAuthority().setName("device1").build(),
+        BuildUEntity().setName("gtest").setMajorVersion(1).setId(1).build());
+    EXPECT_NE(ptr, nullptr);
+    return ptr;
+}
+
+std::shared_ptr<UpZenohClient> getChildInstance()
+{
+    auto ptr =  UpZenohClient::instance(
+        BuildUAuthority().setName("device1").build(),
+        BuildUEntity().setName("gtest_child").setMajorVersion(1).setId(1).build());
+    return ptr;
 }
 
 template <bool INTERPROC> 
@@ -196,7 +199,7 @@ TEST_F(TestPubSub, interprocess) {
     MessageCapture<true> callback;
     auto child_pid = fork();
     if (child_pid == 0) {
-        auto transport = UpZenohClient::instance();
+        auto transport = getChildInstance();
         if (transport == nullptr) exit(-1);
         UStatus listen_status = transport->registerListener(uuri, callback);
         if (UCode::OK != listen_status.code()) {
@@ -275,6 +278,5 @@ TEST_F(TestPubSub, interthread) {
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     auto results = RUN_ALL_TESTS();
-    common_instance = nullptr;
     return results;
 }
