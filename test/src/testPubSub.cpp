@@ -277,6 +277,5 @@ TEST_F(TestPubSub, interthread) {
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    auto results = RUN_ALL_TESTS();
-    return results;
+    return RUN_ALL_TESTS();
 }
