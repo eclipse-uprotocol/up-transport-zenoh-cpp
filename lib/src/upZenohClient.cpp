@@ -45,13 +45,10 @@ std::shared_ptr<UpZenohClient> UpZenohClient::instance(
             return handle;
         }
 
+        if (!src_authority || !src_entity) return nullptr;
+
         handle = std::make_shared<UpZenohClient>(ConstructToken());
         auto rpc_handle = static_pointer_cast<ZenohRpcClient>(handle);
-        //  providing rpc client info after instance constructed is an error
-        if (src_authority && src_entity && w_handle.use_count() > 0) return nullptr;
-        // if constructing, not providing both authority and entity is an error
-        if (!src_authority) return nullptr;
-        if (!src_entity) return nullptr;
         rpc_handle->clientAuthority = *src_authority;
         rpc_handle->clientEntity = *src_entity;
         if (handle->rpcSuccess_.code() == UCode::OK && handle->uSuccess_.code() == UCode::OK) {

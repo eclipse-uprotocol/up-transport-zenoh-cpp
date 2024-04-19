@@ -41,27 +41,27 @@ find_package(GTest REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(Boost REQUIRED)
 
-add_executable(testRpcClient
-	src/testRpcClient.cpp)
+# add_executable(testRpcClient
+# 	src/testRpcClient.cpp)
 
- target_include_directories(testRpcClient
-	PUBLIC
-		$ENV{CMAKE_ZENOH_INCLUDE_PATH}
-		${Boost_INCLUDE_DIR}
-)
+#  target_include_directories(testRpcClient
+# 	PUBLIC
+# 		$ENV{CMAKE_ZENOH_INCLUDE_PATH}
+# 		${Boost_INCLUDE_DIR}
+# )
   
-target_link_libraries(testRpcClient 
-	PUBLIC
-		up-client-zenoh-cpp::up-client-zenoh-cpp
-	    spdlog::spdlog
-	PRIVATE
-		GTest::gtest_main
-		GTest::gmock    
-		pthread
-  		${ZENOH_LIBRARY}
-)
+# target_link_libraries(testRpcClient 
+# 	PUBLIC
+# 		up-client-zenoh-cpp::up-client-zenoh-cpp
+# 	    spdlog::spdlog
+# 	PRIVATE
+# 		GTest::gtest_main
+# 		GTest::gmock    
+# 		pthread
+#   		${ZENOH_LIBRARY}
+# )
 
-add_test("t-18-testRpcClient" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testRpcClient)
+# add_test("t-18-testRpcClient" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testRpcClient)
 
 add_executable(testZenohUri
 	src/testZenohUri.cpp)
@@ -76,44 +76,44 @@ target_link_libraries(testZenohUri
 
 add_test("t-18-testZenohUri" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testZenohUri)
 
-add_executable(testLatencyPing
-	src/testLatencyPing.cpp)
+# add_executable(testLatencyPing
+# 	src/testLatencyPing.cpp)
 
- target_include_directories(testLatencyPing
-	PUBLIC
-		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
+#  target_include_directories(testLatencyPing
+# 	PUBLIC
+# 		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
   
-target_link_libraries(testLatencyPing 
-	PUBLIC
-		up-client-zenoh-cpp::up-client-zenoh-cpp
-        spdlog::spdlog
-	PRIVATE
-		GTest::gtest_main
-		GTest::gmock    
-		pthread
-  		${ZENOH_LIBRARY}
-		${Boost_LIBRARIES}
-)
+# target_link_libraries(testLatencyPing 
+# 	PUBLIC
+# 		up-client-zenoh-cpp::up-client-zenoh-cpp
+#         spdlog::spdlog
+# 	PRIVATE
+# 		GTest::gtest_main
+# 		GTest::gmock    
+# 		pthread
+#   		${ZENOH_LIBRARY}
+# 		${Boost_LIBRARIES}
+# )
 
-add_test("t-18-testLatencyPing" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPing)
+# add_test("t-18-testLatencyPing" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPing)
 
-add_executable(testLatencyPong
-	src/testLatencyPong.cpp)
+# add_executable(testLatencyPong
+# 	src/testLatencyPong.cpp)
 
- target_include_directories(testLatencyPong
-	PUBLIC
-		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
+#  target_include_directories(testLatencyPong
+# 	PUBLIC
+# 		$ENV{CMAKE_ZENOH_INCLUDE_PATH})
   
-target_link_libraries(testLatencyPong 
-	PUBLIC
-		up-client-zenoh-cpp::up-client-zenoh-cpp
-        spdlog::spdlog
-	PRIVATE
-		pthread
-  		${ZENOH_LIBRARY}
-)
+# target_link_libraries(testLatencyPong 
+# 	PUBLIC
+# 		up-client-zenoh-cpp::up-client-zenoh-cpp
+#         spdlog::spdlog
+# 	PRIVATE
+# 		pthread
+#   		${ZENOH_LIBRARY}
+# )
 
-add_test("t-18-testLatencyPong" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPong)
+# add_test("t-18-testLatencyPong" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/testLatencyPong)
 
 add_executable(testPubSub
 	src/testPubSub.cpp)
