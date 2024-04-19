@@ -30,8 +30,8 @@ using namespace uprotocol::client;
 
 
 std::shared_ptr<UpZenohClient> UpZenohClient::instance(
-    std::optional<uprotocol::v1::UAuthority> src_authority,
-    std::optional<uprotocol::v1::UEntity> src_entity
+    std::optional<uprotocol::v1::UAuthority> clientAuthority,
+    std::optional<uprotocol::v1::UEntity> clientEntity
     ) noexcept {
     static std::weak_ptr<UpZenohClient> w_handle;
 
@@ -45,11 +45,9 @@ std::shared_ptr<UpZenohClient> UpZenohClient::instance(
             return handle;
         }
 
-        if (!src_authority || !src_entity) return nullptr;
+        if (!clientAuthority || !clientEntity) return nullptr;
 
-        handle = std::make_shared<UpZenohClient>(ConstructToken());
-        handle->clientAuthority = *src_authority;
-        handle->clientEntity = *src_entity;
+        handle = std::make_shared<UpZenohClient>(ConstructToken(), *clientAuthority, *clientEntity);
         if (handle->rpcSuccess_.code() == UCode::OK && handle->uSuccess_.code() == UCode::OK) {
             w_handle = handle;
             return handle;

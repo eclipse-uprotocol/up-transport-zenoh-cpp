@@ -43,7 +43,9 @@ using namespace uprotocol::uri;
 using namespace uprotocol::utils;
 using namespace uprotocol::rpc;
 
-ZenohRpcClient::ZenohRpcClient() noexcept {
+ZenohRpcClient::ZenohRpcClient(
+                const uprotocol::v1::UAuthority& clientAuthority,
+                const uprotocol::v1::UEntity& clientEntity) noexcept : clientAuthority(clientAuthority), clientEntity(clientEntity) {
     /* by default initialized to empty strings */
     ZenohSessionManagerConfig config;
 
