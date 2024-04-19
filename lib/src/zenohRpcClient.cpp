@@ -223,12 +223,14 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
 
 RpcResponse ZenohRpcClient::handleReply(const std::shared_ptr<z_owned_reply_channel_t> &channel,
                                         const UListener *listener) noexcept {
+
     z_owned_reply_t reply = z_reply_null();
     RpcResponse rpcResponse;
 
     rpcResponse.status.set_code(UCode::INTERNAL);
 
     while (z_call(channel->recv, &reply), z_check(reply)) {
+        
         if (!z_reply_is_ok(&reply)) {
             z_value_t error = z_reply_err(&reply);
             if (memcmp("Timeout", error.payload.start, error.payload.len) == 0) {
