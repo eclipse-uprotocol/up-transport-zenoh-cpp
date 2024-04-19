@@ -48,6 +48,20 @@ using namespace uprotocol::client;
 
 // capture and queue onReceive() for verification by the sender
 
+// The singleton reference shared by all tests has to be cleared on exit, or it causes a crash
+static std::shared_ptr<UpZenohClient> common_instance = nullptr;
+
+std::shared_ptr<UpZenohClient> getInstance()
+{
+    if (!common_instance) {
+        common_instance = UpZenohClient::instance(
+            BuildUAuthority().setName("device1").build(),
+            BuildUEntity().setName("rpc.client").setMajorVersion(1).setId(1).build());
+        EXPECT_NE(common_instance, nullptr);
+    }
+    return common_instance;
+}
+
 template <bool INTERPROC> 
 class MessageCapture : public UListener {
 public:
@@ -194,8 +208,7 @@ TEST_F(TestPubSub, interprocess) {
     }
     else {
         sleep(1);
-        auto transport = UpZenohClient::instance();
-        EXPECT_NE(transport, nullptr);
+        auto transport = getInstance();
 
         auto builder = UAttributesBuilder::publish(uuri, UPriority::UPRIORITY_CS0);
         UAttributes attributes = builder.build();
@@ -221,8 +234,7 @@ TEST_F(TestPubSub, interprocess) {
 
 TEST_F(TestPubSub, interthread) {
     using namespace std::chrono;
-    auto transport = UpZenohClient::instance();
-    EXPECT_NE(transport, nullptr);
+    auto transport = getInstance();
 
     auto uuri = BuildUUri()
                       .setAutority(BuildUAuthority().build())
@@ -262,5 +274,7 @@ TEST_F(TestPubSub, interthread) {
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    auto results = RUN_ALL_TESTS();
+    common_instance = nullptr;
+    return results;
 }

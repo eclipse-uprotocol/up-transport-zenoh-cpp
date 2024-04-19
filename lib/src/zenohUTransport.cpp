@@ -183,7 +183,12 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 
 UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
-    auto uuidStr = UuidSerializer::serializeToString(message.attributes().reqid());
+    auto uuidStr = UuidSerializer::serializeToString(message.attributes().id());
+    // the uuidStr is a key for an unnecessary assoc array to get query response key here
+    // from the incoming query set in QueryHandler.
+    // This nothing to do with uProtocol attributes except for the uniqueness of the key.
+    // the incoming id fields is unique.
+    // This will be replaced with a non-associative way to pass the info in the future rewrite.
     if (queryMap_.find(uuidStr) == queryMap_.end()) {
         spdlog::error("failed to find UUID = {}", uuidStr);
         return UCode::UNAVAILABLE;
@@ -457,7 +462,11 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
     auto listener = &get<2>(*tuplePtr);
 
     auto uuidStr = UuidSerializer::serializeToString(attributes.id());
-
+    // the uuidStr is a key for an unnecessary assoc array to get query response key from here
+    // to the outgoing query reply in sendQueryable().
+    // This has nothing to do with uProtocol attributes except for the uniqueness of the key.
+    // the incoming id fields is unique.
+    // This will be replaced with a non-associative way to pass the info in the future rewrite.
     instance->queryMap_[uuidStr] = z_query_clone(query);
 
     if (UMessageType::UMESSAGE_TYPE_REQUEST != attributes.type()) {

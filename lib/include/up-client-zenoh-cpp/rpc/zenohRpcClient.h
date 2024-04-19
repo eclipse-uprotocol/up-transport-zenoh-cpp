@@ -92,6 +92,7 @@ namespace uprotocol::rpc {
             }
 
             uprotocol::v1::UAuthority clientAuthority;
+            uprotocol::v1::UEntity clientEntity;
             
         protected:
             /* Initialization success/failure status */

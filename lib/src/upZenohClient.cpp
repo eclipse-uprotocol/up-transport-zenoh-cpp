@@ -29,7 +29,10 @@ using namespace uprotocol::v1;
 using namespace uprotocol::client;
 
 
-std::shared_ptr<UpZenohClient> UpZenohClient::instance(std::optional<uprotocol::v1::UAuthority> src_authority) noexcept {
+std::shared_ptr<UpZenohClient> UpZenohClient::instance(
+    std::optional<uprotocol::v1::UAuthority> src_authority,
+    std::optional<uprotocol::v1::UEntity> src_entity
+    ) noexcept {
     static std::weak_ptr<UpZenohClient> w_handle;
 
     if (auto handle = w_handle.lock()) {
@@ -44,9 +47,13 @@ std::shared_ptr<UpZenohClient> UpZenohClient::instance(std::optional<uprotocol::
 
         handle = std::make_shared<UpZenohClient>(ConstructToken());
         auto rpc_handle = static_pointer_cast<ZenohRpcClient>(handle);
-        if (src_authority) {
-            rpc_handle->clientAuthority = *src_authority;
-        }
+        //  providing rpc client info after instance constructed is an error
+        if (src_authority && src_entity && w_handle.use_count() > 0) return nullptr;
+        // if constructing, not providing both authority and entity is an error
+        if (!src_authority) return nullptr;
+        if (!src_entity) return nullptr;
+        rpc_handle->clientAuthority = *src_authority;
+        rpc_handle->clientEntity = *src_entity;
         if (handle->rpcSuccess_.code() == UCode::OK && handle->uSuccess_.code() == UCode::OK) {
             w_handle = handle;
             return handle;

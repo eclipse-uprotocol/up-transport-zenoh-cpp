@@ -46,7 +46,9 @@ namespace uprotocol::client {
             * The API provides an instance of the zenoh session
             * @return instance of UpZenohClient
             */
-            static std::shared_ptr<UpZenohClient> instance(std::optional<uprotocol::v1::UAuthority> = uprotocol::v1::UAuthority()) noexcept;
+            static std::shared_ptr<UpZenohClient> instance(
+                std::optional<uprotocol::v1::UAuthority> = uprotocol::v1::UAuthority(),
+                std::optional<uprotocol::v1::UEntity> = uprotocol::v1::UEntity()) noexcept;
     };
     
 }
