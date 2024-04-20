@@ -25,6 +25,7 @@
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
 #include <up-client-zenoh-cpp/session/zenohSessionManager.h>
 #include <up-cpp/uuid/serializer/UuidSerializer.h>
+#include <up-cpp/uri/serializer/MicroUriSerializer.h>
 #include <up-client-zenoh-cpp/uri/zenohUri.h>
 #include <up-cpp/uri/builder/BuildUResource.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
@@ -42,7 +43,9 @@ using namespace uprotocol::uri;
 using namespace uprotocol::utils;
 using namespace uprotocol::rpc;
 
-ZenohRpcClient::ZenohRpcClient() noexcept {
+ZenohRpcClient::ZenohRpcClient(
+                const uprotocol::v1::UAuthority& clientAuthority,
+                const uprotocol::v1::UEntity& clientEntity) noexcept : clientAuthority(clientAuthority), clientEntity(clientEntity) {
     /* by default initialized to empty strings */
     ZenohSessionManagerConfig config;
 
@@ -148,9 +151,16 @@ std::future<RpcResponse> ZenohRpcClient::invokeMethodInternal(const UUri &topic,
 
     auto uuid = Uuidv8Factory::create();
 
-    auto builder = UAttributesBuilder::request(topic /* TODO change to the entity */, topic, options.priority(), options.ttl());
+    auto client_uri = BuildUUri()
+                .setAutority(clientAuthority)
+                .setEntity(clientEntity)
+                .setResource(BuildUResource()
+                        .setRpcResponse()
+                        .build())
+                .build();
 
-    builder.setId(uuid);
+    auto builder = UAttributesBuilder::request(client_uri, topic, options.priority(), options.ttl());
+
     builder.setTTL(options.ttl());
 
     UAttributes attributes = builder.build();

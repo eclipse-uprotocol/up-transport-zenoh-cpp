@@ -90,7 +90,7 @@ ZenohUTransport::~ZenohUTransport() noexcept {
 }
 
 UStatus ZenohUTransport::send(const UMessage &message) noexcept {
-    
+
     UStatus status;
 
     if (UMessageType::UMESSAGE_TYPE_PUBLISH == message.attributes().type()) {
@@ -183,7 +183,8 @@ UCode ZenohUTransport::sendPublish(const UMessage &message) noexcept {
 
 UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
-    auto uuidStr = UuidSerializer::serializeToString(message.attributes().id());
+    auto uuidStr = UuidSerializer::serializeToString(message.attributes().reqid());
+
     if (queryMap_.find(uuidStr) == queryMap_.end()) {
         spdlog::error("failed to find UUID = {}", uuidStr);
         return UCode::UNAVAILABLE;
@@ -238,7 +239,7 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
 UStatus ZenohUTransport::registerListener(const UUri &uri,
                                           const UListener &listener) noexcept {
-   
+
     UStatus status;
     cbArgumentType* arg;
     std::shared_ptr<ListenerContainer> listenerContainer;
@@ -426,6 +427,7 @@ void ZenohUTransport::SubHandler(const z_sample_t* sample, void* arg) {
 }
 
 void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
+
     cbArgumentType *tuplePtr = static_cast<cbArgumentType*>(arg);
 
     z_attachment_t attachment = z_query_attachment(query);
@@ -518,7 +520,7 @@ void ZenohUTransport::OnSubscriberClose(void *arg) {
 }
 
 void ZenohUTransport::OnQueryClose(void *arg) {
-
+    
     if (nullptr == arg) {
         spdlog::error("arg is nullptr");
     } else {

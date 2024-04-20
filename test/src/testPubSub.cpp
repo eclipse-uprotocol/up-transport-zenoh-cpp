@@ -48,6 +48,23 @@ using namespace uprotocol::client;
 
 // capture and queue onReceive() for verification by the sender
 
+std::shared_ptr<UpZenohClient> getInstance()
+{
+    auto ptr =  UpZenohClient::instance(
+        BuildUAuthority().setName("device1").build(),
+        BuildUEntity().setName("gtest").setMajorVersion(1).setId(1).build());
+    EXPECT_NE(ptr, nullptr);
+    return ptr;
+}
+
+std::shared_ptr<UpZenohClient> getChildInstance()
+{
+    auto ptr =  UpZenohClient::instance(
+        BuildUAuthority().setName("device1").build(),
+        BuildUEntity().setName("gtest_child").setMajorVersion(1).setId(1).build());
+    return ptr;
+}
+
 template <bool INTERPROC> 
 class MessageCapture : public UListener {
 public:
@@ -182,7 +199,7 @@ TEST_F(TestPubSub, interprocess) {
     MessageCapture<true> callback;
     auto child_pid = fork();
     if (child_pid == 0) {
-        auto transport = UpZenohClient::instance();
+        auto transport = getChildInstance();
         if (transport == nullptr) exit(-1);
         UStatus listen_status = transport->registerListener(uuri, callback);
         if (UCode::OK != listen_status.code()) {
@@ -194,8 +211,7 @@ TEST_F(TestPubSub, interprocess) {
     }
     else {
         sleep(1);
-        auto transport = UpZenohClient::instance();
-        EXPECT_NE(transport, nullptr);
+        auto transport = getInstance();
 
         auto builder = UAttributesBuilder::publish(uuri, UPriority::UPRIORITY_CS0);
         UAttributes attributes = builder.build();
@@ -221,8 +237,7 @@ TEST_F(TestPubSub, interprocess) {
 
 TEST_F(TestPubSub, interthread) {
     using namespace std::chrono;
-    auto transport = UpZenohClient::instance();
-    EXPECT_NE(transport, nullptr);
+    auto transport = getInstance();
 
     auto uuri = BuildUUri()
                       .setAutority(BuildUAuthority().build())

@@ -27,6 +27,7 @@
 
 #include <up-client-zenoh-cpp/transport/zenohUTransport.h>
 #include <up-client-zenoh-cpp/rpc/zenohRpcClient.h>
+#include <up-core-api/uri.pb.h>
 
 namespace uprotocol::client {
 
@@ -36,7 +37,11 @@ namespace uprotocol::client {
             struct ConstructToken {};
 
         public:
-            UpZenohClient(const struct ConstructToken &) {}
+            UpZenohClient(
+                const struct ConstructToken &,
+                const uprotocol::v1::UAuthority & clientAuthority,
+                const uprotocol::v1::UEntity& clientEntity
+                ) : ZenohRpcClient(clientAuthority, clientEntity) {}
             UpZenohClient(const UpZenohClient&) = delete;
             UpZenohClient& operator=(const UpZenohClient&) = delete;
 
@@ -44,7 +49,17 @@ namespace uprotocol::client {
             * The API provides an instance of the zenoh session
             * @return instance of UpZenohClient
             */
-            static std::shared_ptr<UpZenohClient> instance(void) noexcept;
+            static std::shared_ptr<UpZenohClient> instance() noexcept {
+                return instance({}, {});
+            }
+
+            /**
+            * The API provides an instance of the zenoh session
+            * @return instance of UpZenohClient
+            */
+            static std::shared_ptr<UpZenohClient> instance(
+                std::optional<uprotocol::v1::UAuthority>,
+                std::optional<uprotocol::v1::UEntity>) noexcept;
     };
     
 }

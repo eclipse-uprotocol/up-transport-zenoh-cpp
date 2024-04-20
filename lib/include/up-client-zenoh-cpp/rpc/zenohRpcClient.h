@@ -25,7 +25,8 @@
 #ifndef _ZENOH_RPC_CLIENT_H_
 #define _ZENOH_RPC_CLIENT_H_
 
-#include <condition_variable>
+// #include <condition_variable>
+#include <optional>
 #include <up-cpp/rpc/RpcClient.h>
 #include <up-cpp/utils/ThreadPool.h>
 #include <up-cpp/transport/datamodel/UPayload.h>
@@ -90,15 +91,20 @@ namespace uprotocol::rpc {
             size_t getQueueSize() {
                 return queueSize_;
             }
-
+            
         protected:
             /* Initialization success/failure status */
             uprotocol::v1::UStatus rpcSuccess_;
 
-            ZenohRpcClient() noexcept;
+            ZenohRpcClient(
+                const uprotocol::v1::UAuthority& src_authority,
+                const uprotocol::v1::UEntity& src_entity) noexcept;
             ~ZenohRpcClient() noexcept;
 
         private:
+
+            uprotocol::v1::UAuthority clientAuthority;
+            uprotocol::v1::UEntity clientEntity;
 
             static uprotocol::utransport::UPayload handleReply(z_owned_reply_channel_t *channel);
 
