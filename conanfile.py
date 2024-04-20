@@ -16,7 +16,7 @@ class UpClientZenoh(ConanFile):
     options = {"shared": [True, False], "fPIC": [True, False]}
     conan_version = None
     generators = "CMakeDeps"
-    version = "0.1.2-dev"
+    version = "0.1.3-dev"
     exports_sources = "CMakeLists.txt", "lib/*", "test/*"
 
     options = {
@@ -44,7 +44,7 @@ class UpClientZenoh(ConanFile):
             self.requires("gtest/1.14.0")
             self.requires("boost/1.84.0")
         if self.options.build_unbundled: #each componenet is built independently 
-            self.requires("up-cpp/0.1.1-dev")
+            self.requires("up-cpp/0.1.2-dev")
             if self.options.zenoh_package:
                 self.requires("zenohc/cci.20240213")
         if self.options.build_cross_compiling :
