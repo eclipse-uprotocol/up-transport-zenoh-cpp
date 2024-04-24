@@ -185,12 +185,19 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
     auto uuidStr = UuidSerializer::serializeToString(message.attributes().reqid());
 
-    if (queryMap_.find(uuidStr) == queryMap_.end()) {
-        spdlog::error("failed to find UUID = {}", uuidStr);
-        return UCode::UNAVAILABLE;
-    }
+    z_owned_query_t query;
+    {
+        std::unique_lock<std::mutex> lock(queryMapMutex_);
 
-    auto query = queryMap_[uuidStr];
+        if (auto query_it = queryMap_.find(uuidStr);
+                query_it == queryMap_.end()) {
+            spdlog::error("failed to find UUID = {}", uuidStr);
+            return UCode::UNAVAILABLE;
+
+        } else {
+            query = query_it->second;
+        }
+    }
 
     z_query_reply_options_t options = z_query_reply_options_default();
 
@@ -228,9 +235,10 @@ UCode ZenohUTransport::sendQueryable(const UMessage &message) noexcept {
 
     spdlog::debug("replied on query with uid = {}", uuidStr);
     /* once replied remove the uuid from the map, as it cannot be reused */
-    std::unique_lock<std::mutex> lock(queryMapMutex_);
-    queryMap_.erase(uuidStr);
-    lock.unlock();
+    {
+        std::unique_lock<std::mutex> lock(queryMapMutex_);
+        queryMap_.erase(uuidStr);
+    }
 
     z_drop(z_move(map));
 
@@ -459,16 +467,15 @@ void ZenohUTransport::QueryHandler(const z_query_t *query, void *arg) {
 
     auto uuidStr = UuidSerializer::serializeToString(attributes.id());
 
-    instance->queryMap_[uuidStr] = z_query_clone(query);
-
     if (UMessageType::UMESSAGE_TYPE_REQUEST != attributes.type()) {
        spdlog::error("Wrong message type = {}", static_cast<int>(attributes.type()));
        return;
     }
 
-    std::unique_lock<std::mutex> lock(instance->queryMapMutex_);
-    instance->queryMap_[uuidStr] = z_query_clone(query);
-    lock.unlock();
+    {
+        std::unique_lock<std::mutex> lock(instance->queryMapMutex_);
+        instance->queryMap_[uuidStr] = z_query_clone(query);
+    }
 
     UMessage message(payload, attributes);
 
