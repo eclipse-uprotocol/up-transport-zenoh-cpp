@@ -150,21 +150,20 @@ struct RpcClientImpl : public RpcClientApi {
         z_drop(z_move(channel));
     }
 
-    tuple<string, string, string> operator()()
+    tuple<string, Message> operator()()
     {
         std::string src;
         string payload, attributes;
         z_owned_reply_t reply = z_reply_null();
-        tuple<string, string, string> results;
+        tuple<string, Message> results;
 
         for (z_call(channel.recv, &reply); z_check(reply); z_call(channel.recv, &reply)) {
             if (z_reply_is_ok(&reply)) {
                 z_sample_t sample = z_reply_ok(&reply);
-                src = keyexpr2string(sample.keyexpr);
-                payload = extract(sample.payload);
+                get<0>(results) = keyexpr2string(sample.keyexpr);
+                get<1>(results).payload = extract(sample.payload);
                 z_bytes_t attr = z_attachment_get(sample.attachment, z_bytes_new("attributes"));
-                attributes = extract(attr);
-                results = make_tuple(src, payload, attributes);
+                get<1>(results).attributes = extract(attr);
                 break;
             } else {
                 throw std::runtime_error("RPC client timed out.");
@@ -178,8 +177,7 @@ struct RpcClientImpl : public RpcClientApi {
 
 struct RpcInfo {
     string  keyexpr;
-    string  payload;
-    string  attributes;
+    Message message;
     z_owned_query_t owned_query;
 
     RpcInfo(const z_query_t *query)
@@ -187,12 +185,12 @@ struct RpcInfo {
         keyexpr = keyexpr2string(z_query_keyexpr(query));
         // z_bytes_t pred = z_query_parameters(query);
         z_value_t value = z_query_value(query);
-        payload = extract(value.payload);
+        message.payload = extract(value.payload);
 
         z_attachment_t attachment = z_query_attachment(query);
         if (!z_check(attachment)) throw std::runtime_error("attachment is missing");
         z_bytes_t avalue = z_attachment_get(attachment, z_bytes_new("attributes"));
-        attributes = extract(avalue);
+        message.attributes = extract(avalue);
         owned_query = z_query_clone(query);
     }
 
@@ -224,10 +222,10 @@ struct RpcServerImpl : public RpcServerApi {
         while (true) {
             auto ptr = fifo.pull();
             if (ptr == nullptr) return;
-            auto results = callback(ptr->keyexpr, ptr->payload, ptr->attributes);
+            auto results = callback(ptr->keyexpr, ptr->message);
             if (results) {
-                auto payload = get<0>(*results);
-                auto attributes = get<1>(*results);
+                auto& payload = results->payload;
+                auto& attributes = results->attributes;
                 auto query = z_query_loan(&ptr->owned_query);
                 z_query_reply_options_t options = z_query_reply_options_default();
                 z_owned_bytes_map_t map = z_bytes_map_new();

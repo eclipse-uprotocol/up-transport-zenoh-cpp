@@ -26,7 +26,7 @@ using SubscriberServerCallback = std::function<void (const std::string&, const M
 //
 // This is a type alias for RPC server processing.
 //
-using RpcServerCallback = std::function<std::optional<std::tuple<std::string, std::string>> (const std::string&, const std::string&, const std::string&)>;
+using RpcServerCallback = std::function<std::optional<Message> (const std::string&, const Message&)>;
 
 //
 // This makes a type alias for the getter lambdas implemented in the implementation module.
@@ -50,7 +50,7 @@ struct SubscriberApi {
 
 struct RpcClientApi {
    using FactoryParams = FactoryGetter<RpcClientApi, const std::string&, const Message&, const std::chrono::seconds&>;
-   virtual std::tuple<std::string, std::string, std::string> operator()() = 0;
+   virtual std::tuple<std::string, Message> operator()() = 0;
 };
 
 struct RpcServerApi {
@@ -85,17 +85,14 @@ public:
 
    Session(std::shared_ptr<PluginApi> plugin, const std::string& start_doc)
       : plugin(plugin), pImpl((*plugin)->get_session(start_doc)) {}
-
-   // std::future<std::tuple<std::string, std::string, std::string>> queryCall(std::string expr, const std::string& payload, const std::string& attributes, const std::chrono::seconds& timeout);
 };
 
 
 class Publisher {
    std::shared_ptr<PublisherApi> pImpl;
 public:
-   template <class... Args>
-   Publisher(Session session, Args... args)
-      : pImpl((*session.plugin)->get_publisher(session.pImpl, args...)) {}
+   Publisher(Session session, const std::string& topic)
+      : pImpl((*session.plugin)->get_publisher(session.pImpl, topic)) {}
 
    void operator()(const Message& message) { (*pImpl)(message); }
 };
@@ -103,9 +100,8 @@ public:
 class Subscriber {
    std::shared_ptr<SubscriberApi> pImpl;
 public:
-   template <class... Args>
-   Subscriber(Session session, Args... args)
-      : pImpl((*session.plugin)->get_subscriber(session.pImpl, args...)) {}
+   Subscriber(Session session, const std::string& topic, SubscriberServerCallback callback, size_t thread_count = 4)
+      : pImpl((*session.plugin)->get_subscriber(session.pImpl, topic, callback, thread_count)) {}
 };
 
 class RpcClient {
@@ -114,10 +110,10 @@ public:
    RpcClient(Session session, const std::string& topic, const Message& message, const std::chrono::seconds& timeout)
       : pImpl((*session.plugin)->get_rpc_client(session.pImpl, topic, message, timeout)) {}
 
-   std::tuple<std::string, std::string, std::string> operator()() { return (*pImpl)(); }
+   std::tuple<std::string, Message> operator()() { return (*pImpl)(); }
 };
 
-std::future<std::tuple<std::string, std::string, std::string>> queryCall(Session s, std::string expr, const Message& message, const std::chrono::seconds& timeout)
+std::future<std::tuple<std::string, Message>> queryCall(Session s, std::string expr, const Message& message, const std::chrono::seconds& timeout)
 {
     auto msg = std::make_shared<Message>(message);
     return std::async([=]() { return RpcClient(s, expr, *msg, timeout)(); } );
@@ -126,9 +122,8 @@ std::future<std::tuple<std::string, std::string, std::string>> queryCall(Session
 class RpcServer {
    std::shared_ptr<RpcServerApi> pImpl;
 public:
-   template <class... Args>
-   RpcServer(Session session, Args... args)
-      : pImpl((*session.plugin)->get_rpc_server(session.pImpl, args...)) {}
+   RpcServer(Session session, const std::string& topic, RpcServerCallback callback, size_t thread_count = 4)
+      : pImpl((*session.plugin)->get_rpc_server(session.pImpl, topic, callback, thread_count)) {}
 
 };
 
