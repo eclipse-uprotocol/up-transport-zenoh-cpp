@@ -3,11 +3,38 @@
 #include <future>
 #include <string_view>
 #include <chrono>
+#include <map>
 #include <unistd.h>
 #include "PluginApi.hpp"
 
 using namespace std;
 using namespace PluggableTransport;
+
+template <typename KEY>
+class Histogram {
+    std::mutex mtx;
+    std::map<KEY, size_t>   counts;
+public:
+    void operator()(const KEY& key)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        auto it = counts.find(key);
+        if (it != counts.end()) it->second++;
+        else counts[key] = 1;
+    }
+
+    std::string density()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        stringstream ss;
+        ss << "( ";
+        for (const auto& [k,v] : counts) {
+            ss << '(' << k << ", " << v << ' ';
+        }
+        ss << ')';
+        return ss.str();
+    }
+};
 
 future<tuple<string, string, string>> queryCall(Session s, std::string expr, const string& payload, const string& attributes, const chrono::seconds& timeout)
 {
@@ -22,11 +49,13 @@ int main(int argc, char* argv[])
     auto session = Session(plugin, "start_doc");
 
     auto callback = [](const string& keyexpr, const string& payload, const string& attributes) {
-        cout << "in subscriber callback with keyexpr=" << keyexpr << " payload=" << payload << " attributes=" << attributes << endl;
+        cout << "subscriber callback with keyexpr=" << keyexpr << " payload=" << payload << " attributes=" << attributes << endl;
     };
 
-    auto rpc_server_callback = [](const string& keyexpr, const string& payload, const string& attributes) {
-        cout << "in rpc_server callback with keyexpr=" << keyexpr << " payload=" << payload << " attributes=" << attributes << endl;
+    Histogram<string> histo;
+    auto rpc_server_callback = [&](const string& keyexpr, const string& payload, const string& attributes) {
+        histo(keyexpr);
+        cout << "rpc callback with keyexpr=" << keyexpr << " payload=" << payload << " attributes=" << attributes << endl;
         return make_tuple<string, string>("hello", "world");
     };
 
@@ -44,9 +73,12 @@ int main(int argc, char* argv[])
     // }
 
     {
-        auto rpc_server = RpcServer(session, "demo/rpc/action1", rpc_server_callback, 4);
-        sleep(100);
+        auto rpc_server1 = RpcServer(session, "demo/rpc/action1", rpc_server_callback, 4);
+        auto rpc_server2 = RpcServer(session, "demo/rpc/action2", rpc_server_callback, 4);
+        sleep(10);
     }
+
+    cout << "counts = " << histo.density() << endl;
     // {
     //     // auto rpc_server = RpcServer(session, "demo/rpc/action1", rpc_server_callback, 4);
 

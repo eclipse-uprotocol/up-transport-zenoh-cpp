@@ -1,10 +1,7 @@
 #include <iostream>
-#include <mutex>
-#include <condition_variable>
-#include <deque>
-#include <thread>
 #include "PluginApi.hpp"
 #include "zenohc.hxx"
+#include "Utils.hpp"
 
 using namespace std;
 
@@ -24,7 +21,6 @@ struct SessionImpl : public SessionApi {
 
     SessionImpl(const string& start_doc) : start_doc(start_doc), session(inst())
     {
-        cout << __FILE__ << " SessionImpl with " << start_doc << " in " << __FILE__ << endl;
     }
 };
 
@@ -36,7 +32,6 @@ struct PublisherImpl : public PublisherApi {
     PublisherImpl(shared_ptr<SessionApi> session_base, const string& keyexpr) : keyexpr(keyexpr)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
-        cout << __FILE__ << " creating publisher for " << keyexpr << endl;
         handle = z_declare_publisher(session->session.loan(), z_keyexpr(keyexpr.c_str()), nullptr);
         if (!z_check(handle)) throw std::runtime_error("Cannot declare publisher");
     }
@@ -77,32 +72,20 @@ struct SubscriberImpl : public SubscriberApi {
     shared_ptr<SessionImpl> session;
     unique_ptr<zenohc::Subscriber> handle;
     zenohc::KeyExprView expr;
-    mutex  mtx;
-    condition_variable cv;
-    bool die;
-    deque<shared_ptr<SubInfo>> queue;
-    vector<thread> thread_pool;
+    Fifo<SubInfo> fifo;
+    unique_ptr<ThreadPool> pool;
     SubscriberServerCallback callback;
 
     void handler(const zenohc::Sample& sample)
     {
-        auto ptr = make_shared<SubInfo>(sample);
-        unique_lock<mutex> lock(mtx);
-        queue.push_front(ptr);
-        cv.notify_one();
+        fifo.push(make_shared<SubInfo>(sample));
     }
 
     void worker()
     {
         while (true) {
-            shared_ptr<SubInfo> ptr = nullptr;
-            {
-                unique_lock<mutex> lock(mtx);
-                cv.wait(lock, [&](){ return !queue.empty() && !die; });
-                if (die) break;
-                ptr = queue.back();
-                queue.pop_back();
-            }
+            auto ptr = fifo.pull();
+            if (ptr == nullptr) return;
             callback(ptr->keyexpr, ptr->payload, ptr->attributes);
         }
     }
@@ -116,21 +99,12 @@ struct SubscriberImpl : public SubscriberApi {
                 session->session.declare_subscriber(
                     expr,
                     [&](const zenohc::Sample& arg) { this->handler(arg); } )));
-        die = false;
-        thread_pool.reserve(thread_count);
-        for (size_t i = 0; i < 10; i++) {
-            thread_pool.emplace_back([&]() { worker(); });
-        }
+        pool = make_unique<ThreadPool>([&]() { worker(); }, thread_count);
     }
 
     ~SubscriberImpl()
     {
-        {
-            std::unique_lock<std::mutex> lock(mtx);
-            die = true;
-        }
-        for (auto& thr : thread_pool) thr.join();
-        thread_pool.clear();
+        fifo.exit();
     }
 };
 
@@ -241,12 +215,9 @@ struct RpcInfo {
 struct RpcServerImpl : public RpcServerApi {
     shared_ptr<SessionImpl> session;
     z_owned_queryable_t qable;
-    mutex  mtx;
-    condition_variable cv;
-    deque<shared_ptr<RpcInfo>> queue;
-    bool die;
+    Fifo<RpcInfo> fifo;
+    unique_ptr<ThreadPool> pool;
     RpcServerCallback callback;
-    vector<thread> thread_pool;
 
     static void _handler(const z_query_t *query, void *context)
     {
@@ -255,27 +226,16 @@ struct RpcServerImpl : public RpcServerApi {
 
     void handler(const z_query_t *query)
     {
-        cout << "rpc handler woke" << endl;
-        auto ptr = make_shared<RpcInfo>(query);
-        unique_lock<mutex> lock(mtx);
-        queue.push_front(ptr);
-        cv.notify_one();
+        fifo.push(make_shared<RpcInfo>(query));
     }
 
     void worker()
     {
         while (true) {
-            shared_ptr<RpcInfo> ptr;
-            {
-                unique_lock<mutex> lock(mtx);
-                cv.wait(lock, [&](){ return !queue.empty() && !die; });
-                if (die) break;
-                ptr = queue.back();
-                queue.pop_back();
-            }
+            auto ptr = fifo.pull();
+            if (ptr == nullptr) return;
             auto results = callback(ptr->keyexpr, ptr->payload, ptr->attributes);
             if (results) {
-                cout << "sending results" << endl;
                 auto payload = get<0>(*results);
                 auto attributes = get<1>(*results);
                 auto query = z_query_loan(&ptr->owned_query);
@@ -299,26 +259,13 @@ struct RpcServerImpl : public RpcServerApi {
         z_owned_closure_query_t closure = z_closure(_handler, NULL, this);
         qable = z_declare_queryable(session->session.loan(), z_keyexpr(keyexpr.c_str()), z_move(closure), NULL);
         if (!z_check(qable)) throw std::runtime_error("Unable to create queryable.");
-
-        die = false;
-        thread_pool.reserve(thread_count);
-        for (size_t i = 0; i < 10; i++) {
-            thread_pool.emplace_back([&]() { worker(); });
-        }
+        pool = make_unique<ThreadPool>([&]() { worker(); }, thread_count);
     }
 
     ~RpcServerImpl()
     {
-        cout << "rpc server shutting down" << endl;
-        {
-            unique_lock<mutex> lock(mtx);
-            die = true;
-        }
-        for (auto& thr : thread_pool) thr.join();
-        thread_pool.clear();
-
+        fifo.exit();
         z_undeclare_queryable(z_move(qable));
-        cout << "bottom of shutdown" << endl;       
     }
 };
 
