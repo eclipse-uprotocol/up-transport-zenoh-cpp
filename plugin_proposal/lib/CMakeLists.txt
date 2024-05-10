@@ -20,6 +20,10 @@ cmake_minimum_required(VERSION 3.16)
 project(api_implementation VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 
+find_package(zenohc REQUIRED)
+
+# find_library(ZENOH_LIB zenohc)
+
 # find_package(Protobuf REQUIRED)
 # find_package(spdlog REQUIRED)
 
@@ -36,7 +40,7 @@ set(CMAKE_CXX_STANDARD 17)
 # endif()
 
 # Support pulling headers outside of /usr/local
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include /usr/local/include)
 
 # add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
@@ -44,6 +48,8 @@ set(SRC_FILES
     src/impl1.cpp)
 
 add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
+target_link_libraries(${PROJECT_NAME} PRIVATE zenohc::lib)
+
 add_library(up-client-zenoh-cpp::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 # target_include_directories(${PROJECT_NAME} 

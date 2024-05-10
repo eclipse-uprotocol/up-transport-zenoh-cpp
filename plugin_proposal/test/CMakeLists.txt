@@ -25,7 +25,7 @@ cmake_minimum_required(VERSION 3.16)
 project(test VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 
-find_library( DL_LIBRARY libdl.so  )
+set( DL_LIBRARY /usr/lib64/libdl.so.2  )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
 # if(BUILD_UNBUNDLED)

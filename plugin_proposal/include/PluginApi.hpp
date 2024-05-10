@@ -35,7 +35,7 @@ using FactoryGetter = std::function< std::shared_ptr<CLS> (std::shared_ptr<Sessi
 //
 struct PublisherApi {
    using FactoryParams = FactoryGetter<PublisherApi, const std::string&>;
-   virtual void operator()(const std::string& payload, const std::string attributes) = 0;
+   virtual void operator()(const std::string& payload, const std::string& attributes) = 0;
 };
 
 struct SubscriberApi {
