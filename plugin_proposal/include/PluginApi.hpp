@@ -16,7 +16,12 @@ struct SessionApi {
 //
 // This is a type alias for subscriber server processing.
 //
-using SubscriberServerCallback = std::function<void (const std::string&, const std::string&, const std::string&)>;
+struct Message {
+   std::string payload;
+   std::string attributes;
+};
+
+using SubscriberServerCallback = std::function<void (const std::string&, const Message&)>;
 
 //
 // This is a type alias for RPC server processing.
@@ -36,7 +41,7 @@ using FactoryGetter = std::function< std::shared_ptr<CLS> (std::shared_ptr<Sessi
 //
 struct PublisherApi {
    using FactoryParams = FactoryGetter<PublisherApi, const std::string&>;
-   virtual void operator()(const std::string& payload, const std::string& attributes) = 0;
+   virtual void operator()(const Message&) = 0;
 };
 
 struct SubscriberApi {
@@ -44,7 +49,7 @@ struct SubscriberApi {
 };
 
 struct RpcClientApi {
-   using FactoryParams = FactoryGetter<RpcClientApi, const std::string&, const std::string&, const std::string&, const std::chrono::seconds&>;
+   using FactoryParams = FactoryGetter<RpcClientApi, const std::string&, const Message&, const std::chrono::seconds&>;
    virtual std::tuple<std::string, std::string, std::string> operator()() = 0;
 };
 
@@ -92,8 +97,7 @@ public:
    Publisher(Session session, Args... args)
       : pImpl((*session.plugin)->get_publisher(session.pImpl, args...)) {}
 
-   template <class... Args>
-   void operator()(Args... args) { (*pImpl)(args...); }
+   void operator()(const Message& message) { (*pImpl)(message); }
 };
 
 class Subscriber {
@@ -107,18 +111,16 @@ public:
 class RpcClient {
    std::shared_ptr<RpcClientApi> pImpl;
 public:
-   template <class... Args>
-   RpcClient(Session session, Args... args)
-      : pImpl((*session.plugin)->get_rpc_client(session.pImpl, args...)) {}
+   RpcClient(Session session, const std::string& topic, const Message& message, const std::chrono::seconds& timeout)
+      : pImpl((*session.plugin)->get_rpc_client(session.pImpl, topic, message, timeout)) {}
 
    std::tuple<std::string, std::string, std::string> operator()() { return (*pImpl)(); }
 };
 
-std::future<std::tuple<std::string, std::string, std::string>> queryCall(Session s, std::string expr, const std::string& payload, const std::string& attributes, const std::chrono::seconds& timeout)
+std::future<std::tuple<std::string, std::string, std::string>> queryCall(Session s, std::string expr, const Message& message, const std::chrono::seconds& timeout)
 {
-    auto p = std::make_shared<std::string>(payload);
-    auto a = std::make_shared<std::string>(attributes);
-    return std::async([=]() { return RpcClient(s, expr, *p, *a, timeout)(); } );
+    auto msg = std::make_shared<Message>(message);
+    return std::async([=]() { return RpcClient(s, expr, *msg, timeout)(); } );
 }
 
 class RpcServer {

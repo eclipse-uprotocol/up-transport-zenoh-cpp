@@ -48,8 +48,8 @@ int main(int argc, char* argv[])
     auto plugin =  make_shared<PluginApi>(argv[1]);
     auto session = Session(plugin, "start_doc");
 
-    auto callback = [](const string& keyexpr, const string& payload, const string& attributes) {
-        cout << "subscriber callback with keyexpr=" << keyexpr << " payload=" << payload << " attributes=" << attributes << endl;
+    auto callback = [](const string& keyexpr, const Message& message) {
+        cout << "subscriber callback with keyexpr=" << keyexpr << " payload=" << message.payload << " attributes=" << message.attributes << endl;
     };
 
     // {
@@ -60,7 +60,7 @@ int main(int argc, char* argv[])
     //         cout << endl << "client code pubishing " << i << endl;
     //         stringstream ss;
     //         ss << "payload" << i;
-    //         publisher(ss.str(), "attributes");
+    //         publisher(Message{ss.str(), "attributes"});
     //         sleep(1);
     //     }
     // }
@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
             cout << endl << "rpc client code pubishing " << i << endl;
             stringstream ss;
             ss << "payload" << i;
-            auto f = queryCall(session, "demo/rpc/action1", ss.str(), "attributes", 1s);
+            auto f = queryCall(session, "demo/rpc/action1", Message{ss.str(), "attributes"}, 1s);
             auto results = f.get();
             cout << "rpc results " << get<0>(results) << ' ' << get<1>(results) << ' ' << get<2>(results) << endl;
         }

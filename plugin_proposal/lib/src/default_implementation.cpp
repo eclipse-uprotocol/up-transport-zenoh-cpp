@@ -41,13 +41,13 @@ struct PublisherImpl : public PublisherApi {
         z_undeclare_publisher(&handle);
     }
 
-    void operator()(const std::string& payload, const std::string& attributes)
+    void operator()(const Message& message)
     {
         z_publisher_put_options_t options = z_publisher_put_options_default();
         z_owned_bytes_map_t map = z_bytes_map_new();
         options.attachment = z_bytes_map_as_attachment(&map);
-        z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), z_bytes_t{.len=attributes.size(), .start=(const uint8_t*)attributes.data()});
-        if (z_publisher_put(z_loan(handle), (const uint8_t*)payload.data(), payload.size(), &options)) {
+        z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), z_bytes_t{.len=message.attributes.size(), .start=(const uint8_t*)message.attributes.data()});
+        if (z_publisher_put(z_loan(handle), (const uint8_t*)message.payload.data(), message.payload.size(), &options)) {
             z_drop(z_move(map));
             throw std::runtime_error("Cannot publish");
         }
@@ -57,14 +57,13 @@ struct PublisherImpl : public PublisherApi {
 
 struct SubInfo {
     string  keyexpr;
-    string  payload;
-    string  attributes;
+    Message message;
 
     SubInfo(const zenohc::Sample& sample)
     {
         keyexpr = sample.get_keyexpr().as_string_view();
-        payload = sample.get_payload().as_string_view();
-        attributes = sample.get_attachment().get("attributes").as_string_view();
+        message.payload = sample.get_payload().as_string_view();
+        message.attributes = sample.get_attachment().get("attributes").as_string_view();
     } 
 };
 
@@ -86,7 +85,7 @@ struct SubscriberImpl : public SubscriberApi {
         while (true) {
             auto ptr = fifo.pull();
             if (ptr == nullptr) return;
-            callback(ptr->keyexpr, ptr->payload, ptr->attributes);
+            callback(ptr->keyexpr, ptr->message);
         }
     }
 
@@ -131,7 +130,7 @@ struct RpcClientImpl : public RpcClientApi {
     shared_ptr<SessionImpl> session;
     z_owned_reply_channel_t channel;
     
-    RpcClientImpl(shared_ptr<SessionApi> session_base, const string& expr, const string& payload, const string& attributes, const std::chrono::seconds& timeout)
+    RpcClientImpl(shared_ptr<SessionApi> session_base, const string& expr, const Message& message, const std::chrono::seconds& timeout)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
         z_keyexpr_t keyexpr = z_keyexpr(expr.c_str());
@@ -139,8 +138,8 @@ struct RpcClientImpl : public RpcClientApi {
         channel = zc_reply_fifo_new(16);
         auto opts = z_get_options_default();
         auto attrs = z_bytes_map_new();
-        opts.value.payload = pack(payload);
-        z_bytes_map_insert_by_alias(&attrs, z_bytes_new("attributes"), pack(attributes));
+        opts.value.payload = pack(message.payload);
+        z_bytes_map_insert_by_alias(&attrs, z_bytes_new("attributes"), pack(message.attributes));
         opts.attachment = z_bytes_map_as_attachment(&attrs);
         opts.timeout_ms = chrono::milliseconds(timeout).count();
         z_get(session->session.loan(), keyexpr, "", z_move(channel.send), &opts);
