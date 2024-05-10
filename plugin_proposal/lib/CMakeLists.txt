@@ -45,7 +45,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include /usr/local/include)
 # add_definitions(-DSPDLOG_FMT_EXTERNAL)
 
 set(SRC_FILES         
-    src/impl1.cpp)
+    src/default_implementation.cpp)
 
 add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
 target_link_libraries(${PROJECT_NAME} PRIVATE zenohc::lib)

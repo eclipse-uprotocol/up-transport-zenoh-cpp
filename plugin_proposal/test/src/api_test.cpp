@@ -36,12 +36,12 @@ public:
     }
 };
 
-future<tuple<string, string, string>> queryCall(Session s, std::string expr, const string& payload, const string& attributes, const chrono::seconds& timeout)
-{
-    auto p = make_shared<string>(payload);
-    auto a = make_shared<string>(attributes);
-    return std::async([=]() { return RpcClient(s, expr, *p, *a, timeout)(); } );
-}
+// future<tuple<string, string, string>> queryCall(Session s, std::string expr, const string& payload, const string& attributes, const chrono::seconds& timeout)
+// {
+//     auto p = make_shared<string>(payload);
+//     auto a = make_shared<string>(attributes);
+//     return std::async([=]() { return RpcClient(s, expr, *p, *a, timeout)(); } );
+// }
 
 int main(int argc, char* argv[])
 {
@@ -50,13 +50,6 @@ int main(int argc, char* argv[])
 
     auto callback = [](const string& keyexpr, const string& payload, const string& attributes) {
         cout << "subscriber callback with keyexpr=" << keyexpr << " payload=" << payload << " attributes=" << attributes << endl;
-    };
-
-    Histogram<string> histo;
-    auto rpc_server_callback = [&](const string& keyexpr, const string& payload, const string& attributes) {
-        histo(keyexpr);
-        cout << "rpc callback with keyexpr=" << keyexpr << " payload=" << payload << " attributes=" << attributes << endl;
-        return make_tuple<string, string>("hello", "world");
     };
 
     // {
@@ -72,28 +65,34 @@ int main(int argc, char* argv[])
     //     }
     // }
 
-    {
-        auto rpc_server1 = RpcServer(session, "demo/rpc/action1", rpc_server_callback, 4);
-        auto rpc_server2 = RpcServer(session, "demo/rpc/action2", rpc_server_callback, 4);
-        sleep(10);
-    }
-
-    cout << "counts = " << histo.density() << endl;
     // {
-    //     // auto rpc_server = RpcServer(session, "demo/rpc/action1", rpc_server_callback, 4);
+    //     Histogram<string> histo;
+    //     auto rpc_server_callback = [&](const string& keyexpr, const string& payload, const string& attributes) {
+    //         histo(keyexpr);
+    //         cout << "rpc callback with keyexpr=" << keyexpr << " payload=" << payload << " attributes=" << attributes << endl;
+    //         return make_tuple<string, string>("hello", "world");
+    //     };
 
-    //     for (auto i = 0; i < 5; i++) {
-    //         using namespace std::chrono_literals;
-
-    //         cout << endl << "rpc client code pubishing " << i << endl;
-    //         stringstream ss;
-    //         ss << "payload" << i;
-    //         // auto results = RpcClient(session, "demo/rpc/action1", ss.str(), "attributes", 1s) ();
-    //         auto f = queryCall(session, "demo/rpc/action1", ss.str(), "attributes", 1s);
-    //         cout << "after queryCall" << endl;
-    //         auto results = f.get();
-    //         cout << "got mock rpc results " << get<0>(results) << ' ' << get<1>(results) << ' ' << get<2>(results) << endl;
-    //     }
+    //     auto rpc_server1 = RpcServer(session, "demo/rpc/action1", rpc_server_callback, 4);
+    //     auto rpc_server2 = RpcServer(session, "demo/rpc/action2", rpc_server_callback, 4);
+    //     sleep(10);
+    //     cout << "counts = " << histo.density() << endl;
     // }
+
+
+    {
+        // auto rpc_server = RpcServer(session, "demo/rpc/action1", rpc_server_callback, 4);
+
+        for (auto i = 0; i < 5; i++) {
+            using namespace std::chrono_literals;
+
+            cout << endl << "rpc client code pubishing " << i << endl;
+            stringstream ss;
+            ss << "payload" << i;
+            auto f = queryCall(session, "demo/rpc/action1", ss.str(), "attributes", 1s);
+            auto results = f.get();
+            cout << "rpc results " << get<0>(results) << ' ' << get<1>(results) << ' ' << get<2>(results) << endl;
+        }
+    }
 }
 

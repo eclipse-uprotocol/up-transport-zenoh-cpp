@@ -3,6 +3,7 @@
 #include "FactoryPlugin.hpp"
 #include <chrono>
 #include <optional>
+#include <future>
 
 namespace PluggableTransport {
 //
@@ -72,13 +73,15 @@ class Session {
    std::shared_ptr<PluginApi> plugin;
    std::shared_ptr<SessionApi> pImpl;
 public:
-   Session(std::shared_ptr<PluginApi> plugin, const std::string& start_doc)
-      : plugin(plugin), pImpl((*plugin)->get_session(start_doc)) {}
-
    friend class Publisher;
    friend class Subscriber;
    friend class RpcClient;
    friend class RpcServer;
+
+   Session(std::shared_ptr<PluginApi> plugin, const std::string& start_doc)
+      : plugin(plugin), pImpl((*plugin)->get_session(start_doc)) {}
+
+   // std::future<std::tuple<std::string, std::string, std::string>> queryCall(std::string expr, const std::string& payload, const std::string& attributes, const std::chrono::seconds& timeout);
 };
 
 
@@ -110,6 +113,13 @@ public:
 
    std::tuple<std::string, std::string, std::string> operator()() { return (*pImpl)(); }
 };
+
+std::future<std::tuple<std::string, std::string, std::string>> queryCall(Session s, std::string expr, const std::string& payload, const std::string& attributes, const std::chrono::seconds& timeout)
+{
+    auto p = std::make_shared<std::string>(payload);
+    auto a = std::make_shared<std::string>(attributes);
+    return std::async([=]() { return RpcClient(s, expr, *p, *a, timeout)(); } );
+}
 
 class RpcServer {
    std::shared_ptr<RpcServerApi> pImpl;

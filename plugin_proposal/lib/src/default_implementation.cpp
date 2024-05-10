@@ -134,7 +134,6 @@ struct RpcClientImpl : public RpcClientApi {
     RpcClientImpl(shared_ptr<SessionApi> session_base, const string& expr, const string& payload, const string& attributes, const std::chrono::seconds& timeout)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
-        cout << __FILE__ << " creating RPC request for keyexpr=" << expr << " payload=" << payload << " attributes=" << attributes << endl;
         z_keyexpr_t keyexpr = z_keyexpr(expr.c_str());
         if (!z_check(keyexpr)) throw std::runtime_error("Not a valid key expression");
         channel = zc_reply_fifo_new(16);
@@ -145,12 +144,10 @@ struct RpcClientImpl : public RpcClientApi {
         opts.attachment = z_bytes_map_as_attachment(&attrs);
         opts.timeout_ms = chrono::milliseconds(timeout).count();
         z_get(session->session.loan(), keyexpr, "", z_move(channel.send), &opts);
-        cout << "after z_get" << endl;
     }
 
     ~RpcClientImpl()
     {
-        cout << "before drop channel" << endl;
         z_drop(z_move(channel));
     }
 
@@ -159,30 +156,24 @@ struct RpcClientImpl : public RpcClientApi {
         std::string src;
         string payload, attributes;
         z_owned_reply_t reply = z_reply_null();
+        tuple<string, string, string> results;
 
-        cout << "before z_call" << endl;
         for (z_call(channel.recv, &reply); z_check(reply); z_call(channel.recv, &reply)) {
-            cout << "after z_call" << endl;
             if (z_reply_is_ok(&reply)) {
-                cout << "reply is okay" << endl;
                 z_sample_t sample = z_reply_ok(&reply);
-                cout << "got sample" << endl;
                 src = keyexpr2string(sample.keyexpr);
-                cout << "src=" << src << endl;
                 payload = extract(sample.payload);
-                cout << "payload=" << payload << endl;
                 z_bytes_t attr = z_attachment_get(sample.attachment, z_bytes_new("attributes"));
                 attributes = extract(attr);
-                cout << "attributes=" << attributes << endl;
+                results = make_tuple(src, payload, attributes);
                 break;
             } else {
-                cerr << "z_reply_is_okay returned false" << endl;
-                // throw std::runtime_error("Received an error");
+                throw std::runtime_error("RPC client timed out.");
             }
         }
 
         z_drop(z_move(reply));
-        return std::make_tuple(src, payload, attributes);
+        return results;
     }
 };
 
