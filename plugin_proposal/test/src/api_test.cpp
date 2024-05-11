@@ -46,10 +46,10 @@ string genString(const char* fmt, Args... args)
     return string(buf);
 }
 
-int main(int argc, char* argv[])
+void test(const string& dll_path)
 {
     PluginApi::WhiteList white_list{"6f4e764446ae6c636363448bcfe3e32d"};
-    auto plugin =  make_shared<PluginApi>(argv[1]); //, white_list);
+    auto plugin =  make_shared<PluginApi>(dll_path); //, white_list);
     auto session = Session(plugin, "start_doc");
 
     {
@@ -94,5 +94,14 @@ int main(int argc, char* argv[])
             usleep(100000);
         }     
     }
+}
+
+int main(int argc, char* argv[])
+{
+    test(argv[1]);
+    // Oh, by the way, dlclose() will not unload or invoke dtors if there are 'UNIQUE' tagged objects in plugin.
+    // Palm to forehead.
+    sleep(5);
+    test(argv[1]);
 }
 

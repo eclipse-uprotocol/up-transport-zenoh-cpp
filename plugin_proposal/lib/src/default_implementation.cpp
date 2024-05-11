@@ -19,18 +19,10 @@ static zenohc::Session inst()
 #define LINENO() __LINE__
 #define TRACE(obj, desc) { char buf[64]; (obj)->trace(buf, __FUNCTION__, __LINE__, desc); DTRACE_PROBE1(tracehook, LINENO(), buf); }
 
-
-struct SessionImpl : public SessionApi {
-    string start_doc;
-    zenohc::Session session;
+struct TraceBase {
     string trace_name;
 
-    SessionImpl(const string& start_doc, const string& trace_name) : start_doc(start_doc), session(inst()), trace_name(trace_name)
-    {
-        using namespace std;
-        cout << "trace_name = " << trace_name << endl;
-        TRACE(this, "");
-    }
+    TraceBase(const string& trace_name) : trace_name(trace_name) {}
 
     void trace(char buf[64], const char* fn, int line_no, const string& desc)
     {
@@ -39,13 +31,26 @@ struct SessionImpl : public SessionApi {
     }
 };
 
-struct PublisherImpl : public PublisherApi {
+struct SessionImpl : public SessionApi, TraceBase {
+    string start_doc;
+    zenohc::Session session;
+    string trace_name;
+
+    SessionImpl(const string& start_doc, const string& trace_name) : start_doc(start_doc), session(inst()), TraceBase(trace_name)
+    {
+        using namespace std;
+        cout << "trace_name = " << trace_name << endl;
+        TRACE(this, "");
+    }
+};
+
+struct PublisherImpl : public PublisherApi, TraceBase {
     shared_ptr<SessionImpl> session;
     string sending_topic;
     string trace_name;
     z_owned_publisher_t handle;
     
-    PublisherImpl(shared_ptr<SessionApi> session_base, const string& sending_topic, const string& trace_name) : sending_topic(sending_topic), trace_name(trace_name)
+    PublisherImpl(shared_ptr<SessionApi> session_base, const string& sending_topic, const string& trace_name) : sending_topic(sending_topic), TraceBase(trace_name)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
         TRACE(this, "");
@@ -72,12 +77,6 @@ struct PublisherImpl : public PublisherApi {
         }
         z_drop(z_move(map));
     }
-
-    void trace(char buf[64], const char* fn, int line_no, const string& desc)
-    {
-        memset(buf, 0, 64);
-        snprintf(buf, 64, "%s:%s:%d:%s", trace_name.c_str(), fn, line_no, desc.c_str());
-    }
 };
 
 struct SubInfo {
@@ -92,11 +91,10 @@ struct SubInfo {
     } 
 };
 
-struct SubscriberImpl : public SubscriberApi {
+struct SubscriberImpl : public SubscriberApi, TraceBase {
     shared_ptr<SessionImpl> session;
     unique_ptr<zenohc::Subscriber> handle;
     string listening_topic;
-    string trace_name;
     Fifo<SubInfo> fifo;
     unique_ptr<ThreadPool> pool;
     SubscriberServerCallback callback;
@@ -120,7 +118,7 @@ struct SubscriberImpl : public SubscriberApi {
     }
 
     SubscriberImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, SubscriberServerCallback callback, size_t thread_count, const string& trace_name)
-        : listening_topic(listening_topic), callback(callback), trace_name(trace_name)
+        : listening_topic(listening_topic), callback(callback), TraceBase(trace_name)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
         TRACE(this, "");
@@ -136,12 +134,6 @@ struct SubscriberImpl : public SubscriberApi {
     {
         TRACE(this, "");
         fifo.exit();
-    }
-
-    void trace(char buf[64], const char* fn, int line_no, const string& desc)
-    {
-        memset(buf, 0, 64);
-        snprintf(buf, 64, "%s:%s:%d:%s", trace_name.c_str(), fn, line_no, desc.c_str());
     }
 };
 
@@ -241,7 +233,7 @@ struct RpcInfo {
     }
 };
 
-struct RpcServerImpl : public RpcServerApi {
+struct RpcServerImpl : public RpcServerApi, TraceBase {
     shared_ptr<SessionImpl> session;
     z_owned_queryable_t qable;
     Fifo<RpcInfo> fifo;
@@ -287,10 +279,10 @@ struct RpcServerImpl : public RpcServerApi {
     }
 
     RpcServerImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, RpcServerCallback callback, size_t thread_count, const string& trace_name)
-        : listening_topic(listening_topic), callback(callback), trace_name(trace_name)
+        : listening_topic(listening_topic), callback(callback), TraceBase(trace_name)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
-        TRACE(session, "");
+        TRACE(this, "");
         z_owned_closure_query_t closure = z_closure(_handler, NULL, this);
         qable = z_declare_queryable(session->session.loan(), z_keyexpr(listening_topic.c_str()), z_move(closure), NULL);
         if (!z_check(qable)) throw std::runtime_error("Unable to create queryable.");
@@ -303,12 +295,6 @@ struct RpcServerImpl : public RpcServerApi {
         fifo.exit();
         z_undeclare_queryable(z_move(qable));
     }
-
-    void trace(char buf[64], const char* fn, int line_no, const string& desc)
-    {
-        memset(buf, 0, 64);
-        snprintf(buf, 64, "%s:%s:%d:%s", trace_name.c_str(), fn, line_no, desc.c_str());
-    }
 };
 
 Factories factories = {
@@ -318,6 +304,23 @@ Factories factories = {
     [](auto session_base, auto ...args) { return make_shared<RpcClientImpl>(session_base, args...); },
     [](auto session_base, auto ...args) { return make_shared<RpcServerImpl>(session_base, args...); },
 };
+
+struct Loader : public TraceBase {
+    string filename;
+
+    Loader() : TraceBase("")
+    {
+        string fullpath = __FILE__;
+        int beginIdx = fullpath.rfind('/');
+        filename = fullpath.substr(beginIdx + 1);
+        TRACE(this, filename.c_str());
+    }
+
+    ~Loader()
+    {
+        TRACE(this, filename.c_str());
+    }
+} loader;
 
 }; // PluggableTransport
 

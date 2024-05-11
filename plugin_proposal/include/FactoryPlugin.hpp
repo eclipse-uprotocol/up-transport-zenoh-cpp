@@ -59,6 +59,7 @@ public:
     using WhiteList = std::set<std::string>;
     FactoryPlugin(const std::string& path, const WhiteList& white_list = WhiteList()) : path(path), dl_handle(nullptr)
     {
+        using namespace std;
         auto hash = compute_md5(path);
         if (white_list.size() > 0) {
             if (white_list.count(hash) == 0) {
@@ -70,7 +71,7 @@ public:
         }
         else {
             using namespace std;
-            cerr << "MD5 hash=" << hash << " for \"" << path << "\" was not used because there is no whitelist";
+            cerr << "MD5 hash=" << hash << " for \"" << path << "\" was found but whitelist is missing." << endl;
         }
         dl_handle = dlopen(path.c_str(), RTLD_NOW|RTLD_LOCAL);
         if (dl_handle == nullptr) throw_error("dlopen", path);
@@ -95,6 +96,8 @@ public:
 
     ~FactoryPlugin()
     {
+        // apparently, dlclose with actually not unload or even run dtors if there are 'UNIQUE' tagged objects
+        // So, don't depend on dtors in plugin code for back-to-back clean testing.
         if (dl_handle != nullptr) {
             if (dlclose(dl_handle) != 0) throw_error("dlclose", path);
         }
