@@ -42,48 +42,50 @@ int main(int argc, char* argv[])
     auto plugin =  make_shared<PluginApi>(argv[1]);
     auto session = Session(plugin, "start_doc");
 
-    auto callback = [](const string& keyexpr, const Message& message) {
-        cout << "subscriber callback with keyexpr=" << keyexpr << " payload=" << message.payload << " attributes=" << message.attributes << endl;
+    auto callback = [](const string& sending_topic, const string& listening_topic, const Message& message) {
+        cout << "subscriber callback with from " << sending_topic << " to " << listening_topic << " payload=" << message.payload << " attributes=" << message.attributes << endl;
     };
 
-    // {
-    //     auto subscriber = Subscriber(session, "upl/string_test", callback, 4);
-    //     auto publisher = Publisher(session, "upl/string_test");
-
-    //     for (auto i = 0; i < 5; i++) {
-    //         cout << endl << "client code pubishing " << i << endl;
-    //         stringstream ss;
-    //         ss << "payload" << i;
-    //         publisher(Message{ss.str(), "attributes"});
-    //         sleep(1);
-    //     }
-    // }
-
     {
-        Histogram<string> histo;
-        auto rpc_server_callback = [&](const string& keyexpr, const Message& message) {
-            histo(keyexpr);
-            cout << "rpc callback with keyexpr=" << keyexpr << " payload=" << message.payload << " attributes=" << message.attributes << endl;
-            return Message{"hello", "world"};
-        };
+        auto subscriber = Subscriber(session, "upl/*", callback);
+        auto p1 = Publisher(session, "upl/p1");
+        auto p2 = Publisher(session, "upl/p2");
 
-        auto rpc_server1 = RpcServer(session, "demo/rpc/action1", rpc_server_callback, 4);
-        auto rpc_server2 = RpcServer(session, "demo/rpc/action2", rpc_server_callback, 4);
         for (auto i = 0; i < 5; i++) {
-            using namespace std::chrono_literals;
-
-            cout << endl << "rpc client code pubishing " << i << endl;
+            cout << endl << "client code pubishing " << i << endl;
             stringstream ss;
             ss << "payload" << i;
-            auto f1 = queryCall(session, "demo/rpc/action1", Message{ss.str(), "attributes"}, 1s);
-            auto results1 = f1.get();
-            cout << "rpc results " << get<0>(results1) << ' ' << get<1>(results1).payload << ' ' << get<1>(results1).attributes << endl;
-            auto f2 = queryCall(session, "demo/rpc/action2", Message{ss.str(), "attributes"}, 1s);
-            auto results2 = f2.get();
-            cout << "rpc results " << get<0>(results2) << ' ' << get<1>(results2).payload << ' ' << get<1>(results2).attributes << endl;
+            p1(Message{ss.str(), "attributes"});
+            p2(Message{ss.str(), "attributes"});
+            usleep(100000);
         }
-        cout << "counts = " << histo.density() << endl;
     }
+
+    // {
+    //     Histogram<string> histo;
+    //     auto rpc_server_callback = [&](const string& keyexpr, const Message& message) {
+    //         histo(keyexpr);
+    //         cout << "rpc callback with keyexpr=" << keyexpr << " payload=" << message.payload << " attributes=" << message.attributes << endl;
+    //         return Message{"hello", "world"};
+    //     };
+
+    //     auto rpc_server1 = RpcServer(session, "demo/rpc/action1", rpc_server_callback, 4);
+    //     auto rpc_server2 = RpcServer(session, "demo/rpc/action2", rpc_server_callback, 4);
+    //     for (auto i = 0; i < 5; i++) {
+    //         using namespace std::chrono_literals;
+
+    //         cout << endl << "rpc client code pubishing " << i << endl;
+    //         stringstream ss;
+    //         ss << "payload" << i;
+    //         auto f1 = queryCall(session, "demo/rpc/action1", Message{ss.str(), "attributes"}, 1s);
+    //         auto results1 = f1.get();
+    //         cout << "rpc results " << get<0>(results1) << ' ' << get<1>(results1).payload << ' ' << get<1>(results1).attributes << endl;
+    //         auto f2 = queryCall(session, "demo/rpc/action2", Message{ss.str(), "attributes"}, 1s);
+    //         auto results2 = f2.get();
+    //         cout << "rpc results " << get<0>(results2) << ' ' << get<1>(results2).payload << ' ' << get<1>(results2).attributes << endl;
+    //     }
+    //     cout << "counts = " << histo.density() << endl;
+    // }
 
 
     // {

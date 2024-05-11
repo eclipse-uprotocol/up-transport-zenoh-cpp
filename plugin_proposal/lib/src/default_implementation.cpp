@@ -26,13 +26,13 @@ struct SessionImpl : public SessionApi {
 
 struct PublisherImpl : public PublisherApi {
     shared_ptr<SessionImpl> session;
-    string keyexpr;
+    string sending_topic;
     z_owned_publisher_t handle;
     
-    PublisherImpl(shared_ptr<SessionApi> session_base, const string& keyexpr) : keyexpr(keyexpr)
+    PublisherImpl(shared_ptr<SessionApi> session_base, const string& sending_topic) : sending_topic(sending_topic)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
-        handle = z_declare_publisher(session->session.loan(), z_keyexpr(keyexpr.c_str()), nullptr);
+        handle = z_declare_publisher(session->session.loan(), z_keyexpr(sending_topic.c_str()), nullptr);
         if (!z_check(handle)) throw std::runtime_error("Cannot declare publisher");
     }
 
@@ -56,12 +56,12 @@ struct PublisherImpl : public PublisherApi {
 };
 
 struct SubInfo {
-    string  keyexpr;
+    string  sending_topic;
     Message message;
 
     SubInfo(const zenohc::Sample& sample)
     {
-        keyexpr = sample.get_keyexpr().as_string_view();
+        sending_topic = sample.get_keyexpr().as_string_view();
         message.payload = sample.get_payload().as_string_view();
         message.attributes = sample.get_attachment().get("attributes").as_string_view();
     } 
@@ -70,7 +70,8 @@ struct SubInfo {
 struct SubscriberImpl : public SubscriberApi {
     shared_ptr<SessionImpl> session;
     unique_ptr<zenohc::Subscriber> handle;
-    zenohc::KeyExprView expr;
+    // zenohc::KeyExprView listening_topic;
+    string listening_topic;
     Fifo<SubInfo> fifo;
     unique_ptr<ThreadPool> pool;
     SubscriberServerCallback callback;
@@ -85,18 +86,18 @@ struct SubscriberImpl : public SubscriberApi {
         while (true) {
             auto ptr = fifo.pull();
             if (ptr == nullptr) return;
-            callback(ptr->keyexpr, ptr->message);
+            callback(ptr->sending_topic, listening_topic, ptr->message);
         }
     }
 
-    SubscriberImpl(shared_ptr<SessionApi> session_base, const std::string& expr, SubscriberServerCallback callback, size_t thread_count)
-        : expr(expr), callback(callback)
+    SubscriberImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, SubscriberServerCallback callback, size_t thread_count)
+        : listening_topic(listening_topic), callback(callback)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
         handle = std::make_unique<zenohc::Subscriber>(
             zenohc::expect<zenohc::Subscriber>(
                 session->session.declare_subscriber(
-                    expr,
+                    listening_topic,
                     [&](const zenohc::Sample& arg) { this->handler(arg); } )));
         pool = make_unique<ThreadPool>([&]() { worker(); }, thread_count);
     }

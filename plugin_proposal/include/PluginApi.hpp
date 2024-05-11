@@ -21,7 +21,7 @@ struct Message {
    std::string attributes;
 };
 
-using SubscriberServerCallback = std::function<void (const std::string&, const Message&)>;
+using SubscriberServerCallback = std::function<void (const std::string&sending_topic, const std::string& listening_topic, const Message&)>;
 
 //
 // This is a type alias for RPC server processing.
