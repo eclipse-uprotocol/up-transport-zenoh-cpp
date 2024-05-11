@@ -60,9 +60,9 @@ int main(int argc, char* argv[])
                 << " payload=" << message.payload
                 << " attributes=" << message.attributes << endl;
         };
-        auto subscriber = Subscriber(session, "upl/*", callback);
-        auto p1 = Publisher(session, "upl/p1");
-        auto p2 = Publisher(session, "upl/p2");
+        auto subscriber = Subscriber(session, "upl/*", callback, 4, "sub");
+        auto p1 = Publisher(session, "upl/p1", "p1");
+        auto p2 = Publisher(session, "upl/p2", "p2");
 
         for (auto i = 0; i < 5; i++) {
             cout << endl << "client code pubishing " << i << endl;
@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
                 << " attributes=" << message.attributes << endl;
             return Message{"hello", "world"};
         };
-        auto rpc_server = RpcServer(session, "demo/rpc/*", rpc_server_callback);
+        auto rpc_server = RpcServer(session, "demo/rpc/*", rpc_server_callback, 4, "rpcserv");
 
         for (auto i = 0; i < 5; i++) {
             using namespace std::chrono_literals;

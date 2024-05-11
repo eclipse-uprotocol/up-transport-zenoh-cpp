@@ -3,9 +3,6 @@
 #include "PluginApi.hpp"
 #include "zenohc.hxx"
 #include "Utils.hpp"
-// #include "trace_hook.hpp"
-
-// IMPL_TRACEHOOK()
 
 using namespace std;
 
@@ -20,8 +17,7 @@ static zenohc::Session inst()
 }
 
 #define LINENO() __LINE__
-// #define TRACE(session, desc) (session)->trace(__FUNCTION__, LINENO(), desc)
-#define TRACE(session, desc) { char buf[64]; (session)->trace(buf, __FUNCTION__, __LINE__, desc); DTRACE_PROBE1(tracehook, LINENO(), buf); }
+#define TRACE(obj, desc) { char buf[64]; (obj)->trace(buf, __FUNCTION__, __LINE__, desc); DTRACE_PROBE1(tracehook, LINENO(), buf); }
 
 
 struct SessionImpl : public SessionApi {
@@ -46,25 +42,26 @@ struct SessionImpl : public SessionApi {
 struct PublisherImpl : public PublisherApi {
     shared_ptr<SessionImpl> session;
     string sending_topic;
+    string trace_name;
     z_owned_publisher_t handle;
     
-    PublisherImpl(shared_ptr<SessionApi> session_base, const string& sending_topic) : sending_topic(sending_topic)
+    PublisherImpl(shared_ptr<SessionApi> session_base, const string& sending_topic, const string& trace_name) : sending_topic(sending_topic), trace_name(trace_name)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
-        TRACE(session, "");
+        TRACE(this, "");
         handle = z_declare_publisher(session->session.loan(), z_keyexpr(sending_topic.c_str()), nullptr);
         if (!z_check(handle)) throw std::runtime_error("Cannot declare publisher");
     }
 
     ~PublisherImpl()
     {
-        TRACE(session, "");
+        TRACE(this, "");
         z_undeclare_publisher(&handle);
     }
 
     void operator()(const Message& message)
     {
-        TRACE(session, "");
+        TRACE(this, "");
         z_publisher_put_options_t options = z_publisher_put_options_default();
         z_owned_bytes_map_t map = z_bytes_map_new();
         options.attachment = z_bytes_map_as_attachment(&map);
@@ -74,6 +71,12 @@ struct PublisherImpl : public PublisherApi {
             throw std::runtime_error("Cannot publish");
         }
         z_drop(z_move(map));
+    }
+
+    void trace(char buf[64], const char* fn, int line_no, const string& desc)
+    {
+        memset(buf, 0, 64);
+        snprintf(buf, 64, "%s:%s:%d:%s", trace_name.c_str(), fn, line_no, desc.c_str());
     }
 };
 
@@ -93,33 +96,34 @@ struct SubscriberImpl : public SubscriberApi {
     shared_ptr<SessionImpl> session;
     unique_ptr<zenohc::Subscriber> handle;
     string listening_topic;
+    string trace_name;
     Fifo<SubInfo> fifo;
     unique_ptr<ThreadPool> pool;
     SubscriberServerCallback callback;
 
     void handler(const zenohc::Sample& sample)
     {
-        TRACE(session, "");
+        TRACE(this, "");
         fifo.push(make_shared<SubInfo>(sample));
     }
 
     void worker()
     {
-        TRACE(session, "");
+        TRACE(this, "");
         while (true) {
             auto ptr = fifo.pull();
-            TRACE(session, "");
+            TRACE(this, "");
             if (ptr == nullptr) break;
             callback(ptr->sending_topic, listening_topic, ptr->message);
         }
-        TRACE(session, "");
+        TRACE(this, "");
     }
 
-    SubscriberImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, SubscriberServerCallback callback, size_t thread_count)
-        : listening_topic(listening_topic), callback(callback)
+    SubscriberImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, SubscriberServerCallback callback, size_t thread_count, const string& trace_name)
+        : listening_topic(listening_topic), callback(callback), trace_name(trace_name)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
-        TRACE(session, "");
+        TRACE(this, "");
         handle = std::make_unique<zenohc::Subscriber>(
             zenohc::expect<zenohc::Subscriber>(
                 session->session.declare_subscriber(
@@ -130,8 +134,14 @@ struct SubscriberImpl : public SubscriberApi {
 
     ~SubscriberImpl()
     {
-        TRACE(session, "");
+        TRACE(this, "");
         fifo.exit();
+    }
+
+    void trace(char buf[64], const char* fn, int line_no, const string& desc)
+    {
+        memset(buf, 0, 64);
+        snprintf(buf, 64, "%s:%s:%d:%s", trace_name.c_str(), fn, line_no, desc.c_str());
     }
 };
 
@@ -238,6 +248,7 @@ struct RpcServerImpl : public RpcServerApi {
     unique_ptr<ThreadPool> pool;
     string listening_topic;
     RpcServerCallback callback;
+    string trace_name;
 
     static void _handler(const z_query_t *query, void *context)
     {
@@ -246,13 +257,13 @@ struct RpcServerImpl : public RpcServerApi {
 
     void handler(const z_query_t *query)
     {
-        TRACE(session, "");
+        TRACE(this, "");
         fifo.push(make_shared<RpcInfo>(query));
     }
 
     void worker()
     {
-        TRACE(session, "");
+        TRACE(this, "");
         while (true) {
             auto ptr = fifo.pull();
             TRACE(session, "");
@@ -272,11 +283,11 @@ struct RpcServerImpl : public RpcServerApi {
                 cout << "no results to send" << endl;
             }
         }
-        TRACE(session, "");
+        TRACE(this, "");
     }
 
-    RpcServerImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, RpcServerCallback callback, size_t thread_count)
-        : listening_topic(listening_topic), callback(callback)
+    RpcServerImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, RpcServerCallback callback, size_t thread_count, const string& trace_name)
+        : listening_topic(listening_topic), callback(callback), trace_name(trace_name)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
         TRACE(session, "");
@@ -288,9 +299,15 @@ struct RpcServerImpl : public RpcServerApi {
 
     ~RpcServerImpl()
     {
-        TRACE(session, "");
+        TRACE(this, "");
         fifo.exit();
         z_undeclare_queryable(z_move(qable));
+    }
+
+    void trace(char buf[64], const char* fn, int line_no, const string& desc)
+    {
+        memset(buf, 0, 64);
+        snprintf(buf, 64, "%s:%s:%d:%s", trace_name.c_str(), fn, line_no, desc.c_str());
     }
 };
 
