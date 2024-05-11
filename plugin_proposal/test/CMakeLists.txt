@@ -28,6 +28,8 @@ set(CMAKE_CXX_STANDARD 17)
 set( DL_LIBRARY /usr/lib64/libdl.so.2  )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
+find_package(OpenSSL REQUIRED)
+
 # if(BUILD_UNBUNDLED)
 #     find_package(zenohc REQUIRED)
 #     set(ZENOH_LIBRARY zenohc::lib)
@@ -49,5 +51,7 @@ target_link_libraries(api_test
 	PUBLIC
 		up-client-zenoh-cpp::api_implementation
 		${DL_LIBRARY}
+	PRIVATE
+		OpenSSL::Crypto
 )
 

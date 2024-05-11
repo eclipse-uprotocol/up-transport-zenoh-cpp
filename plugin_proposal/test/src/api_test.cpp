@@ -5,6 +5,8 @@
 #include <chrono>
 #include <map>
 #include <unistd.h>
+
+#define FACTORY_CLIENT
 #include "PluginApi.hpp"
 
 using namespace std;
@@ -46,7 +48,8 @@ string genString(const char* fmt, Args... args)
 
 int main(int argc, char* argv[])
 {
-    auto plugin =  make_shared<PluginApi>(argv[1]);
+    PluginApi::WhiteList white_list{"114d15813506aea2e0265c1494d0ef6f"};
+    auto plugin =  make_shared<PluginApi>(argv[1], white_list);
     auto session = Session(plugin, "start_doc");
 
     {
