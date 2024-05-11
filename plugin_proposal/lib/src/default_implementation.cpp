@@ -1,10 +1,11 @@
 #include <iostream>
+#include <sys/sdt.h>
 #include "PluginApi.hpp"
 #include "zenohc.hxx"
 #include "Utils.hpp"
-#include "trace_hook.hpp"
+// #include "trace_hook.hpp"
 
-IMPL_TRACEHOOK()
+// IMPL_TRACEHOOK()
 
 using namespace std;
 
@@ -18,13 +19,27 @@ static zenohc::Session inst()
     return zenohc::expect<zenohc::Session>(zenohc::open(std::move(config)));
 }
 
+#define LINENO() __LINE__
+// #define TRACE(session, desc) (session)->trace(__FUNCTION__, LINENO(), desc)
+#define TRACE(session, desc) { char buf[64]; (session)->trace(buf, __FUNCTION__, __LINE__, desc); DTRACE_PROBE1(tracehook, LINENO(), buf); }
+
+
 struct SessionImpl : public SessionApi {
     string start_doc;
     zenohc::Session session;
+    string trace_name;
 
-    SessionImpl(const string& start_doc) : start_doc(start_doc), session(inst())
+    SessionImpl(const string& start_doc, const string& trace_name) : start_doc(start_doc), session(inst()), trace_name(trace_name)
     {
-        TRACE("session construct");
+        using namespace std;
+        cout << "trace_name = " << trace_name << endl;
+        TRACE(this, "");
+    }
+
+    void trace(char buf[64], const char* fn, int line_no, const string& desc)
+    {
+        memset(buf, 0, 64);
+        snprintf(buf, 64, "%s:%s:%d:%s", trace_name.c_str(), fn, line_no, desc.c_str());
     }
 };
 
@@ -35,19 +50,21 @@ struct PublisherImpl : public PublisherApi {
     
     PublisherImpl(shared_ptr<SessionApi> session_base, const string& sending_topic) : sending_topic(sending_topic)
     {
-        TRACE("publisher construct");
         session = dynamic_pointer_cast<SessionImpl>(session_base);
+        TRACE(session, "");
         handle = z_declare_publisher(session->session.loan(), z_keyexpr(sending_topic.c_str()), nullptr);
         if (!z_check(handle)) throw std::runtime_error("Cannot declare publisher");
     }
 
     ~PublisherImpl()
     {
+        TRACE(session, "");
         z_undeclare_publisher(&handle);
     }
 
     void operator()(const Message& message)
     {
+        TRACE(session, "");
         z_publisher_put_options_t options = z_publisher_put_options_default();
         z_owned_bytes_map_t map = z_bytes_map_new();
         options.attachment = z_bytes_map_as_attachment(&map);
@@ -75,7 +92,6 @@ struct SubInfo {
 struct SubscriberImpl : public SubscriberApi {
     shared_ptr<SessionImpl> session;
     unique_ptr<zenohc::Subscriber> handle;
-    // zenohc::KeyExprView listening_topic;
     string listening_topic;
     Fifo<SubInfo> fifo;
     unique_ptr<ThreadPool> pool;
@@ -83,22 +99,27 @@ struct SubscriberImpl : public SubscriberApi {
 
     void handler(const zenohc::Sample& sample)
     {
+        TRACE(session, "");
         fifo.push(make_shared<SubInfo>(sample));
     }
 
     void worker()
     {
+        TRACE(session, "");
         while (true) {
             auto ptr = fifo.pull();
-            if (ptr == nullptr) return;
+            TRACE(session, "");
+            if (ptr == nullptr) break;
             callback(ptr->sending_topic, listening_topic, ptr->message);
         }
+        TRACE(session, "");
     }
 
     SubscriberImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, SubscriberServerCallback callback, size_t thread_count)
         : listening_topic(listening_topic), callback(callback)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
+        TRACE(session, "");
         handle = std::make_unique<zenohc::Subscriber>(
             zenohc::expect<zenohc::Subscriber>(
                 session->session.declare_subscriber(
@@ -109,6 +130,7 @@ struct SubscriberImpl : public SubscriberApi {
 
     ~SubscriberImpl()
     {
+        TRACE(session, "");
         fifo.exit();
     }
 };
@@ -139,6 +161,7 @@ struct RpcClientImpl : public RpcClientApi {
     RpcClientImpl(shared_ptr<SessionApi> session_base, const string& sending_topic, const Message& message, const std::chrono::seconds& timeout)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
+        TRACE(session, "");
         z_keyexpr_t keyexpr = z_keyexpr(sending_topic.c_str());
         if (!z_check(keyexpr)) throw std::runtime_error("Not a valid key expression");
         channel = zc_reply_fifo_new(16);
@@ -153,11 +176,13 @@ struct RpcClientImpl : public RpcClientApi {
 
     ~RpcClientImpl()
     {
+        TRACE(session, "");
         z_drop(z_move(channel));
     }
 
     tuple<string, Message> operator()()
     {
+        TRACE(session, "");
         std::string src;
         string payload, attributes;
         z_owned_reply_t reply = z_reply_null();
@@ -221,14 +246,17 @@ struct RpcServerImpl : public RpcServerApi {
 
     void handler(const z_query_t *query)
     {
+        TRACE(session, "");
         fifo.push(make_shared<RpcInfo>(query));
     }
 
     void worker()
     {
+        TRACE(session, "");
         while (true) {
             auto ptr = fifo.pull();
-            if (ptr == nullptr) return;
+            TRACE(session, "");
+            if (ptr == nullptr) break;
             auto results = callback(ptr->sending_topic, listening_topic, ptr->message);
             if (results) {
                 auto& payload = results->payload;
@@ -244,12 +272,14 @@ struct RpcServerImpl : public RpcServerApi {
                 cout << "no results to send" << endl;
             }
         }
+        TRACE(session, "");
     }
 
     RpcServerImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, RpcServerCallback callback, size_t thread_count)
         : listening_topic(listening_topic), callback(callback)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
+        TRACE(session, "");
         z_owned_closure_query_t closure = z_closure(_handler, NULL, this);
         qable = z_declare_queryable(session->session.loan(), z_keyexpr(listening_topic.c_str()), z_move(closure), NULL);
         if (!z_check(qable)) throw std::runtime_error("Unable to create queryable.");
@@ -258,13 +288,14 @@ struct RpcServerImpl : public RpcServerApi {
 
     ~RpcServerImpl()
     {
+        TRACE(session, "");
         fifo.exit();
         z_undeclare_queryable(z_move(qable));
     }
 };
 
 Factories factories = {
-    [](const auto start_doc) { return make_shared<SessionImpl>(start_doc); },
+    [](const auto start_doc, const auto trace_name) { return make_shared<SessionImpl>(start_doc, trace_name); },
     [](auto session_base, auto ...args) { return make_shared<PublisherImpl>(session_base, args...); },
     [](auto session_base, auto ...args) { return make_shared<SubscriberImpl>(session_base, args...); },
     [](auto session_base, auto ...args) { return make_shared<RpcClientImpl>(session_base, args...); },

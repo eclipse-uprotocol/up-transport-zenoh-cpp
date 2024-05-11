@@ -48,8 +48,8 @@ string genString(const char* fmt, Args... args)
 
 int main(int argc, char* argv[])
 {
-    PluginApi::WhiteList white_list{"114d15813506aea2e0265c1494d0ef6f"};
-    auto plugin =  make_shared<PluginApi>(argv[1], white_list);
+    PluginApi::WhiteList white_list{"6f4e764446ae6c636363448bcfe3e32d"};
+    auto plugin =  make_shared<PluginApi>(argv[1]); //, white_list);
     auto session = Session(plugin, "start_doc");
 
     {

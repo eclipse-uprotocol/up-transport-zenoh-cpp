@@ -67,7 +67,7 @@ struct RpcServerApi {
 //
 
 struct Factories {
-   std::function< std::shared_ptr<SessionApi> (const std::string&)> get_session;
+   std::function< std::shared_ptr<SessionApi> (const std::string&, const std::string&)> get_session;
    PublisherApi::FactoryParams get_publisher;
    SubscriberApi::FactoryParams get_subscriber;
    RpcClientApi::FactoryParams get_rpc_client;
@@ -75,6 +75,11 @@ struct Factories {
 };
 
 using PluginApi = FactoryPlugin<Factories>;
+
+std::string fake_trace_name()
+{
+   return "dummy";
+}
 
 //
 // Below this point are the thin wrapper classes that hold the pImpls pointing back to the dll implementation
@@ -88,8 +93,8 @@ public:
    friend class RpcClient;
    friend class RpcServer;
 
-   Session(std::shared_ptr<PluginApi> plugin, const std::string& start_doc)
-      : plugin(plugin), pImpl((*plugin)->get_session(start_doc)) {}
+   Session(std::shared_ptr<PluginApi> plugin, const std::string& start_doc, const std::string& trace_name = fake_trace_name())
+      : plugin(plugin), pImpl((*plugin)->get_session(start_doc, trace_name)) {}
 };
 
 
