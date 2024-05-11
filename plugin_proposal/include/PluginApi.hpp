@@ -21,12 +21,16 @@ struct Message {
    std::string attributes;
 };
 
-using SubscriberServerCallback = std::function<void (const std::string&sending_topic, const std::string& listening_topic, const Message&)>;
+//
+// This is a type alias for subscriber server callaback function signature.
+//
+using SubscriberServerCallback = std::function<void (const std::string& sending_topic, const std::string& listening_topic, const Message&)>;
 
 //
-// This is a type alias for RPC server processing.
+// This is a type alias for RPC server callaback function signature.
 //
-using RpcServerCallback = std::function<std::optional<Message> (const std::string&, const Message&)>;
+using RpcReply = Message;
+using RpcServerCallback = std::function<std::optional<RpcReply> (const std::string& sending_topic, const std::string& listening_topic, const Message&)>;
 
 //
 // This makes a type alias for the getter lambdas implemented in the implementation module.

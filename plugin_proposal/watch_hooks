@@ -1,0 +1,7 @@
+#!/usr/bin/env bpftrace
+
+usdt:/home/gzy3g3/projects/up-client-zenoh-cpp/plugin_proposal/build/lib/libapi_implementation.so:*
+{
+    @pids[pid] = 1;
+    printf("%8x %8x %16llx %s\n", pid, tid, elapsed, str(arg0));
+}

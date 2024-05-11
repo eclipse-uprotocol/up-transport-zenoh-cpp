@@ -2,6 +2,9 @@
 #include "PluginApi.hpp"
 #include "zenohc.hxx"
 #include "Utils.hpp"
+#include "trace_hook.hpp"
+
+IMPL_TRACEHOOK()
 
 using namespace std;
 
@@ -21,6 +24,7 @@ struct SessionImpl : public SessionApi {
 
     SessionImpl(const string& start_doc) : start_doc(start_doc), session(inst())
     {
+        TRACE("session construct");
     }
 };
 
@@ -31,6 +35,7 @@ struct PublisherImpl : public PublisherApi {
     
     PublisherImpl(shared_ptr<SessionApi> session_base, const string& sending_topic) : sending_topic(sending_topic)
     {
+        TRACE("publisher construct");
         session = dynamic_pointer_cast<SessionImpl>(session_base);
         handle = z_declare_publisher(session->session.loan(), z_keyexpr(sending_topic.c_str()), nullptr);
         if (!z_check(handle)) throw std::runtime_error("Cannot declare publisher");
@@ -131,10 +136,10 @@ struct RpcClientImpl : public RpcClientApi {
     shared_ptr<SessionImpl> session;
     z_owned_reply_channel_t channel;
     
-    RpcClientImpl(shared_ptr<SessionApi> session_base, const string& expr, const Message& message, const std::chrono::seconds& timeout)
+    RpcClientImpl(shared_ptr<SessionApi> session_base, const string& sending_topic, const Message& message, const std::chrono::seconds& timeout)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
-        z_keyexpr_t keyexpr = z_keyexpr(expr.c_str());
+        z_keyexpr_t keyexpr = z_keyexpr(sending_topic.c_str());
         if (!z_check(keyexpr)) throw std::runtime_error("Not a valid key expression");
         channel = zc_reply_fifo_new(16);
         auto opts = z_get_options_default();
@@ -177,13 +182,13 @@ struct RpcClientImpl : public RpcClientApi {
 };
 
 struct RpcInfo {
-    string  keyexpr;
+    string  sending_topic;
     Message message;
     z_owned_query_t owned_query;
 
     RpcInfo(const z_query_t *query)
     {
-        keyexpr = keyexpr2string(z_query_keyexpr(query));
+        sending_topic = keyexpr2string(z_query_keyexpr(query));
         // z_bytes_t pred = z_query_parameters(query);
         z_value_t value = z_query_value(query);
         message.payload = extract(value.payload);
@@ -206,6 +211,7 @@ struct RpcServerImpl : public RpcServerApi {
     z_owned_queryable_t qable;
     Fifo<RpcInfo> fifo;
     unique_ptr<ThreadPool> pool;
+    string listening_topic;
     RpcServerCallback callback;
 
     static void _handler(const z_query_t *query, void *context)
@@ -223,7 +229,7 @@ struct RpcServerImpl : public RpcServerApi {
         while (true) {
             auto ptr = fifo.pull();
             if (ptr == nullptr) return;
-            auto results = callback(ptr->keyexpr, ptr->message);
+            auto results = callback(ptr->sending_topic, listening_topic, ptr->message);
             if (results) {
                 auto& payload = results->payload;
                 auto& attributes = results->attributes;
@@ -232,7 +238,7 @@ struct RpcServerImpl : public RpcServerApi {
                 z_owned_bytes_map_t map = z_bytes_map_new();
                 z_bytes_map_insert_by_alias(&map, z_bytes_new("attributes"), pack(attributes));
                 options.attachment = z_bytes_map_as_attachment(&map);
-                z_query_reply(&query, z_keyexpr(ptr->keyexpr.c_str()), (const uint8_t*)payload.data(), payload.size(), &options);                
+                z_query_reply(&query, z_keyexpr(ptr->sending_topic.c_str()), (const uint8_t*)payload.data(), payload.size(), &options);                
             }
             else {
                 cout << "no results to send" << endl;
@@ -240,13 +246,12 @@ struct RpcServerImpl : public RpcServerApi {
         }
     }
 
-    RpcServerImpl(shared_ptr<SessionApi> session_base, const std::string& keyexpr, RpcServerCallback callback, size_t thread_count) : callback(callback)
+    RpcServerImpl(shared_ptr<SessionApi> session_base, const std::string& listening_topic, RpcServerCallback callback, size_t thread_count)
+        : listening_topic(listening_topic), callback(callback)
     {
         session = dynamic_pointer_cast<SessionImpl>(session_base);
-        cout << "registering RPC callback for " << keyexpr << " thread_count=" << thread_count << endl;
-
         z_owned_closure_query_t closure = z_closure(_handler, NULL, this);
-        qable = z_declare_queryable(session->session.loan(), z_keyexpr(keyexpr.c_str()), z_move(closure), NULL);
+        qable = z_declare_queryable(session->session.loan(), z_keyexpr(listening_topic.c_str()), z_move(closure), NULL);
         if (!z_check(qable)) throw std::runtime_error("Unable to create queryable.");
         pool = make_unique<ThreadPool>([&]() { worker(); }, thread_count);
     }
