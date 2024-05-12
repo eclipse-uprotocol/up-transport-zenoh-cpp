@@ -34,6 +34,7 @@ else()
     # message(STATUS "This is NOT the root CMakeLists.txt file; We should get project wide settings from project root.")
 endif()
     
+add_subdirectory(implementation)
 add_subdirectory(lib)
 add_subdirectory(test)
 # add_subdirectory(pybind)

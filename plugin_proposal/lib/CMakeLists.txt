@@ -16,62 +16,41 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
+# SPDX-FileType: SOURCE
+# SPDX-FileCopyrightText: 2024 General Motors GTO LLC
+# SPDX-License-Identifier: Apache-2.0
+
 cmake_minimum_required(VERSION 3.16)
-project(api_implementation VERSION 0.1.0 LANGUAGES CXX)
+project(test VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(zenohc REQUIRED)
+set( DL_LIBRARY /usr/lib64/libdl.so.2  )
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
-# find_library(ZENOH_LIB zenohc)
-
-# find_package(Protobuf REQUIRED)
-# find_package(spdlog REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 # if(BUILD_UNBUNDLED)
-#     find_package(up-cpp REQUIRED)
 #     find_package(zenohc REQUIRED)
+#     set(ZENOH_LIBRARY zenohc::lib)
 # else()
 #     if(CROSS_COMPILE)
 #         find_package(zenohc REQUIRED)
+# 	set(ZENOH_LIBRARY zenohc::lib)
 #     else()
 #         find_library(ZENOH_LIB zenohc)
+# 	set(ZENOH_LIBRARY ${ZENOH_LIB})
 #     endif()
-#     find_package(up-cpp QUIET)
 # endif()
 
-# Support pulling headers outside of /usr/local
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include /usr/local/include)
+# find_package(GTest REQUIRED)
 
-# add_definitions(-DSPDLOG_FMT_EXTERNAL)
+add_library(plugClient src/DllHandle.cpp)
+target_link_libraries(plugClient 
+	PUBLIC
+		up-client-zenoh-cpp::api_implementation
+		${DL_LIBRARY}
+	PRIVATE
+		OpenSSL::Crypto
+)
 
-set(SRC_FILES         
-    src/default_implementation.cpp)
-
-add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
-target_link_libraries(${PROJECT_NAME} PRIVATE zenohc::lib)
-
-add_library(up-client-zenoh-cpp::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
-
-# target_include_directories(${PROJECT_NAME} 
-#     PUBLIC
-#         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
-#         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> 
-#         $ENV{CMAKE_ZENOH_INCLUDE_PATH}
-#         ${HOME}/include
-#     PRIVATE
-#         ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-# if ((BUILD_UNBUNDLED) OR (CROSS_COMPILE))
-#     target_link_libraries(${PROJECT_NAME} 
-#         PUBLIC 
-#             up-cpp::up-cpp
-#             zenohc::lib)
-# else()
-#     target_link_libraries(${PROJECT_NAME} 
-#         PUBLIC 
-#             up-cpp::up-cpp 
-#             ${ZENOH_LIB}) 
-# endif()
-
-INSTALL(TARGETS ${PROJECT_NAME})
-INSTALL(DIRECTORY include DESTINATION .)

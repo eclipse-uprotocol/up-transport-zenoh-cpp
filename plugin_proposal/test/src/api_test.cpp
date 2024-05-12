@@ -6,7 +6,6 @@
 #include <map>
 #include <unistd.h>
 
-#define FACTORY_CLIENT
 #include "PluginApi.hpp"
 
 using namespace std;
