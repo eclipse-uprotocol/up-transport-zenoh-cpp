@@ -36,6 +36,7 @@ endif()
     
 add_subdirectory(lib)
 add_subdirectory(test)
+# add_subdirectory(pybind)
 
 # if(BUILD_TESTING)
 # 	enable_testing()

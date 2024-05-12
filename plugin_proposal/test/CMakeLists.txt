@@ -46,7 +46,7 @@ find_package(OpenSSL REQUIRED)
 # find_package(GTest REQUIRED)
 
 add_executable(api_test
-	src/api_test.cpp)
+	src/api_test.cpp src/DllHandle.cpp)
 target_link_libraries(api_test 
 	PUBLIC
 		up-client-zenoh-cpp::api_implementation
