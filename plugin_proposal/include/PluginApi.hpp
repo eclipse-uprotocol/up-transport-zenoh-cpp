@@ -80,7 +80,7 @@ using PluginApi = FactoryPlugin<Factories>;
 // Below this point are the thin wrapper classes that hold the pImpls pointing back to the dll implementation
 //
 class Session {
-   std::shared_ptr<PluginApi> plugin;
+   PluginApi plugin;
    std::shared_ptr<SessionApi> pImpl;
 public:
    friend class Publisher;
@@ -88,8 +88,8 @@ public:
    friend class RpcClient;
    friend class RpcServer;
 
-   Session(std::shared_ptr<PluginApi> plugin, const std::string& start_doc, const std::string& trace_name = "session")
-      : plugin(plugin), pImpl((*plugin)->get_session(start_doc, trace_name)) {}
+   Session(PluginApi plugin, const std::string& start_doc, const std::string& trace_name = "session")
+      : plugin(plugin), pImpl(plugin->get_session(start_doc, trace_name)) {}
 };
 
 
@@ -97,7 +97,7 @@ class Publisher {
    std::shared_ptr<PublisherApi> pImpl;
 public:
    Publisher(Session session, const std::string& topic, const std::string& trace_name = "publisher")
-      : pImpl((*session.plugin)->get_publisher(session.pImpl, topic, trace_name)) {}
+      : pImpl(session.plugin->get_publisher(session.pImpl, topic, trace_name)) {}
 
    void operator()(const Message& message) { (*pImpl)(message); }
 };
@@ -106,14 +106,14 @@ class Subscriber {
    std::shared_ptr<SubscriberApi> pImpl;
 public:
    Subscriber(Session session, const std::string& topic, SubscriberServerCallback callback, size_t thread_count = 4, const std::string& trace_name = "subscriber")
-      : pImpl((*session.plugin)->get_subscriber(session.pImpl, topic, callback, thread_count, trace_name)) {}
+      : pImpl(session.plugin->get_subscriber(session.pImpl, topic, callback, thread_count, trace_name)) {}
 };
 
 class RpcClient {
    std::shared_ptr<RpcClientApi> pImpl;
 public:
    RpcClient(Session session, const std::string& topic, const Message& message, const std::chrono::seconds& timeout)
-      : pImpl((*session.plugin)->get_rpc_client(session.pImpl, topic, message, timeout)) {}
+      : pImpl(session.plugin->get_rpc_client(session.pImpl, topic, message, timeout)) {}
 
    std::tuple<std::string, Message> operator()() { return (*pImpl)(); }
 };
@@ -128,7 +128,7 @@ class RpcServer {
    std::shared_ptr<RpcServerApi> pImpl;
 public:
    RpcServer(Session session, const std::string& topic, RpcServerCallback callback, size_t thread_count = 4, const std::string& trace_name = "subscriber")
-      : pImpl((*session.plugin)->get_rpc_server(session.pImpl, topic, callback, thread_count, trace_name)) {}
+      : pImpl(session.plugin->get_rpc_server(session.pImpl, topic, callback, thread_count, trace_name)) {}
 
 };
 

@@ -48,7 +48,7 @@ string genString(const char* fmt, Args... args)
 void test(const string& dll_path)
 {
     PluginApi::WhiteList white_list{"6f4e764446ae6c636363448bcfe3e32d"};
-    auto plugin =  make_shared<PluginApi>(dll_path); //, white_list);
+    auto plugin =  PluginApi(dll_path); //, white_list);
     auto session = Session(plugin, "start_doc");
 
     {

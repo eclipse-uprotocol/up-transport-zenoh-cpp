@@ -43,8 +43,5 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 # find_package(GTest REQUIRED)
 
 add_executable(api_test src/api_test.cpp)
-target_link_libraries(api_test 
-	PUBLIC
-		plugClient
-)
+target_link_libraries(api_test PUBLIC PluginApi)
 

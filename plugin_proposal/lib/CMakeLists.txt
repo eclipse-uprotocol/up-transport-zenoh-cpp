@@ -24,6 +24,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(test VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set( DL_LIBRARY /usr/lib64/libdl.so.2  )
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
@@ -45,12 +46,6 @@ find_package(OpenSSL REQUIRED)
 
 # find_package(GTest REQUIRED)
 
-add_library(plugClient src/DllHandle.cpp)
-target_link_libraries(plugClient 
-	PUBLIC
-		up-client-zenoh-cpp::api_implementation
-		${DL_LIBRARY}
-	PRIVATE
-		OpenSSL::Crypto
-)
+add_library(PluginApi src/DllHandle.cpp)
+target_link_libraries(PluginApi PRIVATE ${DL_LIBRARY} OpenSSL::Crypto)
 
