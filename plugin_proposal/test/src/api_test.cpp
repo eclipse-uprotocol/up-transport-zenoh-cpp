@@ -97,6 +97,11 @@ void test(const string& dll_path)
 
 int main(int argc, char* argv[])
 {
+    if (argc < 2) {
+        cerr << "Must provide path to impl library." << endl;
+        exit(-1);
+    }
+
     test(argv[1]);
     // Oh, by the way, dlclose() will not unload or invoke dtors if there are 'UNIQUE' tagged objects in plugin.
     // Palm to forehead.

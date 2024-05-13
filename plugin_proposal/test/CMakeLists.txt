@@ -45,5 +45,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 add_executable(api_test src/api_test.cpp)
 target_link_libraries(api_test PUBLIC PluginApi)
 
+add_executable(pub_test src/pub_test.cpp)
+target_link_libraries(pub_test PUBLIC PluginApi)
+
 add_executable(sub_test src/sub_test.cpp)
 target_link_libraries(sub_test PUBLIC PluginApi)
+
+add_executable(rpc_client_test src/rpc_client_test.cpp)
+target_link_libraries(rpc_client_test PUBLIC PluginApi)
+
+add_executable(rpc_server_test src/rpc_server_test.cpp)
+target_link_libraries(rpc_server_test PUBLIC PluginApi)
