@@ -5,163 +5,176 @@ on:
     branches: [ main ]
   pull_request:
     branches: ["**"]
-  workflow_call:
-  workflow_dispatch:
-  
+
 jobs:
-  build-zenoh-c:
-    name: Build Zenoh-C
+  build:
+    name: Build up-transport-zenoh-cpp and dependencies
     runs-on: ubuntu-latest
-    env:
-      Zenoh_C_Repo: https://github.com/eclipse-zenoh/zenoh-c.git
-      Zenoh_C_Cache_PFX: libzenohc
-    outputs:
-      Zenoh_C_Cache: ${{ env.Zenoh_C_Cache_PFX }}-${{ steps.zenoh-c-head.outputs.Zenoh_C_HEAD }}
 
     steps:
-      - name: Check remote head hash
-        id: zenoh-c-head
-        shell: bash
-        run: '{ echo -n "Zenoh_C_HEAD="; git ls-remote "$Zenoh_C_Repo" HEAD | cut -f1; } | tee -a "$GITHUB_OUTPUT"'
-
-      - name: Cache compiled zenoh-c library
-        id: cache-libzenohc
-        uses: actions/cache@v4
-        with:
-          key: ${{ env.Zenoh_C_Cache_PFX }}-${{ steps.zenoh-c-head.outputs.Zenoh_C_HEAD }}
-          path: |
-            ~/local
-
-      - name: Install Rust toolchain
-        if: ${{ steps.cache-libzenohc.outputs.cache-hit != 'true' }}
-        run: rustup component add rustfmt clippy
-
-      # NOTE: Checks out the head revision we found using ls-remote above
-      #       to avoid race conditions resulting in mismatch between cache
-      #       and contents of repo.
-      - name: Clone Zenoh-C
-        if: ${{ steps.cache-libzenohc.outputs.cache-hit != 'true' }}
-        env:
-          Zenoh_C_HEAD: ${{ steps.zenoh-c-head.outputs.Zenoh_C_HEAD }}
-        shell: bash
-        run: |
-          pwd
-          git clone "$Zenoh_C_Repo"
-          cd zenoh-c && git checkout "$Zenoh_C_HEAD"
-
-      - name: Build and install Zenoh-C
-        if: ${{ steps.cache-libzenohc.outputs.cache-hit != 'true' }}
-        shell: bash
-        run: |
-          mkdir -p zenoh-c/build && cd zenoh-c/build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/local
-          cmake --build . --target install --config Release -- -j
-
-  build-up-cpp:
-    name: Build up-cpp
-    runs-on: ubuntu-latest
-    env:
-      UP_CPP_Repo: https://github.com/eclipse-uprotocol/up-cpp.git
-      UP_CPP_Cache_PFX: up-cpp-conan2
-    outputs:
-      UP_CPP_Cache: ${{ env.UP_CPP_Cache_PFX }}-${{ steps.up-cpp-head.outputs.UP_CPP_HEAD }}
-
-    steps:
-      - name: Check remote head hash
-        id: up-cpp-head
-        shell: bash
-        run: '{ echo -n "UP_CPP_HEAD="; git ls-remote "$UP_CPP_Repo" HEAD | cut -f1; } | tee -a "$GITHUB_OUTPUT"'
-
-      - name: Cache conan artifacts
-        id: cache-conan2
-        uses: actions/cache@v4
-        with:
-          key: ${{ env.UP_CPP_Cache_PFX }}-${{ steps.up-cpp-head.outputs.UP_CPP_HEAD }}
-          path: |
-            ~/.conan2
-
       - name: Install Conan
-        if: ${{ steps.cache-conan2.outputs.cache-hit != 'true' }}
         id: conan
         uses: turtlebrowser/get-conan@main
 
       - name: Create default Conan profile
-        if: ${{ steps.cache-conan2.outputs.cache-hit != 'true' }}
         run: conan profile detect
 
-      # NOTE: Checks out the head revision we found using ls-remote above
-      #       to avoid race conditions resulting in mismatch between cache
-      #       and contents of repo.
-      - name: Clone up-cpp repo
-        if: ${{ steps.cache-conan2.outputs.cache-hit != 'true' }}
-        shell: bash
-        env:
-          UP_CPP_HEAD: ${{ steps.up-cpp-head.outputs.UP_CPP_HEAD }}
-        run: |
-          git clone "$UP_CPP_Repo"
-          cd up-cpp && git checkout "$UP_CPP_HEAD"
-          git submodule update --init --recursive
+      - name: Conan cache archive
+        id: conan-cache
+        uses: actions/cache@v4
+        with:
+          key: ${{ runner.os }}-conan-cache
+          path: conan-cache.tgz
 
-      - name: Create up-cpp Conan package
-        if: ${{ steps.cache-conan2.outputs.cache-hit != 'true' }}
+      - name: Restore conan cache from archive
+        if: ${{ steps.conan-cache.outputs.cache-hit == 'true' }}
         shell: bash
         run: |
-          cd up-cpp
-          conan create . --build=missing
+          conan cache restore conan-cache.tgz
+          rm conan-cache.tgz
 
-      - name: Clean up conan build files
-        if: ${{ steps.cache-conan2.outputs.cache-hit != 'true' }}
-        run: conan cache clean '*'
+      - name: Fetch up-core-api conan recipe
+        uses: actions/checkout@v4
+        with:
+          path: up-conan-recipes
+          repository: gregmedd/up-conan-recipes
 
-  build-up-client-zenoh-cpp:
-    name: Build up-client-zenoh-cpp
-    needs: [ build-zenoh-c, build-up-cpp ]
+      - name: Build up-core-api conan package
+        shell: bash
+        run: |
+          conan create --version 1.5.8 up-conan-recipes/up-core-api/developer
+
+      - name: Build up-cpp conan package
+        shell: bash
+        run: |
+          conan create --version 0.2.0 --build=missing up-conan-recipes/up-cpp/developer
+
+      - name: Build zenohc conan package
+        shell: bash
+        run: |
+          conan create --version 0.11.0.3 up-conan-recipes/zenohc-tmp/prebuilt
+
+      - name: Fetch up-transport-zenoh-cpp
+        uses: actions/checkout@v4
+        with:
+          path: up-transport-zenoh-cpp
+
+      - name: Build up-transport-zenoh-cpp with tests
+        shell: bash
+        run: |
+          cd up-transport-zenoh-cpp
+          conan install . --build=missing
+          cd build
+          cmake -S .. -DCMAKE_TOOLCHAIN_FILE=Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=yes
+          cmake --build . -- -j
+
+      - name: Save conan cache to archive
+        shell: bash
+        run: |
+          conan cache save --file ./conan-cache.tgz '*'
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: up-transport-zenoh-cpp/build
+
+      - name: Upload compile commands
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-commands
+          path: up-transport-zenoh-cpp/build/compile_commands.json
+
+  test:
+    name: Run up-transport-zenoh-cpp tests
     runs-on: ubuntu-latest
-    env:
-      Zenoh_C_Cache: ${{ needs.build-zenoh-c.outputs.Zenoh_C_Cache }}
-      UP_CPP_Cache: ${{ needs.build-up-cpp.outputs.UP_CPP_Cache }}
+    needs: build
 
     steps:
-      # Note: will never update here since it will always match from previous job
-      - name: Get cached zenoh-c library
-        uses: actions/cache@v4
+      - name: Get build artifacts
+        uses: actions/download-artifact@v4
         with:
-          key: ${{ env.Zenoh_C_Cache }}
-          path: |
-            ~/local
+          name: build-artifacts
+          path: up-transport-zenoh-cpp/build
 
-      # Note: will never update here since it will always match from previous job
-      - name: Get cached up-cpp conan artifacts
-        uses: actions/cache@v4
+      - name: Run all tests
+        shell: bash
+        run: |
+          cd up-transport-zenoh-cpp/build
+          chmod +x bin/*
+          ctest
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
         with:
-          key: ${{ env.UP_CPP_Cache }}
-          path: |
-            ~/.conan2
+          name: test-results
+          path: 'up-transport-zenoh-cpp/build/test/results/*.xml'
+
+  lint:
+    name: Lint C++ sources
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Get build commands
+        uses: actions/download-artifact@v4
+        with:
+          name: compile-commands
 
       - name: Install Conan
         id: conan
         uses: turtlebrowser/get-conan@main
 
-      - uses: actions/checkout@v4
+      - name: Create default Conan profile
+        run: conan profile detect
 
-      - name: Build and install up-client-zenoh-cpp
+      - name: Conan cache archive
+        id: conan-cache
+        uses: actions/cache@v4
+        with:
+          key: ${{ runner.os }}-conan-cache
+          fail-on-cache-miss: true
+          path: conan-cache.tgz
+
+      - name: Restore conan cache from archive
         shell: bash
         run: |
-          export CMAKE_PREFIX_PATH="$HOME/local"
-          export CMAKE_ZENOH_INCLUDE_PATH="$HOME/local/include"
-          mkdir build
-          cd build
-          conan install ../ -o build_unbundled=True -o zenoh_package=False
-          cmake ../ -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=~/local
-          cmake --build . --target install --config Release -- -j
+          conan cache restore conan-cache.tgz
 
-      - name: Upload test binaries
-        uses: actions/upload-artifact@v4
+      - name: Fetch up-transport-zenoh-cpp
+        uses: actions/checkout@v4
         with:
-          name: tests_up-client-zenoh-cpp
-          path: |
-            build/bin
-          retention-days: 1
+          path: up-transport-zenoh-cpp
+
+      - name: Run linters on source
+        id: source-linter
+        uses: cpp-linter/cpp-linter-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repo-root: up-transport-zenoh-cpp
+          ignore: 'test'
+          style: 'file' # read .clang-format for configuration
+          tidy-checks: '' # Read .clang-tidy for configuration
+          database: compile_commands.json
+
+      - name: Run linters on tests
+        id: test-linter
+        uses: cpp-linter/cpp-linter-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repo-root: up-transport-zenoh-cpp
+          ignore: 'src|include'
+          style: 'file' # read .clang-format for configuration
+          tidy-checks: '' # Read .clang-tidy for configuration
+          database: compile_commands.json
+
+      - name: Report lint failure
+        if: steps.source-linter.outputs.checks-failed > 0 || steps.test-linter.outputs.checks-failed > 0
+        run: |
+          exit 1
 
   # NOTE: In GitHub repository settings, the "Require status checks to pass
   # before merging" branch protection rule ensures that commits are only merged
@@ -171,7 +184,7 @@ jobs:
   ci:
     name: CI status checks
     runs-on: ubuntu-latest
-    needs: [ build-zenoh-c, build-up-cpp, build-up-client-zenoh-cpp ]
+    needs: [build, test]
     if: always()
     steps:
       - name: Check whether all jobs pass
