@@ -56,7 +56,8 @@ protected:
 	/// @returns * OKSTATUS if the payload has been successfully
 	///            sent (ACK'ed)
 	///          * FAILSTATUS with the appropriate failure otherwise.
-	[[nodiscard]] virtual v1::UStatus sendImpl(const v1::UMessage& message) override;
+	[[nodiscard]] virtual v1::UStatus sendImpl(
+	    const v1::UMessage& message) override;
 
 	/// @brief Represents the callable end of a callback connection.
 	using CallableConn = typename UTransport::CallableConn;
