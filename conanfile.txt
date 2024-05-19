@@ -1,0 +1,17 @@
+[requires]
+up-cpp/0.2.0
+zenohc/0.11.0.3
+# Should result in using the packages from up-cpp
+spdlog/[>=1.13.0]
+up-core-api/[>=1.5.8]
+protobuf/[>=3.21.12]
+
+[test_requires]
+gtest/1.14.0
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout
