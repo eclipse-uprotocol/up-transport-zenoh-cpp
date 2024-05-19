@@ -10,7 +10,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <gtest/gtest.h>
-#include <up-client-zenoh-cpp/transport/ZenohUTransport.h>
+#include <up-transport-zenoh-cpp/ZenohUTransport.h>
 
 namespace {
 

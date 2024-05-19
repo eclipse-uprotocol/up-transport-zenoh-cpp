@@ -59,7 +59,7 @@ protected:
 	[[nodiscard]] virtual v1::UStatus sendImpl(const v1::UMessage& message) override;
 
 	/// @brief Represents the callable end of a callback connection.
-	using CallableConn = typename UTransport::Callable;
+	using CallableConn = typename UTransport::CallableConn;
 
 	/// @brief Register listener to be called when UMessage is received
 	///        for the given URI.

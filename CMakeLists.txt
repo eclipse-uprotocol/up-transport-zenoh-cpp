@@ -12,7 +12,6 @@
 cmake_minimum_required(VERSION 3.10.0)
 project(up-transport-zenoh-cpp VERSION 0.1.5  LANGUAGES CXX DESCRIPTION "C++ Zenoh Transport for uProtocol")
 
-
 find_package(protobuf REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(up-core-api REQUIRED)
@@ -42,7 +41,7 @@ target_include_directories(${PROJECT_NAME}
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 	$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
-	${uzenohc_INCLUDE_DIR}
+	${zenohc_INCLUDE_DIR}
 	${up-cpp_INCLUDE_DIR}
 	${up-core-api_INCLUDE_DIR}
 	${protobuf_INCLUDE_DIR}
@@ -52,8 +51,8 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
-	zenohc::zenohc
-	up-cpp::up_cpp
+	zenohc::lib
+	up-cpp::up-cpp
 	up-core-api::up-core-api
 	protobuf::libprotobuf
 	spdlog::spdlog)

@@ -23,7 +23,7 @@ function(add_coverage_test Name)
         up-core-api::up-core-api
         up-cpp::up-cpp
         up-cpp::up-transport-zenoh-cpp
-        zenohc::zenohc
+        zenohc::lib
         spdlog::spdlog
         protobuf::protobuf
         PRIVATE
