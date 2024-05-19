@@ -1,33 +1,40 @@
-# uprotocol-cpp-ulink-zenoh
+# uProtocol C++ Zenoh Transport (up-transport-zenoh-cpp)
 
 ## Welcome!
 
-The main object of this module is to provide the C++ zenoh based uTransport
+This library provides a Zenoh-based uProtocol transport for C++ uEntities.
 
 *_IMPORTANT NOTE:_ This project is under active development*
 
-This module contains the implementation for pub-sub and RPC API`s defined in the uProtocol spec
+This module contains the Zenoh implementation of the Layer 1 `UTransport` API
+from [up-cpp][cpp-api-repo].
 
 ## Getting Started
+
 ### Requirements:
 - Compiler: GCC/G++ 11 or Clang 13
-- Ubuntu 22.04
-- conan : 1.59 or latest 2.X
+- Conan : 1.59 or latest 2.X
 
-#### Zenoh dependencies
+#### Conan packages
 
-1. install up-cpp library https://github.com/eclipse-uprotocol/up-cpp
-2. install zenoh-c , using the following instructions https://github.com/eclipse-zenoh/zenoh-c/tree/master
+Using the recipes found in [up-conan-recipes][conan-recipe-repo], build these
+Conan packages:
 
-```
-$ git clone https://github.com/eclipse-uprotocol/up-client-zenoh-cpp.git
-```
+1. [up-core-api][spec-repo] - `conan create --version 1.5.8 --build=missing up-core-api/developer`
+1. [up-cpp][cpp-api-repo] - `conan create --version 0.2.0 --build=missing up-cpp/developer`
+2. [zenoh-c][zenoh-repo] - `conan create --version 0.11.0.3 zenoh-tmp/developer`
+
+**NOTE:** all `conan` commands in this document use  Conan 2.x syntax. Please
+adjust accordingly when using Conan 1.x.
+
 ## How to Use the Library
-To add up-client-zenoh-cpp to your conan build dependencies, simply add the following to your conanfile.txt:
+
+To add up-transport-zenoh-cpp to your conan build dependencies, place following
+in your conanfile.txt:
+
 ```
 [requires]
-up-cpp-client-zenoh/0.1
-protobuf/3.21.12
+up-transport-zenoh-cpp/[>=1.0.0 <2.0.0]
 
 [generators]
 CMakeDeps
@@ -35,27 +42,45 @@ CMakeToolchain
 
 [layout]
 cmake_layout
-
-```
-**NOTE:** If using conan version 1.59 Ensure that the conan profile is configured to use ABI 11 (libstdc++11: New ABI.) standards according to https://docs.conan.io/en/1.60/howtos/manage_gcc_abi.html
-
-### Building locally 
-```
-$ cd up-cpp-client-zenoh
-$ mkdir build
-$ cd build
-$ conan install ../ 
-$ cmake ../ -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
-$ cmake --build . --config Release -- -j
 ```
 
-#### Creating conan package locally 
+**NOTE:** If using conan version 1.59 Ensure that the conan profile is
+configured to use ABI 11 (libstdc++11: New ABI) standards according to
+[the Conan documentation for managing gcc ABIs][conan-abi-docs].
+
+## Building locally
+
+The following steps are only required for developers to locally build and test
+up-transport-zenoh-cpp, If you are making a project that uses
+up-transport-zenoh-cpp, follow the steps in the
+[How to Use the Library](#how-to-use-the-library) section above.
+
+### With Conan for dependencies
 
 ```
-$ cd up-cpp-client-zenoh
-$ conan create . 
+cd up-client-zenoh-cpp
+conan install .
+cd build
+cmake ../ -DCMAKE_TOOLCHAIN_FILE=Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+cmake --build . -- -j
 ```
+
+Once the build completes, tests can be run with `ctest`.
+
+### With dependencies installed as system libraries
+
+**TODO** Verify steps for pure cmake build without Conan.
+
+### Creating the Conan package
+
+See: [up-conan-recipes][conan-recipe-repo]
 
 ## Show your support
 
 Give a ⭐️ if this project helped you!
+
+[conan-recipe-repo]: https://github.com/gregmedd/up-conan-recipes
+[spec-repo]: https://github.com/eclipse-uprotocol/up-spec
+[cpp-api-repo]: https://github.com/eclipse-uprotocol/up-cpp
+[zenoh-repo]: https://github.com/eclipse-zenoh/zenoh-cpp
+[conan-abi-docs]: https://docs.conan.io/en/1.60/howtos/manage_gcc_abi.html
