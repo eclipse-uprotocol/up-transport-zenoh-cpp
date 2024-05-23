@@ -15,7 +15,10 @@
 #include <up-cpp/transport/UTransport.h>
 
 #include <filesystem>
+#include <mutex>
 #include <optional>
+#include <unordered_map>
+#include <zenoh.hxx>
 
 namespace uprotocol::transport {
 
@@ -61,6 +64,8 @@ protected:
 
 	/// @brief Represents the callable end of a callback connection.
 	using CallableConn = typename UTransport::CallableConn;
+	using UuriKey = std::string;
+	using RpcCallbackMap = std::unordered_map<UuriKey, CallableConn>;
 
 	/// @brief Register listener to be called when UMessage is received
 	///        for the given URI.
@@ -95,6 +100,21 @@ protected:
 	virtual void cleanupListener(CallableConn listener) override;
 
 private:
+	v1::UStatus sendPublishNotification_(const std::string& zenoh_key,
+	                                     const std::string& payload,
+	                                     const v1::UAttributes& attributes);
+
+	v1::UStatus sendRequest_(const std::string& zenoh_key,
+	                         const std::string& payload,
+	                         const v1::UAttributes& attributes);
+
+	v1::UStatus sendResponse_(const std::string& payload,
+	                          const v1::UAttributes& attributes);
+
+	zenoh::Session session_;
+
+	RpcCallbackMap rpcCallbackMap_;
+	std::mutex rpcCallbackMapMutex_;
 };
 
 }  // namespace uprotocol::transport

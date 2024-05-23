@@ -10,6 +10,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <gtest/gtest.h>
+#include <up-cpp/datamodel/builder/Uuid.h>
+
+#include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
 namespace {
 
@@ -31,7 +34,17 @@ protected:
 	static void TearDownTestSuite() {}
 };
 
-// TODO replace
-TEST_F(TestFixture, SomeTestName) {}
+using namespace uprotocol::v1;
+using namespace uprotocol::transport;
 
+// TODO replace
+TEST_F(TestFixture, PubSub) {
+	UUri uuri;
+	uuri.set_ue_id(1);
+	uuri.set_ue_version_major(1);
+	uuri.set_resource_id(1);
+
+	auto ut =
+	    ZenohUTransport(uuri, "/home/sashacmc/src/zenoh/DEFAULT_CONFIG.json5");
+}
 }  // namespace
