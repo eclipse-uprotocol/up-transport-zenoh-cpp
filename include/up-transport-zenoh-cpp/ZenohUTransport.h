@@ -20,6 +20,37 @@
 #include <unordered_map>
 #include <zenoh.hxx>
 
+namespace zenohc {
+
+class OwnedQuery {
+public:
+	OwnedQuery(const z_query_t& query) : _query(z_query_clone(&query)) {}
+
+	OwnedQuery(const OwnedQuery&) = delete;
+	OwnedQuery& operator=(const OwnedQuery&) = delete;
+
+	~OwnedQuery() { z_drop(&_query); }
+
+	Query loan() const { return z_loan(_query); }
+	bool check() const { return z_check(_query); }
+
+private:
+	z_owned_query_t _query;
+};
+
+using OwnedQueryPtr = std::shared_ptr<OwnedQuery>;
+
+}  // namespace zenohc
+
+namespace {
+
+inline void hashCombine(size_t& seed, size_t value) {
+	// See boost::hash_combine
+	seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+}  // namespace
+
 namespace uprotocol::transport {
 
 /// @brief Zenoh implementation of UTransport
@@ -65,7 +96,37 @@ protected:
 	/// @brief Represents the callable end of a callback connection.
 	using CallableConn = typename UTransport::CallableConn;
 	using UuriKey = std::string;
+
+	struct ListenerKey {
+		CallableConn listener;
+		std::string zenoh_key;
+
+		ListenerKey(CallableConn listener, const std::string& zenoh_key)
+		    : listener(listener), zenoh_key(zenoh_key) {}
+
+		bool operator==(const ListenerKey& other) const {
+			return listener == other.listener && zenoh_key == other.zenoh_key;
+		}
+	};
+
+	struct ListenerKeyHash {
+		std::size_t operator()(const ListenerKey& key) const {
+			std::hash<CallableConn> hashCallableConn;
+			std::size_t seed = hashCallableConn(key.listener);
+
+			std::hash<std::string> hashString;
+			hashCombine(seed, hashString(key.zenoh_key));
+
+			return seed;
+		}
+	};
+
 	using RpcCallbackMap = std::unordered_map<UuriKey, CallableConn>;
+	using SubscriberMap =
+	    std::unordered_map<ListenerKey, zenoh::Subscriber, ListenerKeyHash>;
+	using QueryableMap =
+	    std::unordered_map<ListenerKey, zenoh::Queryable, ListenerKeyHash>;
+	using QueryMap = std::unordered_map<std::string, zenoh::OwnedQueryPtr>;
 
 	/// @brief Register listener to be called when UMessage is received
 	///        for the given URI.
@@ -100,9 +161,14 @@ protected:
 	virtual void cleanupListener(CallableConn listener) override;
 
 private:
-	v1::UStatus sendPublishNotification_(const std::string& zenoh_key,
-	                                     const std::string& payload,
-	                                     const v1::UAttributes& attributes);
+	v1::UStatus registerRequestListener_(const std::string& zenoh_key,
+	                                     CallableConn listener);
+
+	v1::UStatus registerResponseListener_(const std::string& zenoh_key,
+	                                      CallableConn listener);
+
+	v1::UStatus registerPublishNotificationListener_(
+	    const std::string& zenoh_key, CallableConn listener);
 
 	v1::UStatus sendRequest_(const std::string& zenoh_key,
 	                         const std::string& payload,
@@ -111,10 +177,23 @@ private:
 	v1::UStatus sendResponse_(const std::string& payload,
 	                          const v1::UAttributes& attributes);
 
+	v1::UStatus sendPublishNotification_(const std::string& zenoh_key,
+	                                     const std::string& payload,
+	                                     const v1::UAttributes& attributes);
+
 	zenoh::Session session_;
 
-	RpcCallbackMap rpcCallbackMap_;
-	std::mutex rpcCallbackMapMutex_;
+	RpcCallbackMap rpc_callback_map_;
+	std::mutex rpc_callback_map_mutex_;
+
+	SubscriberMap subscriber_map_;
+	std::mutex subscriber_map_mutex_;
+
+	QueryableMap queryable_map_;
+	std::mutex queryable_map_mutex_;
+
+	QueryMap query_map_;
+	std::mutex query_map_mutex_;
 };
 
 }  // namespace uprotocol::transport

@@ -10,7 +10,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <up-cpp/datamodel/serializer/UUri.h>
+#include <up-cpp/datamodel/serializer/Uuid.h>
 #include <up-cpp/datamodel/validator/UMessage.h>
+#include <up-cpp/datamodel/validator/UUri.h>
 
 #include <stdexcept>
 
@@ -18,95 +20,96 @@
 
 namespace uprotocol::transport {
 
+const char UATTRIBUTE_VERSION = 1;
+
 using namespace zenoh;
 using namespace uprotocol::v1;
 using namespace uprotocol::datamodel;
 
 namespace {
-/*
-std::string to_hex_string(uint8_t byte) {
-    std::stringstream ss;
-    ss << std::hex << std::setw(2) << std::setfill('0')
-       << static_cast<int>(byte);
-    return ss.str();
+
+UStatus uError(UCode code, std::string_view message) {
+	UStatus status;
+	status.set_code(code);
+	status.set_message(std::string(message));
+	return status;
 }
 
-std::string get_uauth_from_uuri(const UUri& uri) {
-    if (!uri.authority_name().empty()) {
-        std::vector<uint8_t> buf;
-        try {
-            buf = uri.to_bytes();
-        } catch (const std::runtime_error& e) {
-            std::string msg = "Unable to transform UAuthority into micro form";
-            std::cerr << msg << std::endl;
-            throw UStatus::fail_with_code(UCode::INVALID_ARGUMENT, msg);
-        }
-
-        std::ostringstream oss;
-        for (auto c : buf) {
-            oss << std::hex << std::setw(2) << std::setfill('0')
-                << static_cast<int>(c);
-        }
-        return oss.str();
-    } else {
-        std::string msg = "UAuthority is empty";
-        std::cerr << msg << std::endl;
-        throw UStatus::fail_with_code(UCode::INVALID_ARGUMENT, msg);
-    }
-}
-*/
-std::string toZenohKeyString(const UUri& uri) {
-	/*
-	if (uri.authority_name().has_value() && !uri.entity.has_value() &&
-	    !uri.resource.has_value()) {
-	    try {
-	        return "upr/" + UPClientZenoh::get_uauth_from_uuri(uri) + "/**";
-	    } catch (const std::runtime_error& e) {
-	        std::string msg =
-	            "Unable to get authority from UUri: " + std::string(e.what());
-	        std::cerr << msg << std::endl;
-	        throw UStatus::fail_with_code(UCode::INVALID_ARGUMENT, msg);
-	    }
-	} else {
-	    std::vector<uint8_t> micro_uuri;
-	    try {
-	        micro_uuri = uri.to_bytes();
-	    } catch (const std::runtime_error& e) {
-	        std::string msg = "Unable to serialize into micro format: " +
-	                          std::string(e.what());
-	        std::cerr << msg << std::endl;
-	        throw UStatus::fail_with_code(UCode::INVALID_ARGUMENT, msg);
-	    }
-
-	    std::string micro_zenohKey;
-	    if (micro_uuri.size() > 8) {
-	        micro_zenohKey = "upr/";
-	        for (size_t i = 8; i < micro_uuri.size(); ++i) {
-	            micro_zenohKey += to_hex_string(micro_uuri[i]);
-	        }
-	        micro_zenohKey += "/";
-	    } else {
-	        micro_zenohKey = "upl/";
-	    }
-
-	    for (size_t i = 0; i < 8 && i < micro_uuri.size(); ++i) {
-	        micro_zenohKey += to_hex_string(micro_uuri[i]);
-	    }
-
-	    return micro_zenohKey;
+std::string transformAuthority(const std::string& authority) {
+	std::string result;
+	for (char c : authority) {
+		if (std::isalnum(c)) {
+			result += std::tolower(c);
+		} else if (c == '.' || c == '-' || c == '_' || c == '*') {
+			result += c;
+		} else if (c == '$') {
+			result += "{dollar}";
+		} else {
+			result += "{}";
+		}
 	}
-	*/
-	return "";
+	return result;
 }
 
-std::map<std::string, std::string> uattributesToAttachment(
+// TODO: FFFF -> * not clear for spec
+std::string toZenohKeyString(const UUri& source,
+                             const std::optional<v1::UUri>& sink) {
+	std::ostringstream zenoh_key;
+	zenoh_key << std::uppercase << std::hex << std::setw(8)
+	          << std::setfill('0');
+
+	zenoh_key << "up/";
+
+	zenoh_key << transformAuthority(source.authority_name()) << "/";
+	zenoh_key << source.ue_id() << "/";
+	zenoh_key << source.ue_version_major() << "/";
+	zenoh_key << source.resource_id() << "/";
+
+	if (sink.has_value()) {
+		zenoh_key << transformAuthority(sink->authority_name()) << "/";
+		zenoh_key << sink->ue_id() << "/";
+		zenoh_key << sink->ue_version_major() << "/";
+		zenoh_key << sink->resource_id();
+	} else {
+		zenoh_key << "/{}/{}/{}/{}";
+	}
+	return zenoh_key.str();
+}
+
+std::vector<std::pair<std::string, std::string>> uattributesToAttachment(
     const UAttributes& attributes) {
-	std::map<std::string, std::string> res;
+	std::vector<std::pair<std::string, std::string>> res;
+
+	std::string version(&UATTRIBUTE_VERSION, 1);
+
+	std::string data;
+	attributes.SerializeToString(&data);
+
+	res.push_back(std::make_pair("", version));
+	res.push_back(std::make_pair("", data));
 	return res;
 }
 
-UAttributes attachmentToUattributes(const AttachmentView& attachment) {
+UAttributes attachmentToUAttributes(const AttachmentView& attachment) {
+	std::vector<BytesView> attachment_vec;
+	attachment.iterate(
+	    [&](const BytesView& key, const BytesView& value) -> bool {
+		    attachment_vec.push_back(value);
+		    return true;
+	    });
+
+	if (attachment_vec.size() != 2) {
+		// TODO: error report, exception?
+	}
+
+	if (attachment_vec[0].get_len() == 1) {
+		if (attachment_vec[0].as_string_view()[0] != UATTRIBUTE_VERSION) {
+			// TODO: error report, exception?
+		}
+	};
 	UAttributes res;
+	// TODO: more efficient way?
+	res.ParseFromString(std::string(attachment_vec[1].as_string_view()));
 	return res;
 }
 
@@ -132,6 +135,19 @@ Priority mapZenohPriority(UPriority upriority) {
 	}
 }
 
+UMessage sampleToUMessage(const Sample& sample) {
+	UAttributes attributes;
+	if (sample.get_attachment().check()) {
+		attributes = attachmentToUAttributes(sample.get_attachment());
+	}
+	std::string payload(sample.get_payload().as_string_view());
+	UMessage message;
+	message.set_payload(payload);
+	message.set_allocated_attributes(&attributes);
+
+	return message;
+}
+
 }  // namespace
 
 ZenohUTransport::ZenohUTransport(const UUri& defaultUri,
@@ -140,57 +156,76 @@ ZenohUTransport::ZenohUTransport(const UUri& defaultUri,
       session_(expect<Session>(open(
           std::move(expect(config_from_file(configFile.string().c_str())))))) {}
 
-UStatus ZenohUTransport::sendPublishNotification_(
-    const std::string& zenohKey, const std::string& payload,
-    const UAttributes& attributes) {
-	auto attachment = uattributesToAttachment(attributes);
+UStatus ZenohUTransport::registerRequestListener_(const std::string& zenoh_key,
+                                                  CallableConn listener) {
+	auto on_query = [&](const Query& query) {
+		UAttributes attributes;
+		if (query.get_attachment().check()) {
+			attributes = attachmentToUAttributes(query.get_attachment());
+		}
+		auto id_str = serializer::uuid::AsString().serialize(attributes.id());
+		std::unique_lock<std::mutex> lock(query_map_mutex_);
+		query_map_.insert(std::make_pair(
+		    std::move(id_str), std::move(std::make_shared<OwnedQuery>(query))));
+	};
 
-	auto priority = mapZenohPriority(attributes.priority());
+	auto on_drop_queryable = []() {};
 
-	PutOptions options;
-	options.set_encoding(Z_ENCODING_PREFIX_APP_CUSTOM);
-	options.set_priority(priority);
-	options.set_attachment(attachment);
-	if (!session_.put(zenohKey, payload, options)) {
-		return UStatus();  // TODO: UCode::INTERNAL, "Unable to send with Zenoh"
-	}
+	auto queryable = expect<Queryable>(
+	    session_.declare_queryable(zenoh_key, {on_query, on_drop_queryable}));
 
 	return UStatus();
 }
 
-UStatus ZenohUTransport::sendRequest_(const std::string& zenohKey,
+UStatus ZenohUTransport::registerResponseListener_(const std::string& zenoh_key,
+                                                   CallableConn listener) {
+	std::unique_lock<std::mutex> lock(rpc_callback_map_mutex_);
+	rpc_callback_map_.insert(std::make_pair(zenoh_key, listener));
+
+	return UStatus();
+}
+
+UStatus ZenohUTransport::registerPublishNotificationListener_(
+    const std::string& zenoh_key, CallableConn listener) {
+	auto data_handler = [&](const Sample& sample) {
+		(*listener)(sampleToUMessage(sample));
+		// invoke_nonblock_callback(&cb_sender, &listener_cloned, Ok(msg));
+	};
+
+	auto key = ListenerKey(listener, zenoh_key);
+	auto subscriber = expect<Subscriber>(
+	    session_.declare_subscriber(zenoh_key, data_handler));
+	{
+		std::unique_lock<std::mutex> lock(subscriber_map_mutex_);
+		subscriber_map_.insert(
+		    std::make_pair(std::move(key), std::move(subscriber)));
+	}
+	return UStatus();
+}
+
+UStatus ZenohUTransport::sendRequest_(const std::string& zenoh_key,
                                       const std::string& payload,
                                       const UAttributes& attributes) {
-	auto uuidStr = serializer::uri::AsString().serialize(attributes.source());
-	CallableConn respCallback;
+	auto source_str =
+	    serializer::uri::AsString().serialize(attributes.source());
+	CallableConn resp_callback;
 	{
-		std::unique_lock<std::mutex> lock(rpcCallbackMapMutex_);
+		std::unique_lock<std::mutex> lock(rpc_callback_map_mutex_);
 
-		if (auto respCallbackIt = rpcCallbackMap_.find(uuidStr);
-		    respCallbackIt == rpcCallbackMap_.end()) {
-			return UStatus();  // TODO: UCode::UNAVAILABLE, "failed to find UUID
-			                   // = {}", uuidStr
-
+		if (auto resp_callback_it = rpc_callback_map_.find(source_str);
+		    resp_callback_it == rpc_callback_map_.end()) {
+			return uError(UCode::UNAVAILABLE, "failed to find UUID");
 		} else {
-			respCallback = respCallbackIt->second;
+			resp_callback = resp_callback_it->second;
 		}
 	}
-	auto onReply = [&](Reply&& reply) {
+	auto on_reply = [&](Reply&& reply) {
 		auto result = reply.get();
 
 		if (auto sample = std::get_if<Sample>(&result)) {
-			UAttributes attributes;
-			if (sample->get_attachment().check()) {
-				attributes = attachmentToUattributes(sample->get_attachment());
-			}
-			std::string payload(sample->get_payload().as_string_view());
-			UMessage message;
-			message.set_payload(payload);
-			message.set_allocated_attributes(&attributes);
-			(*respCallback)(message);
+			(*resp_callback)(sampleToUMessage(*sample));
 		} else if (auto error = std::get_if<ErrorMessage>(&result)) {
-			std::cout << "Received an error :" << error->as_string_view()
-			          << "\n";
+			// TODO: error report
 		}
 	};
 
@@ -203,56 +238,103 @@ UStatus ZenohUTransport::sendRequest_(const std::string& zenohKey,
 
 	auto onDone = []() {};
 
-	session_.get(zenohKey, "", {onReply, onDone}, options);
+	session_.get(zenoh_key, "", {on_reply, onDone}, options);
 
 	return UStatus();
 }
 
 UStatus ZenohUTransport::sendResponse_(const std::string& payload,
                                        const UAttributes& attributes) {
+	auto reqid_str = serializer::uuid::AsString().serialize(attributes.reqid());
+	OwnedQueryPtr query;
+	{
+		std::unique_lock<std::mutex> lock(query_map_mutex_);
+		if (auto query_it = query_map_.find(reqid_str);
+		    query_it == query_map_.end()) {
+			return uError(UCode::INTERNAL, "query doesn't exist");
+		} else {
+			query = query_it->second;
+		}
+	}
+
+	QueryReplyOptions options;
+	query->loan().reply(query->loan().get_keyexpr().as_string_view(), payload,
+	                    options);
+
+	return UStatus();
+}
+
+UStatus ZenohUTransport::sendPublishNotification_(
+    const std::string& zenoh_key, const std::string& payload,
+    const UAttributes& attributes) {
+	auto attachment = uattributesToAttachment(attributes);
+
+	auto priority = mapZenohPriority(attributes.priority());
+
+	PutOptions options;
+	options.set_encoding(Z_ENCODING_PREFIX_APP_CUSTOM);
+	options.set_priority(priority);
+	options.set_attachment(attachment);
+	if (!session_.put(zenoh_key, payload, options)) {
+		return uError(UCode::INTERNAL, "Unable to send with Zenoh");
+	}
+
 	return UStatus();
 }
 
 v1::UStatus ZenohUTransport::sendImpl(const UMessage& message) {
 	if (!message.has_payload()) {
-		std::string msg = "Invalid UPayload";
-		return UStatus();  // TODO: UCode::INVALID_ARGUMENT, msg
+		return uError(UCode::INVALID_ARGUMENT, "Invalid UPayload");
 	}
 	const auto& payload = message.payload();
 
 	const auto& attributes = message.attributes();
 	if (attributes.type() == UMessageType::UMESSAGE_TYPE_UNSPECIFIED) {
-		std::string msg = "Invalid UAttributes";
-		return UStatus();  // TODO: UCode::INVALID_ARGUMENT, msg
+		return uError(UCode::INVALID_ARGUMENT, "Invalid UAttributes");
 	}
 
+	std::string zenoh_key =
+	    toZenohKeyString(attributes.sink(), attributes.source());
 	switch (attributes.type()) {
 		case UMessageType::UMESSAGE_TYPE_PUBLISH: {
-			auto res = validator::message::isValidPublish(message);
-			// TODO: check res
-			std::string zenohKey = toZenohKeyString(attributes.source());
-			return sendPublishNotification_(zenohKey, payload, attributes);
+			auto [valid, maybe_reason] =
+			    validator::message::isValidPublish(message);
+			if (!valid) {
+				return uError(UCode::INVALID_ARGUMENT,
+				              validator::message::message(*maybe_reason));
+			}
+			return sendPublishNotification_(zenoh_key, payload, attributes);
 		}
 		case UMessageType::UMESSAGE_TYPE_NOTIFICATION: {
-			auto res = validator::message::isValidNotification(message);
-			// TODO: check res
-			std::string zenohKey = toZenohKeyString(attributes.sink());
-			return sendPublishNotification_(zenohKey, payload, attributes);
+			auto [valid, maybe_reason] =
+			    validator::message::isValidNotification(message);
+			if (!valid) {
+				return uError(UCode::INVALID_ARGUMENT,
+				              validator::message::message(*maybe_reason));
+			}
+			return sendPublishNotification_(zenoh_key, payload, attributes);
 		}
 		case UMessageType::UMESSAGE_TYPE_REQUEST: {
-			auto res = validator::message::isValidRpcRequest(message);
-			// TODO: check res
-			std::string zenohKey = toZenohKeyString(attributes.sink());
-			return sendRequest_(zenohKey, payload, attributes);
+			auto [valid, maybe_reason] =
+			    validator::message::isValidRpcRequest(message);
+			if (!valid) {
+				return uError(UCode::INVALID_ARGUMENT,
+				              validator::message::message(*maybe_reason));
+			}
+			return sendRequest_(zenoh_key, payload, attributes);
 		}
 		case UMessageType::UMESSAGE_TYPE_RESPONSE: {
-			auto res = validator::message::isValidRpcResponse(message);
-			// TODO: check res
+			auto [valid, maybe_reason] =
+			    validator::message::isValidRpcResponse(message);
+			if (!valid) {
+				return uError(UCode::INVALID_ARGUMENT,
+				              validator::message::message(*maybe_reason));
+			}
 			return sendResponse_(payload, attributes);
 		}
 		default: {
-			std::string msg = "Wrong Message type in UAttributes";
-			return UStatus();  // TODO: UCode::INVALID_ARGUMENT, msg
+			return uError(UCode::INVALID_ARGUMENT,
+			              "Wrong Message type in UAttributes");
 		}
 	}
 	return UStatus();
@@ -261,6 +343,32 @@ v1::UStatus ZenohUTransport::sendImpl(const UMessage& message) {
 v1::UStatus ZenohUTransport::registerListenerImpl(
     const v1::UUri& sink_filter, CallableConn&& listener,
     std::optional<v1::UUri>&& source_filter) {
+	std::string zenoh_key = toZenohKeyString(sink_filter, source_filter);
+	// TODO: Is 0 == none?
+	if (!sink_filter.authority_name().empty() && sink_filter.ue_id() == 0 &&
+	    sink_filter.resource_id() == 0) {
+		// This is special UUri which means we need to register for all of
+		// Publish, Notification, Request, and Response RPC response
+		registerResponseListener_(zenoh_key, listener);
+		registerRequestListener_(zenoh_key, listener);
+		registerPublishNotificationListener_(zenoh_key, listener);
+	} else {
+		auto [valid, maybe_reason] = validator::uri::isValid(sink_filter);
+		if (!valid) {
+			return uError(UCode::INVALID_ARGUMENT,
+			              validator::uri::message(*maybe_reason));
+		}
+
+		if (std::get<0>(validator::uri::isValidRpcResponse(sink_filter))) {
+			registerResponseListener_(zenoh_key, std::move(listener));
+		} else if (std::get<0>(validator::uri::isValidRpcMethod(sink_filter))) {
+			registerRequestListener_(zenoh_key, std::move(listener));
+		} else {
+			registerPublishNotificationListener_(zenoh_key,
+			                                     std::move(listener));
+		}
+	}
+
 	return v1::UStatus();
 }
 
