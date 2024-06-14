@@ -188,7 +188,7 @@ UStatus ZenohUTransport::registerResponseListener_(const std::string& zenoh_key,
 UStatus ZenohUTransport::registerPublishNotificationListener_(
     const std::string& zenoh_key, CallableConn listener) {
 	auto data_handler = [&](const Sample& sample) {
-		(*listener)(sampleToUMessage(sample));
+		listener(sampleToUMessage(sample));
 		// invoke_nonblock_callback(&cb_sender, &listener_cloned, Ok(msg));
 	};
 
@@ -223,7 +223,7 @@ UStatus ZenohUTransport::sendRequest_(const std::string& zenoh_key,
 		auto result = reply.get();
 
 		if (auto sample = std::get_if<Sample>(&result)) {
-			(*resp_callback)(sampleToUMessage(*sample));
+			resp_callback(sampleToUMessage(*sample));
 		} else if (auto error = std::get_if<ErrorMessage>(&result)) {
 			// TODO: error report
 		}

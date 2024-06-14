@@ -42,15 +42,6 @@ using OwnedQueryPtr = std::shared_ptr<OwnedQuery>;
 
 }  // namespace zenohc
 
-namespace {
-
-inline void hashCombine(size_t& seed, size_t value) {
-	// See boost::hash_combine
-	seed ^= value + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
-}  // namespace
-
 namespace uprotocol::transport {
 
 /// @brief Zenoh implementation of UTransport
@@ -107,26 +98,19 @@ protected:
 		bool operator==(const ListenerKey& other) const {
 			return listener == other.listener && zenoh_key == other.zenoh_key;
 		}
-	};
 
-	struct ListenerKeyHash {
-		std::size_t operator()(const ListenerKey& key) const {
-			std::hash<CallableConn> hashCallableConn;
-			std::size_t seed = hashCallableConn(key.listener);
-
-			std::hash<std::string> hashString;
-			hashCombine(seed, hashString(key.zenoh_key));
-
-			return seed;
+		bool operator<(const ListenerKey& other) const {
+			if (listener == other.listener) {
+				return zenoh_key < other.zenoh_key;
+			}
+			return listener < other.listener;
 		}
 	};
 
-	using RpcCallbackMap = std::unordered_map<UuriKey, CallableConn>;
-	using SubscriberMap =
-	    std::unordered_map<ListenerKey, zenoh::Subscriber, ListenerKeyHash>;
-	using QueryableMap =
-	    std::unordered_map<ListenerKey, zenoh::Queryable, ListenerKeyHash>;
-	using QueryMap = std::unordered_map<std::string, zenoh::OwnedQueryPtr>;
+	using RpcCallbackMap = std::map<UuriKey, CallableConn>;
+	using SubscriberMap = std::map<ListenerKey, zenoh::Subscriber>;
+	using QueryableMap = std::map<ListenerKey, zenoh::Queryable>;
+	using QueryMap = std::map<std::string, zenoh::OwnedQueryPtr>;
 
 	/// @brief Register listener to be called when UMessage is received
 	///        for the given URI.
