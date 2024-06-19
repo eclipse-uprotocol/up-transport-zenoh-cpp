@@ -15,29 +15,17 @@ jobs:
       - name: Install Conan
         id: conan
         uses: turtlebrowser/get-conan@main
+        with:
+          version: 2.3.2
 
       - name: Create default Conan profile
         run: conan profile detect
-
-      - name: Conan cache archive
-        id: conan-cache
-        uses: actions/cache@v4
-        with:
-          key: ${{ runner.os }}-conan-cache
-          path: conan-cache.tgz
-
-      - name: Restore conan cache from archive
-        if: ${{ steps.conan-cache.outputs.cache-hit == 'true' }}
-        shell: bash
-        run: |
-          conan cache restore conan-cache.tgz
-          rm conan-cache.tgz
 
       - name: Fetch up-core-api conan recipe
         uses: actions/checkout@v4
         with:
           path: up-conan-recipes
-          repository: gregmedd/up-conan-recipes
+          repository: eclipse-uprotocol/up-conan-recipes
 
       - name: Build up-core-api conan package
         shell: bash
@@ -85,6 +73,12 @@ jobs:
           name: compile-commands
           path: up-transport-zenoh-cpp/build/compile_commands.json
 
+      - name: Upload conan cache for linting
+        uses: actions/upload-artifact@v4
+        with:
+          name: conan-cache
+          path: ./conan-cache.tgz
+
   test:
     name: Run up-transport-zenoh-cpp tests
     runs-on: ubuntu-latest
@@ -125,17 +119,16 @@ jobs:
       - name: Install Conan
         id: conan
         uses: turtlebrowser/get-conan@main
+        with:
+          version: 2.3.2
 
       - name: Create default Conan profile
         run: conan profile detect
 
-      - name: Conan cache archive
-        id: conan-cache
-        uses: actions/cache@v4
+      - name: Get conan cache
+        uses: actions/download-artifact@v4
         with:
-          key: ${{ runner.os }}-conan-cache
-          fail-on-cache-miss: true
-          path: conan-cache.tgz
+          name: conan-cache
 
       - name: Restore conan cache from archive
         shell: bash
