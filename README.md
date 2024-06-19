@@ -79,7 +79,7 @@ See: [up-conan-recipes][conan-recipe-repo]
 
 Give a ⭐️ if this project helped you!
 
-[conan-recipe-repo]: https://github.com/gregmedd/up-conan-recipes
+[conan-recipe-repo]: https://github.com/eclipse-uprotocol/up-conan-recipes
 [spec-repo]: https://github.com/eclipse-uprotocol/up-spec
 [cpp-api-repo]: https://github.com/eclipse-uprotocol/up-cpp
 [zenoh-repo]: https://github.com/eclipse-zenoh/zenoh-cpp
