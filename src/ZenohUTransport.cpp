@@ -22,62 +22,76 @@ namespace uprotocol::transport {
 
 const char UATTRIBUTE_VERSION = 1;
 
+const uint32_t WILDCARD_ENTITY_ID = 0x0000FFFF;
+const uint32_t WILDCARD_ENTITY_VERSION = 0x000000FF;
+const uint32_t WILDCARD_RESOURCE_ID = 0x0000FFFF;
+
 using namespace zenoh;
 using namespace uprotocol::v1;
 using namespace uprotocol::datamodel;
 
-namespace {
-
-UStatus uError(UCode code, std::string_view message) {
+UStatus ZenohUTransport::uError(UCode code, std::string_view message) {
 	UStatus status;
 	status.set_code(code);
 	status.set_message(std::string(message));
 	return status;
 }
 
-std::string transformAuthority(const std::string& authority) {
-	std::string result;
-	for (char c : authority) {
-		if (std::isalnum(c)) {
-			result += std::tolower(c);
-		} else if (c == '.' || c == '-' || c == '_' || c == '*') {
-			result += c;
-		} else if (c == '$') {
-			result += "{dollar}";
-		} else {
-			result += "{}";
-		}
-	}
-	return result;
-}
-
-// TODO: FFFF -> * not clear for spec
-std::string toZenohKeyString(const UUri& source,
-                             const std::optional<v1::UUri>& sink) {
+std::string ZenohUTransport::toZenohKeyString(
+    const std::string& default_authority_name, const UUri& source,
+    const std::optional<v1::UUri>& sink) {
 	std::ostringstream zenoh_key;
-	zenoh_key << std::uppercase << std::hex << std::setw(8)
-	          << std::setfill('0');
 
-	zenoh_key << "up/";
+	auto writeUUri = [&](const v1::UUri& uuri) {
+		zenoh_key << "/";
 
-	zenoh_key << transformAuthority(source.authority_name()) << "/";
-	zenoh_key << source.ue_id() << "/";
-	zenoh_key << source.ue_version_major() << "/";
-	zenoh_key << source.resource_id() << "/";
+		// authority_name
+		if (uuri.authority_name().empty()) {
+			zenoh_key << default_authority_name;
+		} else {
+			zenoh_key << uuri.authority_name();
+		}
+		zenoh_key << "/";
+
+		// ue_id
+		if (uuri.ue_id() == WILDCARD_ENTITY_ID) {
+			zenoh_key << "*";
+		} else {
+			zenoh_key << uuri.ue_id();
+		}
+		zenoh_key << "/";
+
+		// ue_version_major
+		if (uuri.ue_version_major() == WILDCARD_ENTITY_VERSION) {
+			zenoh_key << "*";
+		} else {
+			zenoh_key << uuri.ue_version_major();
+		}
+		zenoh_key << "/";
+
+		// resource_id
+		if (uuri.resource_id() == WILDCARD_RESOURCE_ID) {
+			zenoh_key << "*";
+		} else {
+			zenoh_key << uuri.resource_id();
+		}
+	};
+
+	zenoh_key << "up";
+	zenoh_key << std::uppercase << std::hex;
+
+	writeUUri(source);
 
 	if (sink.has_value()) {
-		zenoh_key << transformAuthority(sink->authority_name()) << "/";
-		zenoh_key << sink->ue_id() << "/";
-		zenoh_key << sink->ue_version_major() << "/";
-		zenoh_key << sink->resource_id();
+		writeUUri(*sink);
 	} else {
 		zenoh_key << "/{}/{}/{}/{}";
 	}
 	return zenoh_key.str();
 }
 
-std::vector<std::pair<std::string, std::string>> uattributesToAttachment(
-    const UAttributes& attributes) {
+std::vector<std::pair<std::string, std::string>>
+ZenohUTransport::uattributesToAttachment(const UAttributes& attributes) {
 	std::vector<std::pair<std::string, std::string>> res;
 
 	std::string version(&UATTRIBUTE_VERSION, 1);
@@ -90,7 +104,8 @@ std::vector<std::pair<std::string, std::string>> uattributesToAttachment(
 	return res;
 }
 
-UAttributes attachmentToUAttributes(const AttachmentView& attachment) {
+UAttributes ZenohUTransport::attachmentToUAttributes(
+    const AttachmentView& attachment) {
 	std::vector<BytesView> attachment_vec;
 	attachment.iterate(
 	    [&](const BytesView& key, const BytesView& value) -> bool {
@@ -113,7 +128,7 @@ UAttributes attachmentToUAttributes(const AttachmentView& attachment) {
 	return res;
 }
 
-Priority mapZenohPriority(UPriority upriority) {
+Priority ZenohUTransport::mapZenohPriority(UPriority upriority) {
 	switch (upriority) {
 		case UPriority::UPRIORITY_CS0:
 			return Z_PRIORITY_BACKGROUND;
@@ -135,7 +150,7 @@ Priority mapZenohPriority(UPriority upriority) {
 	}
 }
 
-UMessage sampleToUMessage(const Sample& sample) {
+UMessage ZenohUTransport::sampleToUMessage(const Sample& sample) {
 	UAttributes attributes;
 	if (sample.get_attachment().check()) {
 		attributes = attachmentToUAttributes(sample.get_attachment());
@@ -147,8 +162,6 @@ UMessage sampleToUMessage(const Sample& sample) {
 
 	return message;
 }
-
-}  // namespace
 
 ZenohUTransport::ZenohUTransport(const UUri& defaultUri,
                                  const std::filesystem::path& configFile)
@@ -294,7 +307,8 @@ v1::UStatus ZenohUTransport::sendImpl(const UMessage& message) {
 	}
 
 	std::string zenoh_key =
-	    toZenohKeyString(attributes.sink(), attributes.source());
+	    toZenohKeyString(getDefaultSource().authority_name(), attributes.sink(),
+	                     attributes.source());
 	switch (attributes.type()) {
 		case UMessageType::UMESSAGE_TYPE_PUBLISH: {
 			auto [valid, maybe_reason] =
@@ -343,7 +357,8 @@ v1::UStatus ZenohUTransport::sendImpl(const UMessage& message) {
 v1::UStatus ZenohUTransport::registerListenerImpl(
     const v1::UUri& sink_filter, CallableConn&& listener,
     std::optional<v1::UUri>&& source_filter) {
-	std::string zenoh_key = toZenohKeyString(sink_filter, source_filter);
+	std::string zenoh_key = toZenohKeyString(
+	    getDefaultSource().authority_name(), sink_filter, source_filter);
 	// TODO: Is 0 == none?
 	if (!sink_filter.authority_name().empty() && sink_filter.ue_id() == 0 &&
 	    sink_filter.resource_id() == 0) {
