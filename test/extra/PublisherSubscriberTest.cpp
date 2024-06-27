@@ -14,8 +14,6 @@
 #include <up-cpp/datamodel/builder/Uuid.h>
 #include <up-cpp/datamodel/validator/UUri.h>
 
-#include <zenoh.hxx>
-
 #include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
 namespace {

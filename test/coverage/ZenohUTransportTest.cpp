@@ -13,8 +13,6 @@
 #include <up-cpp/datamodel/builder/Uuid.h>
 #include <up-cpp/datamodel/validator/UUri.h>
 
-#include <zenoh.hxx>
-
 #include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
 namespace uprotocol::transport {
@@ -72,33 +70,42 @@ TEST_F(TestZenohUTransport, ConstructDestroy) {
 	}
 }
 
+struct ExposeKeyString : public ZenohUTransport {
+	template<typename... Args>
+	static auto toZenohKeyString(Args&&... args) {
+		return ZenohUTransport::toZenohKeyString(std::forward<Args>(args)...);
+	}
+};
+
 TEST_F(TestZenohUTransport, toZenohKeyString) {
+	EXPECT_TRUE((std::is_base_of_v<ZenohUTransport, ExposeKeyString>));
+
 	EXPECT_EQ(
-	    ZenohUTransport::toZenohKeyString(
+	    ExposeKeyString::toZenohKeyString(
 	        "", create_uuri("192.168.1.100", 0x10AB, 3, 0x80CD), std::nullopt),
 	    "up/192.168.1.100/10AB/3/80CD/{}/{}/{}/{}");
 
-	EXPECT_EQ(ZenohUTransport::toZenohKeyString(
+	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
 	              "", create_uuri("192.168.1.100", 0x10AB, 3, 0x80CD),
 	              create_uuri("192.168.1.101", 0x20EF, 4, 0)),
 	          "up/192.168.1.100/10AB/3/80CD/192.168.1.101/20EF/4/0");
 
-	EXPECT_EQ(ZenohUTransport::toZenohKeyString(
+	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
 	              "", create_uuri("*", 0xFFFF, 0xFF, 0xFFFF),
 	              create_uuri("192.168.1.101", 0x20EF, 4, 0)),
 	          "up/*/*/*/*/192.168.1.101/20EF/4/0");
 
-	EXPECT_EQ(ZenohUTransport::toZenohKeyString(
+	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
 	              "", create_uuri("my-host1", 0x10AB, 3, 0),
 	              create_uuri("my-host2", 0x20EF, 4, 0xB)),
 	          "up/my-host1/10AB/3/0/my-host2/20EF/4/B");
 
-	EXPECT_EQ(ZenohUTransport::toZenohKeyString(
+	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
 	              "", create_uuri("*", 0xFFFF, 0xFF, 0xFFFF),
 	              create_uuri("my-host2", 0x20EF, 4, 0xB)),
 	          "up/*/*/*/*/my-host2/20EF/4/B");
 
-	EXPECT_EQ(ZenohUTransport::toZenohKeyString(
+	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
 	              "", create_uuri("*", 0xFFFF, 0xFF, 0xFFFF),
 	              create_uuri("[::1]", 0xFFFF, 0xFF, 0xFFFF)),
 	          "up/*/*/*/*/[::1]/*/*/*");
