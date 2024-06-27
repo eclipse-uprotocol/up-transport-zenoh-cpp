@@ -37,10 +37,11 @@ jobs:
         run: |
           conan create --version 0.2.0 --build=missing up-conan-recipes/up-cpp/developer
 
-      - name: Build zenohc conan package
+      - name: Build zenohcpp conan package
         shell: bash
         run: |
-          conan create --version 0.11.0.3 up-conan-recipes/zenohc-tmp/prebuilt
+          conan create --version 0.11.0 up-conan-recipes/zenohc-tmp/prebuilt
+          conan create --version 0.11.0 up-conan-recipes/zenohcpp-tmp/from-source
 
       - name: Fetch up-transport-zenoh-cpp
         uses: actions/checkout@v4
