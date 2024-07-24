@@ -1,6 +1,6 @@
 [requires]
-up-cpp/0.2.0
-zenohcpp/0.11.0
+up-cpp/[>=1.1.0]
+zenohcpp/0.11.0.3
 # Should result in using the packages from up-cpp
 spdlog/[>=1.13.0]
 up-core-api/[>=1.5.8]

@@ -43,15 +43,8 @@ protected:
 
 using MsgDiff = google::protobuf::util::MessageDifferencer;
 
-uprotocol::v1::UUID* make_uuid() {
-	uint64_t timestamp =
-	    std::chrono::duration_cast<std::chrono::milliseconds>(
-	        std::chrono::system_clock::now().time_since_epoch())
-	        .count();
-	auto id = new uprotocol::v1::UUID();
-	id->set_msb((timestamp << 16) | (8ULL << 12) |
-	            (0x123ULL));  // version 8 ; counter = 0x123
-	id->set_lsb((2ULL << 62) | (0xFFFFFFFFFFFFULL));  // variant 10
+uprotocol::v1::UUID make_uuid() {
+	auto id = uprotocol::datamodel::builder::UuidBuilder::getBuilder().build();
 	return id;
 }
 
@@ -66,7 +59,6 @@ TEST_F(TestFixture, PubSub) {
 
 	zenoh::init_logger();
 	try {
-		std::cerr << "Test MESSAGE" << std::endl;
 		auto ut = ZenohUTransport(uuri,
 		                          "/home/sashacmc/src/up-client-zenoh-cpp/test/"
 		                          "extra/DEFAULT_CONFIG.json5");
@@ -85,16 +77,21 @@ TEST_F(TestFixture, PubSub) {
 
 		uprotocol::v1::UMessage capture_msg;
 		size_t capture_count = 0;
+		std::mutex msg_mutex;
+		std::condition_variable msg_cond;
 		auto action = [&](const uprotocol::v1::UMessage& msg) {
+			std::cout << "??? action: " << msg.payload() << std::endl;
+			std::unique_lock<std::mutex> lock(msg_mutex);
 			capture_msg = msg;
 			capture_count++;
+			msg_cond.notify_all();
 		};
 		auto lhandle = ut.registerListener(sink_filter, action, source_filter);
 		EXPECT_TRUE(lhandle.has_value());
 		auto handle = std::move(lhandle).value();
 		EXPECT_TRUE(handle);
 
-		const size_t max_count = 1;  // 1000 * 100;
+		const size_t max_count = 100 * 100;
 		for (auto i = 0; i < max_count; i++) {
 			auto src = new uprotocol::v1::UUri();
 			src->set_authority_name(AUTHORITY_NAME);

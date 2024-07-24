@@ -151,14 +151,29 @@ Priority ZenohUTransport::mapZenohPriority(UPriority upriority) {
 }
 
 UMessage ZenohUTransport::sampleToUMessage(const Sample& sample) {
-	UAttributes attributes;
-	if (sample.get_attachment().check()) {
-		attributes = attachmentToUAttributes(sample.get_attachment());
-	}
-	std::string payload(sample.get_payload().as_string_view());
 	UMessage message;
+
+	std::string payload(sample.get_payload().as_string_view());
 	message.set_payload(payload);
-	message.set_allocated_attributes(&attributes);
+
+	if (sample.get_attachment().check()) {
+		*message.mutable_attributes() =
+		    attachmentToUAttributes(sample.get_attachment());
+	}
+
+	return message;
+}
+
+UMessage ZenohUTransport::queryToUMessage(const Query& query) {
+	UMessage message;
+
+	std::string payload(query.get_value().as_string_view());
+	message.set_payload(payload);
+
+	if (query.get_attachment().check()) {
+		*message.mutable_attributes() =
+		    attachmentToUAttributes(query.get_attachment());
+	}
 
 	return message;
 }
@@ -171,21 +186,27 @@ ZenohUTransport::ZenohUTransport(const UUri& defaultUri,
 
 UStatus ZenohUTransport::registerRequestListener_(const std::string& zenoh_key,
                                                   CallableConn listener) {
-	auto on_query = [&](const Query& query) {
+	std::cout << "!!! registerRequestListener_" << std::endl;
+
+	auto on_query = [listener, this](const Query& query) mutable {
 		UAttributes attributes;
 		if (query.get_attachment().check()) {
 			attributes = attachmentToUAttributes(query.get_attachment());
 		}
 		auto id_str = serializer::uuid::AsString().serialize(attributes.id());
-		std::unique_lock<std::mutex> lock(query_map_mutex_);
-		query_map_.insert(std::make_pair(
-		    std::move(id_str), std::move(std::make_shared<OwnedQuery>(query))));
+		{
+			std::unique_lock<std::mutex> lock(this->query_map_mutex_);
+			this->query_map_.insert(
+			    std::make_pair(std::move(id_str),
+			                   std::move(std::make_shared<OwnedQuery>(query))));
+		}
+		listener(queryToUMessage(query));
 	};
 
 	auto on_drop_queryable = []() {};
 
-	auto queryable = expect<Queryable>(
-	    session_.declare_queryable(zenoh_key, {on_query, on_drop_queryable}));
+	auto queryable = expect<Queryable>(session_.declare_queryable(
+	    zenoh_key, {std::move(on_query), std::move(on_drop_queryable)}));
 
 	return UStatus();
 }
@@ -200,14 +221,16 @@ UStatus ZenohUTransport::registerResponseListener_(const std::string& zenoh_key,
 
 UStatus ZenohUTransport::registerPublishNotificationListener_(
     const std::string& zenoh_key, CallableConn listener) {
-	auto data_handler = [&](const Sample& sample) {
+	std::cout << "!!! registerPublishNotificationListener_: " << zenoh_key
+	          << std::endl;
+
+	auto data_handler = [listener](const Sample& sample) mutable {
 		listener(sampleToUMessage(sample));
-		// invoke_nonblock_callback(&cb_sender, &listener_cloned, Ok(msg));
 	};
 
 	auto key = ListenerKey(listener, zenoh_key);
 	auto subscriber = expect<Subscriber>(
-	    session_.declare_subscriber(zenoh_key, data_handler));
+	    session_.declare_subscriber(zenoh_key, std::move(data_handler)));
 	{
 		std::unique_lock<std::mutex> lock(subscriber_map_mutex_);
 		subscriber_map_.insert(
@@ -249,15 +272,17 @@ UStatus ZenohUTransport::sendRequest_(const std::string& zenoh_key,
 	options.set_value(Value(payload));
 	options.set_attachment(attachment);
 
-	auto onDone = []() {};
+	auto on_done = []() {};
 
-	session_.get(zenoh_key, "", {on_reply, onDone}, options);
+	session_.get(zenoh_key, "", {std::move(on_reply), std::move(on_done)},
+	             options);
 
 	return UStatus();
 }
 
 UStatus ZenohUTransport::sendResponse_(const std::string& payload,
                                        const UAttributes& attributes) {
+	std::cout << "!!! sendResponse_" << std::endl;
 	auto reqid_str = serializer::uuid::AsString().serialize(attributes.reqid());
 	OwnedQueryPtr query;
 	{

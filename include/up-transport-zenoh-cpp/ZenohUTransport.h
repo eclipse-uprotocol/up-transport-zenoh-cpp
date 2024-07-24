@@ -163,6 +163,8 @@ private:
 
 	static v1::UMessage sampleToUMessage(const zenoh::Sample& sample);
 
+	static v1::UMessage queryToUMessage(const zenoh::Query& query);
+
 	v1::UStatus registerRequestListener_(const std::string& zenoh_key,
 	                                     CallableConn listener);
 
