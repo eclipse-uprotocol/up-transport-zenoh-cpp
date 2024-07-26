@@ -121,20 +121,13 @@ protected:
 	///          version of registerListener() will reset the connection
 	///          handle before returning it to the caller.
 	///
-	/// @param sink_filter UUri for where messages are expected to arrive via
-	///                    the underlying transport technology. The callback
-	///                    will be called when a message with a matching sink
-	/// @param listener shared_ptr to a connected callback object, to be
-	///                 called when a message is received.
-	/// @param source_filter (Optional) UUri for where messages are expected to
-	///                      have been sent from. The callback will only be
-	///                      called for messages where the source matches.
+	/// @see up-cpp for additional details
 	///
 	/// @returns * OKSTATUS if the listener was registered successfully.
 	///          * FAILSTATUS with the appropriate failure otherwise.
 	[[nodiscard]] virtual v1::UStatus registerListenerImpl(
-	    const v1::UUri& sink_filter, CallableConn&& listener,
-	    std::optional<v1::UUri>&& source_filter) override;
+	    CallableConn&& listener, const v1::UUri& source_filter,
+	    std::optional<v1::UUri>&& sink_filter) override;
 
 	/// @brief Clean up on listener disconnect.
 	///

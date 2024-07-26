@@ -14,10 +14,13 @@ enable_testing()
 find_package(GTest REQUIRED)
 include(GoogleTest)
 
+get_filename_component(ZENOH_CONF "./DEFAULT_CONFIG.json5" REALPATH)
+
 # Invoked as add_coverage_test("SomeName" sources...)
 function(add_coverage_test Name)
     add_executable(${Name} ${ARGN})
     target_compile_options(${Name} PRIVATE -g -Og)
+    target_compile_definitions(${Name} PRIVATE BUILD_REALPATH_ZENOH_CONF=\"${ZENOH_CONF}\")
     target_link_libraries(${Name}
         PUBLIC
         up-core-api::up-core-api

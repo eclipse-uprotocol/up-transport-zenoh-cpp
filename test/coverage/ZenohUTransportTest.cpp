@@ -11,16 +11,21 @@
 
 #include <gtest/gtest.h>
 #include <up-cpp/datamodel/builder/Uuid.h>
+#include <up-cpp/datamodel/serializer/UUri.h>
 #include <up-cpp/datamodel/validator/UUri.h>
+
+#include <iostream>
 
 #include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
-namespace uprotocol::transport {
+namespace {
 
-using namespace uprotocol::v1;
-using namespace uprotocol::transport;
+using namespace uprotocol;
 
-constexpr const char* AUTHORITY_NAME = "test";
+constexpr std::string_view ZENOH_CONFIG_FILE = BUILD_REALPATH_ZENOH_CONF;
+
+constexpr std::string_view ENTITY_URI_STR = "//test0/10001/1/0";
+constexpr std::string_view TOPIC_URI_STR = "//test0/10001/1/8000";
 
 class TestZenohUTransport : public testing::Test {
 protected:
@@ -52,33 +57,32 @@ uprotocol::v1::UUri create_uuri(const std::string& authority, uint32_t ue_id,
 	return uuri;
 }
 
-// TODO(sashacmc): config generation
-TEST_F(TestZenohUTransport, ConstructDestroy) {
-	uprotocol::v1::UUri def_src_uuri;
-	def_src_uuri.set_authority_name(AUTHORITY_NAME);
-	def_src_uuri.set_ue_id(0x18000);
-	def_src_uuri.set_ue_version_major(1);
-	def_src_uuri.set_resource_id(0);
-
-	zenoh::init_logger();
-	try {
-		auto ut = ZenohUTransport(def_src_uuri,
-		                          "/home/sashacmc/src/up-client-zenoh-cpp/test/"
-		                          "extra/DEFAULT_CONFIG.json5");
-	} catch (zenoh::ErrorMessage& e) {
-		throw std::runtime_error(std::string(e.as_string_view()));
-	}
+v1::UUri create_uuri(std::string_view serialized) {
+	return datamodel::serializer::uri::AsString::deserialize(
+	    static_cast<std::string>(serialized));
 }
 
-struct ExposeKeyString : public ZenohUTransport {
-	template<typename... Args>
+// TODO(sashacmc): config generation
+TEST_F(TestZenohUTransport, ConstructDestroy) {
+	std::cout << ZENOH_CONFIG_FILE << std::endl;
+
+	zenoh::init_logger();
+
+	auto transport = std::make_shared<transport::ZenohUTransport>(
+	    create_uuri(ENTITY_URI_STR), ZENOH_CONFIG_FILE);
+}
+
+struct ExposeKeyString : public transport::ZenohUTransport {
+	template <typename... Args>
 	static auto toZenohKeyString(Args&&... args) {
-		return ZenohUTransport::toZenohKeyString(std::forward<Args>(args)...);
+		return transport::ZenohUTransport::toZenohKeyString(
+		    std::forward<Args>(args)...);
 	}
 };
 
 TEST_F(TestZenohUTransport, toZenohKeyString) {
-	EXPECT_TRUE((std::is_base_of_v<ZenohUTransport, ExposeKeyString>));
+	EXPECT_TRUE(
+	    (std::is_base_of_v<transport::ZenohUTransport, ExposeKeyString>));
 
 	EXPECT_EQ(
 	    ExposeKeyString::toZenohKeyString(
@@ -111,4 +115,4 @@ TEST_F(TestZenohUTransport, toZenohKeyString) {
 	          "up/*/*/*/*/[::1]/*/*/*");
 }
 
-}  // namespace uprotocol::transport
+}  // namespace
