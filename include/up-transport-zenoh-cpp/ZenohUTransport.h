@@ -90,30 +90,6 @@ protected:
 	using CallableConn = typename UTransport::CallableConn;
 	using UuriKey = std::string;
 
-	struct ListenerKey {
-		CallableConn listener;
-		std::string zenoh_key;
-
-		ListenerKey(CallableConn listener, const std::string& zenoh_key)
-		    : listener(listener), zenoh_key(zenoh_key) {}
-
-		bool operator==(const ListenerKey& other) const {
-			return listener == other.listener && zenoh_key == other.zenoh_key;
-		}
-
-		bool operator<(const ListenerKey& other) const {
-			if (listener == other.listener) {
-				return zenoh_key < other.zenoh_key;
-			}
-			return listener < other.listener;
-		}
-	};
-
-	using RpcCallbackMap = std::map<UuriKey, CallableConn>;
-	using SubscriberMap = std::map<ListenerKey, zenoh::Subscriber>;
-	using QueryableMap = std::map<ListenerKey, zenoh::Queryable>;
-	using QueryMap = std::map<std::string, zenoh::OwnedQueryPtr>;
-
 	/// @brief Register listener to be called when UMessage is received
 	///        for the given URI.
 	///
@@ -178,16 +154,16 @@ private:
 
 	zenoh::Session session_;
 
-	RpcCallbackMap rpc_callback_map_;
+	std::map<UuriKey, CallableConn> rpc_callback_map_;
 	std::mutex rpc_callback_map_mutex_;
 
-	SubscriberMap subscriber_map_;
+	std::map<CallableConn, zenoh::Subscriber> subscriber_map_;
 	std::mutex subscriber_map_mutex_;
 
-	QueryableMap queryable_map_;
+	std::map<CallableConn, zenoh::Queryable> queryable_map_;
 	std::mutex queryable_map_mutex_;
 
-	QueryMap query_map_;
+	std::map<std::string, zenoh::OwnedQueryPtr> query_map_;
 	std::mutex query_map_mutex_;
 };
 
