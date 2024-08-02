@@ -11,6 +11,7 @@
 
 #include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
+#include <spdlog/spdlog.h>
 #include <up-cpp/datamodel/serializer/UUri.h>
 #include <up-cpp/datamodel/serializer/Uuid.h>
 #include <up-cpp/datamodel/validator/UMessage.h>
@@ -107,11 +108,13 @@ v1::UAttributes ZenohUTransport::attachmentToUAttributes(
 	        .deserialize<std::vector<std::pair<std::string, std::string>>>();
 
 	if (attachment_vec.size() != 2) {
+		spdlog::error("attachmentToUAttributes: attachment size != 2");
 		// TODO: error report, exception?
 	}
 
 	if (attachment_vec[0].second.size() == 1) {
 		if (attachment_vec[0].second[0] != UATTRIBUTE_VERSION) {
+			spdlog::error("attachmentToUAttributes: incorrect version");
 			// TODO: error report, exception?
 		}
 	};
@@ -152,29 +155,46 @@ v1::UMessage ZenohUTransport::sampleToUMessage(const zenoh::Sample& sample) {
 	return message;
 }
 
+v1::UMessage ZenohUTransport::queryToUMessage(const zenoh::Query& query) {
+	v1::UMessage message;
+	*message.mutable_attributes() =
+	    attachmentToUAttributes(query.get_attachment());
+	std::string payload(query.get_payload().deserialize<std::string>());
+	message.set_payload(payload);
+
+	return message;
+}
+
 ZenohUTransport::ZenohUTransport(const v1::UUri& defaultUri,
                                  const std::filesystem::path& configFile)
     : UTransport(defaultUri),
       session_(zenoh::Session::open(
-          std::move(zenoh::Config::from_file(configFile.string().c_str())))) {}
+          std::move(zenoh::Config::from_file(configFile.string().c_str())))) {
+	// TODO: add to setup or remove
+	spdlog::set_level(spdlog::level::debug);
+
+	spdlog::info("ZenohUTransport init");
+}
 
 v1::UStatus ZenohUTransport::registerRequestListener_(
     const std::string& zenoh_key, CallableConn listener) {
+	spdlog::info("registerRequestListener_: {}", zenoh_key);
+
 	// NOTE: listener is captured by copy here so that it does not go out
 	// of scope when this function returns.
-	auto on_query = [this, listener](const zenoh::Query& query) {
+	auto on_query = [this, listener](const zenoh::Query& query) mutable {
 		auto attributes = attachmentToUAttributes(query.get_attachment());
 		auto id_str =
 		    datamodel::serializer::uuid::AsString().serialize(attributes.id());
-		std::unique_lock<std::mutex> lock(query_map_mutex_);
 
 		// TODO(sashacmc): Replace this workaround with `query.clone()`
 		// after zenohcpp 1.0.0-rc6 release
-		zenoh::Query cloned_query(nullptr);
-		z_query_clone(zenoh::detail::as_owned_c_ptr(cloned_query),
+		auto cloned_query = std::make_shared<zenoh::Query>(nullptr);
+		z_query_clone(zenoh::detail::as_owned_c_ptr(*cloned_query),
 		              zenoh::detail::loan(query));
 
 		query_map_.emplace(std::move(id_str), std::move(cloned_query));
+		listener(queryToUMessage(query));
 	};
 
 	auto on_drop = []() {};
@@ -182,19 +202,24 @@ v1::UStatus ZenohUTransport::registerRequestListener_(
 	auto queryable = session_.declare_queryable(zenoh_key, std::move(on_query),
 	                                            std::move(on_drop));
 
+	queryable_map_.emplace(listener, std::move(queryable));
+
 	return v1::UStatus();
 }
 
 v1::UStatus ZenohUTransport::registerResponseListener_(
     const std::string& zenoh_key, CallableConn listener) {
-	std::unique_lock<std::mutex> lock(rpc_callback_map_mutex_);
-	rpc_callback_map_.insert(std::make_pair(zenoh_key, listener));
+	spdlog::info("registerResponseListener_: {}", zenoh_key);
+
+	rpc_callback_map_.emplace(zenoh_key, listener);
 
 	return v1::UStatus();
 }
 
 v1::UStatus ZenohUTransport::registerPublishNotificationListener_(
     const std::string& zenoh_key, CallableConn listener) {
+	spdlog::info("registerPublishNotificationListener_: {}", zenoh_key);
+
 	// NOTE: listener is captured by copy here so that it does not go out
 	// of scope when this function returns.
 	auto on_sample = [this, listener](const zenoh::Sample& sample) mutable {
@@ -205,37 +230,44 @@ v1::UStatus ZenohUTransport::registerPublishNotificationListener_(
 
 	auto subscriber = session_.declare_subscriber(
 	    zenoh_key, std::move(on_sample), std::move(on_drop));
-	{
-		std::unique_lock<std::mutex> lock(subscriber_map_mutex_);
-		subscriber_map_.emplace(listener, std::move(subscriber));
-	}
+	subscriber_map_.emplace(listener, std::move(subscriber));
 	return v1::UStatus();
 }
 
 v1::UStatus ZenohUTransport::sendRequest_(const std::string& zenoh_key,
                                           const std::string& payload,
                                           const v1::UAttributes& attributes) {
-	auto source_str =
-	    datamodel::serializer::uri::AsString().serialize(attributes.source());
-	CallableConn resp_callback;
-	{
-		std::unique_lock<std::mutex> lock(rpc_callback_map_mutex_);
+	spdlog::debug("sendRequest_: {}: {}", zenoh_key, payload);
+	zenoh::KeyExpr ke(zenoh_key);
+	auto ke_search = [&](const std::pair<std::string, CallableConn>& pair) {
+		return zenoh::KeyExpr(pair.first).intersects(ke);
+	};
 
-		if (auto resp_callback_it = rpc_callback_map_.find(source_str);
-		    resp_callback_it == rpc_callback_map_.end()) {
-			return uError(v1::UCode::UNAVAILABLE, "failed to find UUID");
-		} else {
-			resp_callback = resp_callback_it->second;
-		}
+	CallableConn resp_callback;
+
+	if (auto resp_callback_opt = rpc_callback_map_.find_if(ke_search);
+	    resp_callback_opt) {
+		spdlog::debug("sendRequest_: found callback for '{}'", zenoh_key);
+		resp_callback = *resp_callback_opt;
+	} else {
+		spdlog::error("sendRequest_: failed to find response callback for '{}'",
+		              zenoh_key);
+		return uError(v1::UCode::UNAVAILABLE,
+		              "failed to find response callback");
 	}
-	auto on_reply = [&](const zenoh::Reply& reply) {
+	auto on_reply = [=](const zenoh::Reply& reply) mutable {
+		spdlog::debug("on_reply for {}", zenoh_key);
 		if (reply.is_ok()) {
 			const auto& sample = reply.get_ok();
+			spdlog::debug("resp_callback: {}",
+			              sample.get_payload().deserialize<std::string>());
 			resp_callback(sampleToUMessage(sample));
+			spdlog::debug("resp_callback: done");
 		} else {
+			spdlog::error(
+			    "on_reply got en error: {}",
+			    reply.get_err().get_payload().deserialize<std::string>());
 			// TODO: error report
-			// std::cout << "Received an error :" <<
-			// reply.get_err().get_payload().deserialize<std::string>() << "\n";
 		}
 	};
 
@@ -259,18 +291,20 @@ v1::UStatus ZenohUTransport::sendResponse_(const std::string& payload,
                                            const v1::UAttributes& attributes) {
 	auto reqid_str =
 	    datamodel::serializer::uuid::AsString().serialize(attributes.reqid());
-	zenoh::Query* query;
-	{
-		std::unique_lock<std::mutex> lock(query_map_mutex_);
-		if (auto query_it = query_map_.find(reqid_str);
-		    query_it == query_map_.end()) {
-			return uError(v1::UCode::INTERNAL, "query doesn't exist");
-		} else {
-			query = &query_it->second;
-		}
+	spdlog::debug("sendResponse_: {}: {}", reqid_str, payload);
+	std::shared_ptr<zenoh::Query> query(nullptr);
+	if (auto query_opt = query_map_.find(reqid_str); query_opt) {
+		query = *query_opt;
+	} else {
+		spdlog::error("sendResponse_: query doesn't exist");
+		return uError(v1::UCode::INTERNAL, "query doesn't exist");
 	}
 
-	query->reply(query->get_keyexpr(), payload);
+	spdlog::debug("sendResponse_ to query: {}",
+	              query->get_keyexpr().as_string_view());
+	auto attachment = uattributesToAttachment(attributes);
+	query->reply(query->get_keyexpr(), payload,
+	             {.attachment = zenoh::Bytes::serialize(attachment)});
 
 	return v1::UStatus();
 }
@@ -278,6 +312,7 @@ v1::UStatus ZenohUTransport::sendResponse_(const std::string& payload,
 v1::UStatus ZenohUTransport::sendPublishNotification_(
     const std::string& zenoh_key, const std::string& payload,
     const v1::UAttributes& attributes) {
+	spdlog::debug("sendPublishNotification_: {}: {}", zenoh_key, payload);
 	auto attachment = uattributesToAttachment(attributes);
 
 	auto priority = mapZenohPriority(attributes.priority());
@@ -358,16 +393,10 @@ v1::UStatus ZenohUTransport::registerListenerImpl(
 }
 
 void ZenohUTransport::cleanupListener(CallableConn listener) {
-	{
-		std::unique_lock<std::mutex> lock(subscriber_map_mutex_);
-		if (subscriber_map_.erase(listener) > 0) {
-			return;
-		}
+	if (subscriber_map_.erase(listener) > 0) {
+		return;
 	}
-	{
-		std::unique_lock<std::mutex> lock(queryable_map_mutex_);
-		queryable_map_.erase(listener);
-	}
+	queryable_map_.erase(listener);
 }
 
 }  // namespace uprotocol::transport
