@@ -14,18 +14,16 @@
 #include <spdlog/spdlog.h>
 #include <up-cpp/datamodel/serializer/UUri.h>
 #include <up-cpp/datamodel/serializer/Uuid.h>
-#include <up-cpp/datamodel/validator/UMessage.h>
-#include <up-cpp/datamodel/validator/UUri.h>
 
 #include <stdexcept>
 
 namespace uprotocol::transport {
 
-const char UATTRIBUTE_VERSION = 1;
+constexpr char UATTRIBUTE_VERSION = 1;
 
-const uint32_t WILDCARD_ENTITY_ID = 0x0000FFFF;
-const uint32_t WILDCARD_ENTITY_VERSION = 0x000000FF;
-const uint32_t WILDCARD_RESOURCE_ID = 0x0000FFFF;
+constexpr uint32_t WILDCARD_ENTITY_ID = 0x0000FFFF;
+constexpr uint32_t WILDCARD_ENTITY_VERSION = 0x000000FF;
+constexpr uint32_t WILDCARD_RESOURCE_ID = 0x0000FFFF;
 
 v1::UStatus ZenohUTransport::uError(v1::UCode code, std::string_view message) {
 	v1::UStatus status;
@@ -54,7 +52,7 @@ std::string ZenohUTransport::toZenohKeyString(
 		if (uuri.ue_id() == WILDCARD_ENTITY_ID) {
 			zenoh_key << "*";
 		} else {
-			zenoh_key << uuri.ue_id();
+			zenoh_key << std::uppercase << std::hex << uuri.ue_id();
 		}
 		zenoh_key << "/";
 
@@ -62,7 +60,7 @@ std::string ZenohUTransport::toZenohKeyString(
 		if (uuri.ue_version_major() == WILDCARD_ENTITY_VERSION) {
 			zenoh_key << "*";
 		} else {
-			zenoh_key << uuri.ue_version_major();
+			zenoh_key << std::uppercase << std::hex << uuri.ue_version_major();
 		}
 		zenoh_key << "/";
 
@@ -70,12 +68,11 @@ std::string ZenohUTransport::toZenohKeyString(
 		if (uuri.resource_id() == WILDCARD_RESOURCE_ID) {
 			zenoh_key << "*";
 		} else {
-			zenoh_key << uuri.resource_id();
+			zenoh_key << std::uppercase << std::hex << uuri.resource_id();
 		}
 	};
 
 	zenoh_key << "up";
-	zenoh_key << std::uppercase << std::hex;
 
 	writeUUri(source);
 
