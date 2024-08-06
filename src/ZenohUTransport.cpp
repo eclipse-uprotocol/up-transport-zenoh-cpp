@@ -379,9 +379,15 @@ v1::UStatus ZenohUTransport::registerListenerImpl(
 		// We can't use the UUri validators to determine what mode they
 		// are for because a) there is overlap in allowed values between
 		// modes and b) any filter is allowed to have wildcards present.
-		registerResponseListener_(zenoh_key, listener);
 		registerRequestListener_(zenoh_key, listener);
 		registerPublishNotificationListener_(zenoh_key, listener);
+
+		if (sink_filter.has_value()) {
+			// zenoh_key for response listener should be in revert order
+			std::string zenoh_response_key = toZenohKeyString(
+			    getEntityUri().authority_name(), *sink_filter, source_filter);
+			registerResponseListener_(zenoh_response_key, listener);
+		}
 	}
 
 	v1::UStatus status;
