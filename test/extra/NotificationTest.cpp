@@ -85,7 +85,7 @@ TEST_F(NotificationTest, BasicNotificationTestWithPayload) {
 	auto source_filter2 = getUUri(0x8001);
 	auto on_rx2 = [](const v1::UMessage& message) { FAIL(); };
 	auto maybe_sink2 = communication::NotificationSink::create(
-	    transport, std::move(on_rx), std::move(source_filter2));
+	    transport, std::move(on_rx2), std::move(source_filter2));
 	EXPECT_TRUE(maybe_sink2.has_value());
 
 	// Send the notification messages
@@ -130,7 +130,7 @@ TEST_F(NotificationTest, BasicNotificationTestWithoutPayload) {
 	auto source_filter2 = getUUri(0x8001);
 	auto on_rx2 = [](const v1::UMessage& message) { FAIL(); };
 	auto maybe_sink2 = communication::NotificationSink::create(
-	    transport, std::move(on_rx), std::move(source_filter2));
+	    transport, std::move(on_rx2), std::move(source_filter2));
 	EXPECT_TRUE(maybe_sink2.has_value());
 
 	// Send the notification messages
