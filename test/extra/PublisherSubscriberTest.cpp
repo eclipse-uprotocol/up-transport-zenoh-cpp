@@ -13,20 +13,21 @@
 #include <gtest/gtest.h>
 #include <up-cpp/communication/Publisher.h>
 #include <up-cpp/communication/Subscriber.h>
-#include <up-cpp/datamodel/serializer/UUri.h>
 
 #include <queue>
 
 #include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
 namespace {
+constexpr size_t num_publish_messages = 25;
 
 using namespace uprotocol;
 
 constexpr std::string_view ZENOH_CONFIG_FILE = BUILD_REALPATH_ZENOH_CONF;
 
-constexpr std::string_view ENTITY_URI_STR = "//test0/10001/1/0";
-constexpr std::string_view TOPIC_URI_STR = "//test0/10001/1/8000";
+constexpr int ENTITY_URI = 0;
+constexpr int TOPIC_URI = 0x8000;
+constexpr int TOPIC_URI2 = 0x8001;
 
 class PublisherSubscriberTest : public testing::Test {
 protected:
@@ -37,7 +38,7 @@ protected:
 
 	// Run once per execution of the test application.
 	// Used for setup of all tests. Has access to this instance.
-	PublisherSubscriberTest() = default;
+	PublisherSubscriberTest() { zenoh::init_logger(); }
 	~PublisherSubscriberTest() = default;
 
 	// Run once per execution of the test application.
@@ -46,23 +47,17 @@ protected:
 	static void TearDownTestSuite() {}
 };
 
-v1::UUri makeUUri(std::string_view authority, uint16_t ue_id,
-                  uint16_t ue_instance, uint8_t version, uint16_t resource) {
+v1::UUri makeUUri(uint16_t resource_id) {
 	v1::UUri uuri;
-	uuri.set_authority_name(static_cast<std::string>(authority));
-	uuri.set_ue_id((static_cast<uint32_t>(ue_instance) << 16) | ue_id);
-	uuri.set_ue_version_major(version);
-	uuri.set_resource_id(resource);
+	uuri.set_authority_name(static_cast<std::string>("test0"));
+	uuri.set_ue_id((0x10001));
+	uuri.set_ue_version_major(1);
+	uuri.set_resource_id(resource_id);
 	return uuri;
 }
 
-v1::UUri makeUUri(std::string_view serialized) {
-	return datamodel::serializer::uri::AsString::deserialize(
-	    static_cast<std::string>(serialized));
-}
-
 std::shared_ptr<transport::UTransport> getTransport(
-    const v1::UUri& uuri = makeUUri(ENTITY_URI_STR)) {
+    const v1::UUri& uuri = makeUUri(ENTITY_URI)) {
 	return std::make_shared<transport::ZenohUTransport>(uuri,
 	                                                    ZENOH_CONFIG_FILE);
 }
@@ -72,11 +67,9 @@ using MsgDiff = google::protobuf::util::MessageDifferencer;
 // TODO(sashacmc): config generation
 
 TEST_F(PublisherSubscriberTest, SinglePubSingleSub) {
-	zenoh::init_logger();
-
 	auto transport = getTransport();
 
-	communication::Publisher pub(transport, makeUUri(TOPIC_URI_STR),
+	communication::Publisher pub(transport, makeUUri(TOPIC_URI),
 	                             v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
 
 	std::mutex rx_queue_mtx;
@@ -87,27 +80,145 @@ TEST_F(PublisherSubscriberTest, SinglePubSingleSub) {
 	};
 
 	auto maybe_sub = communication::Subscriber::subscribe(
-	    transport, makeUUri(TOPIC_URI_STR), std::move(on_rx));
-
+	    transport, makeUUri(TOPIC_URI), std::move(on_rx));
 	EXPECT_TRUE(maybe_sub);
-	if (!maybe_sub) {
-		return;
-	}
-	auto sub = std::move(maybe_sub).value();
 
-	constexpr size_t num_publish_messages = 25;
-	for (auto remaining = num_publish_messages; remaining > 0; --remaining) {
-		std::ostringstream message;
-		message << "Message number: " << remaining;
+	if (maybe_sub) {
+		for (auto remaining = num_publish_messages; remaining > 0;
+		     --remaining) {
+			std::ostringstream message;
+			message << "Message number: " << remaining;
 
-		auto result = pub.publish({std::move(message).str(),
-		                           v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT});
-		EXPECT_EQ(result.code(), v1::UCode::OK);
+			auto result =
+			    pub.publish({std::move(message).str(),
+			                 v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT});
+			EXPECT_EQ(result.code(), v1::UCode::OK);
+		}
 	}
 
 	EXPECT_EQ(rx_queue.size(), num_publish_messages);
-	EXPECT_NE(sub, nullptr);
-	sub.reset();
+}
+
+// Single publisher, multiple subscribers (2) on the same topic.
+TEST_F(PublisherSubscriberTest, SinglePubMultipleSub) {
+	auto transport = getTransport();
+
+	communication::Publisher pub(transport, makeUUri(TOPIC_URI),
+	                             v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
+
+	std::mutex rx_queue_mtx;
+	std::queue<v1::UMessage> rx_queue;
+	auto on_rx = [&rx_queue_mtx, &rx_queue](const v1::UMessage& message) {
+		std::lock_guard lock(rx_queue_mtx);
+		rx_queue.push(message);
+	};
+
+	auto maybe_sub = communication::Subscriber::subscribe(
+	    transport, makeUUri(TOPIC_URI), std::move(on_rx));
+	EXPECT_TRUE(maybe_sub);
+
+	auto maybe_sub2 = communication::Subscriber::subscribe(
+	    transport, makeUUri(TOPIC_URI), std::move(on_rx));
+	EXPECT_TRUE(maybe_sub2);
+
+	if (maybe_sub && maybe_sub2) {
+		for (auto remaining = num_publish_messages; remaining > 0;
+		     --remaining) {
+			std::ostringstream message;
+			message << "Message number: " << remaining;
+
+			auto result =
+			    pub.publish({std::move(message).str(),
+			                 v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT});
+			EXPECT_EQ(result.code(), v1::UCode::OK);
+		}
+	}
+
+	EXPECT_EQ(rx_queue.size(), num_publish_messages * 2);
+}
+
+// Single publisher, two subscribers on different topics
+TEST_F(PublisherSubscriberTest, SinglePubMultipleSubDifferentTopics) {
+	auto transport = getTransport();
+
+	communication::Publisher pub(transport, makeUUri(TOPIC_URI),
+	                             v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
+
+	std::mutex rx_queue_mtx;
+	std::queue<v1::UMessage> rx_queue;
+	auto on_rx = [&rx_queue_mtx, &rx_queue](const v1::UMessage& message) {
+		std::lock_guard lock(rx_queue_mtx);
+		rx_queue.push(message);
+	};
+
+	auto maybe_sub = communication::Subscriber::subscribe(
+	    transport, makeUUri(TOPIC_URI), std::move(on_rx));
+	EXPECT_TRUE(maybe_sub);
+
+	// subscribe to a different topic (non-existent topic)
+	auto maybe_sub2 = communication::Subscriber::subscribe(
+	    transport, makeUUri(TOPIC_URI2), std::move(on_rx));
+	EXPECT_TRUE(maybe_sub2);
+
+	if (maybe_sub && maybe_sub2) {
+		for (auto remaining = num_publish_messages; remaining > 0;
+		     --remaining) {
+			std::ostringstream message;
+			message << "Message number: " << remaining;
+
+			auto result =
+			    pub.publish({std::move(message).str(),
+			                 v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT});
+			EXPECT_EQ(result.code(), v1::UCode::OK);
+		}
+	}
+
+	EXPECT_EQ(rx_queue.size(), num_publish_messages);
+}
+
+// Two publishers, two subscribers, two topics
+TEST_F(PublisherSubscriberTest, MultiplePubMultipleSubDifferentTopics) {
+	auto transport = getTransport();
+
+	communication::Publisher pub(transport, makeUUri(TOPIC_URI),
+	                             v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
+	communication::Publisher pub2(transport, makeUUri(TOPIC_URI2),
+	                              v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
+
+	std::mutex rx_queue_mtx;
+	std::queue<v1::UMessage> rx_queue;
+	auto on_rx = [&rx_queue_mtx, &rx_queue](const v1::UMessage& message) {
+		std::lock_guard lock(rx_queue_mtx);
+		rx_queue.push(message);
+	};
+
+	auto maybe_sub = communication::Subscriber::subscribe(
+	    transport, makeUUri(TOPIC_URI), std::move(on_rx));
+	EXPECT_TRUE(maybe_sub);
+
+	auto maybe_sub2 = communication::Subscriber::subscribe(
+	    transport, makeUUri(TOPIC_URI2), std::move(on_rx));
+	EXPECT_TRUE(maybe_sub2);
+
+	if (maybe_sub && maybe_sub2) {
+		for (auto remaining = num_publish_messages; remaining > 0;
+		     --remaining) {
+			std::ostringstream message;
+			message << "Message number: " << remaining;
+
+			auto result =
+			    pub.publish({std::move(message).str(),
+			                 v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT});
+			EXPECT_EQ(result.code(), v1::UCode::OK);
+
+			auto result2 =
+			    pub2.publish({std::move(message).str(),
+			                  v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT});
+			EXPECT_EQ(result2.code(), v1::UCode::OK);
+		}
+	}
+
+	EXPECT_EQ(rx_queue.size(), num_publish_messages * 2);
 }
 
 }  // namespace
