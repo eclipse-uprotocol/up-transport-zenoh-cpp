@@ -9,7 +9,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
 #include <up-cpp/communication/Publisher.h>
 #include <up-cpp/communication/Subscriber.h>
@@ -62,7 +61,27 @@ std::shared_ptr<transport::UTransport> getTransport(
 	                                                    ZENOH_CONFIG_FILE);
 }
 
-using MsgDiff = google::protobuf::util::MessageDifferencer;
+// ValidateMessages
+// Validates the messages received by the subscriber.  Every message has a
+// sequencial message number, and the sum of all the numbers should be equal to
+// (num_messages * (num_messages + 1)) / 2.  Additionally, each message should
+// match the expected prefix.
+void ValidateMessages(std::queue<v1::UMessage>& rx_queue, size_t num_messages,
+                      const std::string& prefix) {
+	EXPECT_EQ(rx_queue.size(), num_messages);
+
+	int sum = 0;
+	while (!rx_queue.empty()) {
+		auto message = rx_queue.front();
+		rx_queue.pop();
+
+		int pos = message.payload().find(prefix);
+		int num = std::stoi(message.payload().substr(prefix.size()));
+		sum += num;
+		EXPECT_NE(pos, std::string::npos);
+	}
+	EXPECT_EQ(sum, (num_messages * (num_messages + 1)) / 2);
+}
 
 // TODO(sashacmc): config generation
 
@@ -96,7 +115,7 @@ TEST_F(PublisherSubscriberTest, SinglePubSingleSub) {
 		}
 	}
 
-	EXPECT_EQ(rx_queue.size(), num_publish_messages);
+	ValidateMessages(rx_queue, num_publish_messages, "Message number: ");
 }
 
 // Single publisher, multiple subscribers (2) on the same topic.
@@ -106,19 +125,26 @@ TEST_F(PublisherSubscriberTest, SinglePubMultipleSub) {
 	communication::Publisher pub(transport, makeUUri(TOPIC_URI),
 	                             v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
 
+	// First subscriber and queue
 	std::mutex rx_queue_mtx;
 	std::queue<v1::UMessage> rx_queue;
 	auto on_rx = [&rx_queue_mtx, &rx_queue](const v1::UMessage& message) {
 		std::lock_guard lock(rx_queue_mtx);
 		rx_queue.push(message);
 	};
-
 	auto maybe_sub = communication::Subscriber::subscribe(
 	    transport, makeUUri(TOPIC_URI), std::move(on_rx));
 	EXPECT_TRUE(maybe_sub);
 
+	// Second subscriber and queue
+	std::mutex rx_queue_mtx2;
+	std::queue<v1::UMessage> rx_queue2;
+	auto on_rx2 = [&rx_queue_mtx2, &rx_queue2](const v1::UMessage& message) {
+		std::lock_guard lock(rx_queue_mtx2);
+		rx_queue2.push(message);
+	};
 	auto maybe_sub2 = communication::Subscriber::subscribe(
-	    transport, makeUUri(TOPIC_URI), std::move(on_rx));
+	    transport, makeUUri(TOPIC_URI), std::move(on_rx2));
 	EXPECT_TRUE(maybe_sub2);
 
 	if (maybe_sub && maybe_sub2) {
@@ -134,7 +160,8 @@ TEST_F(PublisherSubscriberTest, SinglePubMultipleSub) {
 		}
 	}
 
-	EXPECT_EQ(rx_queue.size(), num_publish_messages * 2);
+	ValidateMessages(rx_queue, num_publish_messages, "Message number: ");
+	ValidateMessages(rx_queue2, num_publish_messages, "Message number: ");
 }
 
 // Single publisher, two subscribers on different topics
@@ -156,8 +183,9 @@ TEST_F(PublisherSubscriberTest, SinglePubMultipleSubDifferentTopics) {
 	EXPECT_TRUE(maybe_sub);
 
 	// subscribe to a different topic (non-existent topic)
+	auto on_rx2 = [](const v1::UMessage& message) { FAIL(); };
 	auto maybe_sub2 = communication::Subscriber::subscribe(
-	    transport, makeUUri(TOPIC_URI2), std::move(on_rx));
+	    transport, makeUUri(TOPIC_URI2), std::move(on_rx2));
 	EXPECT_TRUE(maybe_sub2);
 
 	if (maybe_sub && maybe_sub2) {
@@ -173,7 +201,7 @@ TEST_F(PublisherSubscriberTest, SinglePubMultipleSubDifferentTopics) {
 		}
 	}
 
-	EXPECT_EQ(rx_queue.size(), num_publish_messages);
+	ValidateMessages(rx_queue, num_publish_messages, "Message number: ");
 }
 
 // Two publishers, two subscribers, two topics
@@ -185,40 +213,51 @@ TEST_F(PublisherSubscriberTest, MultiplePubMultipleSubDifferentTopics) {
 	communication::Publisher pub2(transport, makeUUri(TOPIC_URI2),
 	                              v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
 
+	// first subscriber and queue
 	std::mutex rx_queue_mtx;
 	std::queue<v1::UMessage> rx_queue;
 	auto on_rx = [&rx_queue_mtx, &rx_queue](const v1::UMessage& message) {
 		std::lock_guard lock(rx_queue_mtx);
 		rx_queue.push(message);
 	};
-
 	auto maybe_sub = communication::Subscriber::subscribe(
 	    transport, makeUUri(TOPIC_URI), std::move(on_rx));
 	EXPECT_TRUE(maybe_sub);
 
+	// second subscriber and queue
+	std::mutex rx_queue_mtx2;
+	std::queue<v1::UMessage> rx_queue2;
+	auto on_rx2 = [&rx_queue_mtx2, &rx_queue2](const v1::UMessage& message) {
+		std::lock_guard lock(rx_queue_mtx2);
+		rx_queue2.push(message);
+	};
 	auto maybe_sub2 = communication::Subscriber::subscribe(
-	    transport, makeUUri(TOPIC_URI2), std::move(on_rx));
+	    transport, makeUUri(TOPIC_URI2), std::move(on_rx2));
 	EXPECT_TRUE(maybe_sub2);
 
 	if (maybe_sub && maybe_sub2) {
 		for (auto remaining = num_publish_messages; remaining > 0;
 		     --remaining) {
 			std::ostringstream message;
-			message << "Message number: " << remaining;
-
+			message << "Pub 1 - Message number: " << remaining;
 			auto result =
 			    pub.publish({std::move(message).str(),
 			                 v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT});
 			EXPECT_EQ(result.code(), v1::UCode::OK);
 
+			std::ostringstream message2;
+			message2 << "Pub 2 - Message number: " << remaining;
 			auto result2 =
-			    pub2.publish({std::move(message).str(),
+			    pub2.publish({std::move(message2).str(),
 			                  v1::UPayloadFormat::UPAYLOAD_FORMAT_TEXT});
 			EXPECT_EQ(result2.code(), v1::UCode::OK);
 		}
 	}
 
-	EXPECT_EQ(rx_queue.size(), num_publish_messages * 2);
+	ValidateMessages(rx_queue, num_publish_messages,
+	                 "Pub 1 - Message number: ");
+	ValidateMessages(rx_queue2, num_publish_messages,
+	                 "Pub 2 - Message number: ");
 }
 
 }  // namespace
