@@ -46,16 +46,6 @@ protected:
 	static void TearDownTestSuite() {}
 };
 
-v1::UUri makeUUri(std::string_view authority, uint16_t ue_id,
-                  uint16_t ue_instance, uint8_t version, uint16_t resource) {
-	v1::UUri uuri;
-	uuri.set_authority_name(static_cast<std::string>(authority));
-	uuri.set_ue_id((static_cast<uint32_t>(ue_instance) << 16) | ue_id);
-	uuri.set_ue_version_major(version);
-	uuri.set_resource_id(resource);
-	return uuri;
-}
-
 v1::UUri makeUUri(std::string_view serialized) {
 	return datamodel::serializer::uri::AsString::deserialize(
 	    static_cast<std::string>(serialized));

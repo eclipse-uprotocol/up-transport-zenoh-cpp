@@ -31,6 +31,16 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 endif()
 
+add_compile_options(
+	-Wall;
+	-Wswitch-enum;
+	-Wcast-qual;
+	-Wuninitialized;
+	-Wconversion;
+	-Wpedantic;
+	-Werror;
+)
+
 file(GLOB_RECURSE SRC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
 add_library(${PROJECT_NAME} ${SRC_FILES})

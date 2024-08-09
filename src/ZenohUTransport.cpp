@@ -136,6 +136,18 @@ zenoh::Priority ZenohUTransport::mapZenohPriority(v1::UPriority upriority) {
 			return Z_PRIORITY_INTERACTIVE_HIGH;
 		case v1::UPriority::UPRIORITY_CS6:
 			return Z_PRIORITY_REAL_TIME;
+		// These sentinel values come from the protobuf compiler.
+		// They are illegal for the enum, but cause linting problems.
+		// In order to suppress the linting error, they need to
+		// be included in the switch-case statement.
+		// It is deemed acceptable to use an exception here because
+		// it is in the sending code. An exception would not be
+		// acceptable in receiving code. The correct strategy wopuld be
+		// to drop the message.
+		case v1::UPriority::UPriority_INT_MIN_SENTINEL_DO_NOT_USE_:
+		case v1::UPriority::UPriority_INT_MAX_SENTINEL_DO_NOT_USE_:
+			throw std::runtime_error(
+			    "Sentinel values detected in priority switch-case");
 		case v1::UPriority::UPRIORITY_UNSPECIFIED:
 		default:
 			return Z_PRIORITY_DATA_LOW;
@@ -273,10 +285,15 @@ v1::UStatus ZenohUTransport::sendRequest_(const std::string& zenoh_key,
 	auto on_done = []() {};
 
 	try {
+		// -Wpedantic disallows named member initialization until C++20,
+		// so GetOptions needs to be explicitly created and passed with
+		// st::move()
+		zenoh::Session::GetOptions options;
+		options.target = Z_QUERY_TARGET_BEST_MATCHING;
+		options.payload = zenoh::Bytes::serialize(payload);
+		options.attachment = zenoh::Bytes::serialize(attachment);
 		session_.get(zenoh_key, "", std::move(on_reply), std::move(on_done),
-		             {.target = Z_QUERY_TARGET_BEST_MATCHING,
-		              .payload = zenoh::Bytes::serialize(payload),
-		              .attachment = zenoh::Bytes::serialize(attachment)});
+		             std::move(options));
 	} catch (const zenoh::ZException& e) {
 		return uError(v1::UCode::INTERNAL, e.what());
 	}
@@ -300,8 +317,13 @@ v1::UStatus ZenohUTransport::sendResponse_(const std::string& payload,
 	spdlog::debug("sendResponse_ to query: {}",
 	              query->get_keyexpr().as_string_view());
 	auto attachment = uattributesToAttachment(attributes);
-	query->reply(query->get_keyexpr(), payload,
-	             {.attachment = zenoh::Bytes::serialize(attachment)});
+	// -Wpedantic disallows named member initialization until C++20,
+	// so PutOptions needs to be explicitly created and passed with
+	// st::move()
+	zenoh::Query::ReplyOptions options =
+	    zenoh::Query::ReplyOptions::create_default();
+	options.attachment = zenoh::Bytes::serialize(attachment);
+	query->reply(query->get_keyexpr(), payload, std::move(options));
 
 	return v1::UStatus();
 }
@@ -315,11 +337,15 @@ v1::UStatus ZenohUTransport::sendPublishNotification_(
 	auto priority = mapZenohPriority(attributes.priority());
 
 	try {
+		// -Wpedantic disallows named member initialization until C++20,
+		// so PutOptions needs to be explicitly created and passed with
+		// st::move()
+		zenoh::Session::PutOptions options;
+		options.priority = priority;
+		options.encoding = zenoh::Encoding("app/custom");
+		options.attachment = attachment;
 		session_.put(zenoh::KeyExpr(zenoh_key),
-		             zenoh::Bytes::serialize(payload),
-		             {.priority = priority,
-		              .encoding = zenoh::Encoding("app/custom"),
-		              .attachment = attachment});
+		             zenoh::Bytes::serialize(payload), std::move(options));
 	} catch (const zenoh::ZException& e) {
 		return uError(v1::UCode::INTERNAL, e.what());
 	}
@@ -356,6 +382,19 @@ v1::UStatus ZenohUTransport::sendImpl(const v1::UMessage& message) {
 		case v1::UMessageType::UMESSAGE_TYPE_RESPONSE: {
 			return sendResponse_(payload, attributes);
 		}
+		// These sentinel values come from the protobuf compiler.
+		// They are illegal for the enum, but cause linting problems.
+		// In order to suppress the linting error, they need to
+		// be included in the switch-case statement.
+		// It is deemed acceptable to use an exception here because
+		// it is in the sending code. An exception would not be
+		// acceptable in receiving code. The correct strategy wopuld be
+		// to drop the message.
+		case v1::UMessageType::UMessageType_INT_MIN_SENTINEL_DO_NOT_USE_:
+		case v1::UMessageType::UMessageType_INT_MAX_SENTINEL_DO_NOT_USE_:
+			throw std::runtime_error(
+			    "Sentinel values detected in attribute type switch-case");
+		case v1::UMessageType::UMESSAGE_TYPE_UNSPECIFIED:
 		default: {
 			return uError(v1::UCode::INVALID_ARGUMENT,
 			              "Wrong Message type in v1::UAttributes");
