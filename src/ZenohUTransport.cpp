@@ -275,6 +275,8 @@ v1::UStatus ZenohUTransport::sendRequest_(const std::string& zenoh_key,
 	try {
 		session_.get(zenoh_key, "", std::move(on_reply), std::move(on_done),
 		             {.target = Z_QUERY_TARGET_BEST_MATCHING,
+		              .consolidation = zenoh::QueryConsolidation(
+		                  {.mode = Z_CONSOLIDATION_MODE_NONE}),
 		              .payload = zenoh::Bytes::serialize(payload),
 		              .attachment = zenoh::Bytes::serialize(attachment)});
 	} catch (const zenoh::ZException& e) {
@@ -379,9 +381,15 @@ v1::UStatus ZenohUTransport::registerListenerImpl(
 		// We can't use the UUri validators to determine what mode they
 		// are for because a) there is overlap in allowed values between
 		// modes and b) any filter is allowed to have wildcards present.
-		registerResponseListener_(zenoh_key, listener);
 		registerRequestListener_(zenoh_key, listener);
 		registerPublishNotificationListener_(zenoh_key, listener);
+
+		if (sink_filter.has_value()) {
+			// zenoh_key for response listener should be in revert order
+			std::string zenoh_response_key = toZenohKeyString(
+			    getEntityUri().authority_name(), *sink_filter, source_filter);
+			registerResponseListener_(zenoh_response_key, listener);
+		}
 	}
 
 	v1::UStatus status;
