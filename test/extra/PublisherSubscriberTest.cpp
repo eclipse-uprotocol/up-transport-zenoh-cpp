@@ -75,7 +75,7 @@ void ValidateMessages(std::queue<v1::UMessage>& rx_queue, size_t num_messages,
 		auto message = rx_queue.front();
 		rx_queue.pop();
 
-		int pos = message.payload().find(prefix);
+		auto pos = message.payload().find(prefix);
 		int num = std::stoi(message.payload().substr(prefix.size()));
 		sum += num;
 		EXPECT_NE(pos, std::string::npos);

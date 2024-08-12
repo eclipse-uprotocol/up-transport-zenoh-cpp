@@ -50,18 +50,18 @@ struct MyUUri {
 	}
 };
 
+const MyUUri rpc_service_uuri{"me_authority", 65538, 1, 32600};
+const MyUUri ident{"me_authority", 65538, 1, 0};
+
 class RpcClientServerTest : public testing::Test {
 protected:
-	MyUUri rpc_service_uuri_{"me_authority", 65538, 1, 32600};
-	MyUUri ident_{"me_authority", 65538, 1, 0};
-
 	using Transport = uprotocol::transport::ZenohUTransport;
-	std::shared_ptr<Transport> transport_;
+	std::shared_ptr<Transport> transport_ = nullptr;  // NOLINT
 
 	// Run once per TEST_F.
 	// Used to set up clean environments per test.
 	void SetUp() override {
-		transport_ = std::make_shared<Transport>(ident_, ZENOH_CONFIG_FILE);
+		transport_ = std::make_shared<Transport>(ident, ZENOH_CONFIG_FILE);
 		EXPECT_NE(nullptr, transport_);
 	}
 
@@ -78,23 +78,21 @@ protected:
 	static void TearDownTestSuite() {}
 };
 
-TEST_F(RpcClientServerTest, SimpleRoundTrip) {
-	using namespace std;
-
-	string client_request{"RPC Request"};
+TEST_F(RpcClientServerTest, SimpleRoundTrip) {  // NOLINT
+	std::string client_request{"RPC Request"};  // NOLINT
 	uprotocol::datamodel::builder::Payload client_request_payload(
 	    client_request, UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
 	bool client_called = false;
-	UMessage client_capture;
+	UMessage client_capture;  // NOLINT
 
 	bool server_called = false;
-	UMessage server_capture;
-	string server_response{"RPC Response"};
+	UMessage server_capture;                      // NOLINT
+	std::string server_response{"RPC Response"};  // NOLINT
 	uprotocol::datamodel::builder::Payload server_response_payload(
 	    server_response, UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
 
-	auto serverOrStatus = RpcServer::create(
-	    transport_, rpc_service_uuri_,
+	auto server_or_status = RpcServer::create(
+	    transport_, rpc_service_uuri,
 	    [this, &server_called, &server_capture,
 	     &server_response_payload](const UMessage& message) {
 		    server_called = true;
@@ -102,13 +100,13 @@ TEST_F(RpcClientServerTest, SimpleRoundTrip) {
 		    return server_response_payload;
 	    },
 	    UPayloadFormat::UPAYLOAD_FORMAT_TEXT);
-	ASSERT_TRUE(serverOrStatus.has_value());
-	ASSERT_NE(serverOrStatus.value(), nullptr);
+	ASSERT_TRUE(server_or_status.has_value());
+	ASSERT_NE(server_or_status.value(), nullptr);
 
-	auto client = RpcClient(transport_, rpc_service_uuri_,
+	auto client = RpcClient(transport_, rpc_service_uuri,
 	                        UPriority::UPRIORITY_CS4, 1000ms);
 
-	uprotocol::communication::RpcClient::InvokeHandle client_handle;
+	uprotocol::communication::RpcClient::InvokeHandle client_handle;  // NOLINT
 	EXPECT_NO_THROW(
 	    client_handle = client.invokeMethod(
 	        std::move(client_request_payload),
