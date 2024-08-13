@@ -113,21 +113,8 @@ private:
 	static v1::UMessage sampleToUMessage(const zenoh::Sample& sample);
 	static v1::UMessage queryToUMessage(const zenoh::Query& query);
 
-	v1::UStatus registerRequestListener_(const std::string& zenoh_key,
-	                                     CallableConn listener);
-
-	v1::UStatus registerResponseListener_(const std::string& zenoh_key,
-	                                      CallableConn listener);
-
 	v1::UStatus registerPublishNotificationListener_(
 	    const std::string& zenoh_key, CallableConn listener);
-
-	v1::UStatus sendRequest_(const std::string& zenoh_key,
-	                         const std::string& payload,
-	                         const v1::UAttributes& attributes);
-
-	v1::UStatus sendResponse_(const std::string& payload,
-	                          const v1::UAttributes& attributes);
 
 	v1::UStatus sendPublishNotification_(const std::string& zenoh_key,
 	                                     const std::string& payload,
@@ -135,13 +122,7 @@ private:
 
 	zenoh::Session session_;
 
-	ThreadSafeMap<UuriKey, CallableConn> rpc_callback_map_;
-
 	ThreadSafeMap<CallableConn, zenoh::Subscriber<void>> subscriber_map_;
-
-	ThreadSafeMap<CallableConn, zenoh::Queryable<void>> queryable_map_;
-
-	ThreadSafeMap<std::string, std::shared_ptr<zenoh::Query>> query_map_;
 };
 
 }  // namespace uprotocol::transport
