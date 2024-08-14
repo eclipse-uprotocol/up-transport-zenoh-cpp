@@ -110,7 +110,7 @@ TEST_F(WildcardUseCases, AuditingObserver) {
 	}
 
 	communication::RpcClient rpc_client(transport, makeUuri(RPC_METHOD),
-	                                    v1::UPriority::UPRIORITY_CS4, 1000ms);
+	                                    v1::UPriority::UPRIORITY_CS4, 250ms);
 
 	// PUBSUB
 	communication::Publisher publisher(
