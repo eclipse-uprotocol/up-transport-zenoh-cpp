@@ -105,16 +105,16 @@ v1::UAttributes ZenohUTransport::attachmentToUAttributes(
 	        .deserialize<std::vector<std::pair<std::string, std::string>>>();
 
 	if (attachment_vec.size() != 2) {
-		spdlog::error("attachmentToUAttributes: attachment size != 2");
-		// TODO: error report, exception?
+		throw std::invalid_argument("invalid attachment size");
 	}
 
 	if (attachment_vec[0].second.size() == 1) {
 		if (attachment_vec[0].second[0] != UATTRIBUTE_VERSION) {
-			spdlog::error("attachmentToUAttributes: incorrect version");
-			// TODO: error report, exception?
+			throw std::invalid_argument("incorrect UAttribute version");
 		}
-	};
+	} else {
+		throw std::invalid_argument("incorrect UAttribute version size");
+	}
 	v1::UAttributes res;
 	res.ParseFromString(attachment_vec[1].second);
 	return res;
@@ -203,7 +203,11 @@ v1::UStatus ZenohUTransport::registerRequestListener_(
 		              zenoh::detail::loan(query));
 
 		query_map_.emplace(std::move(id_str), std::move(cloned_query));
-		listener(queryToUMessage(query));
+		try {
+			listener(queryToUMessage(query));
+		} catch (const std::exception& e) {
+			spdlog::error("query processing failed: {}", e.what());
+		}
 	};
 
 	auto on_drop = []() {};
@@ -232,7 +236,11 @@ v1::UStatus ZenohUTransport::registerPublishNotificationListener_(
 	// NOTE: listener is captured by copy here so that it does not go out
 	// of scope when this function returns.
 	auto on_sample = [this, listener](const zenoh::Sample& sample) mutable {
-		listener(sampleToUMessage(sample));
+		try {
+			listener(sampleToUMessage(sample));
+		} catch (const std::exception& e) {
+			spdlog::error("sample processing failed: {}", e.what());
+		}
 	};
 
 	auto on_drop = []() {};
@@ -270,7 +278,11 @@ v1::UStatus ZenohUTransport::sendRequest_(const std::string& zenoh_key,
 			const auto& sample = reply.get_ok();
 			spdlog::debug("resp_callback: {}",
 			              sample.get_payload().deserialize<std::string>());
-			resp_callback(sampleToUMessage(sample));
+			try {
+				resp_callback(sampleToUMessage(sample));
+			} catch (const std::exception& e) {
+				spdlog::error("sample processing failed: {}", e.what());
+			}
 			spdlog::debug("resp_callback: done");
 		} else {
 			spdlog::error(
