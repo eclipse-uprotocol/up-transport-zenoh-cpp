@@ -33,7 +33,7 @@ jobs:
       - name: Build up-cpp conan package
         shell: bash
         run: |
-          conan create --version 1.0.1-rc1 --build=missing up-conan-recipes/up-cpp/release
+          conan create --version 1.0.1 --build=missing up-conan-recipes/up-cpp/release
 
       - name: Build zenohcpp conan package
         shell: bash
