@@ -66,7 +66,7 @@ v1::UUri create_uuri(std::string_view serialized) {
 TEST_F(TestZenohUTransport, ConstructDestroy) {
 	std::cout << ZENOH_CONFIG_FILE << std::endl;
 
-	zenoh::init_logger();
+	zenoh::init_log_from_env_or("error");
 
 	auto transport = std::make_shared<transport::ZenohUTransport>(
 	    create_uuri(ENTITY_URI_STR), ZENOH_CONFIG_FILE);

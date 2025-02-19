@@ -57,7 +57,7 @@ std::shared_ptr<transport::UTransport> getTransport(
 }
 
 TEST_F(NotificationTest, BasicNotificationTestWithPayload) {
-	zenoh::init_logger();
+	zenoh::init_log_from_env_or("error");
 
 	auto transport = getTransport();
 	auto source = getUUri(0x8000);
@@ -103,7 +103,7 @@ TEST_F(NotificationTest, BasicNotificationTestWithPayload) {
 }
 
 TEST_F(NotificationTest, BasicNotificationTestWithoutPayload) {
-	zenoh::init_logger();
+	zenoh::init_log_from_env_or("error");
 
 	auto transport = getTransport();
 	auto source = getUUri(0x8000);

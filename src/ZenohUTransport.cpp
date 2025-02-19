@@ -99,10 +99,15 @@ ZenohUTransport::uattributesToAttachment(const v1::UAttributes& attributes) {
 }
 
 v1::UAttributes ZenohUTransport::attachmentToUAttributes(
-    const zenoh::Bytes& attachment) {
-	auto attachment_vec =
-	    attachment
-	        .deserialize<std::vector<std::pair<std::string, std::string>>>();
+    const std::optional<std::reference_wrapper<const zenoh::Bytes>>&
+        attachment) {
+	if (!attachment.has_value()) {
+		spdlog::error("attachmentToUAttributes: attachment has no value");
+		// TODO: error report, exception?
+	}
+	auto attachment_vec = zenoh::ext::deserialize<
+	    std::vector<std::pair<std::string, std::string>>>(
+	    attachment.value().get());
 
 	if (attachment_vec.size() != 2) {
 		spdlog::error("attachmentToUAttributes: attachment size != 2");
@@ -158,7 +163,8 @@ v1::UMessage ZenohUTransport::sampleToUMessage(const zenoh::Sample& sample) {
 	v1::UMessage message;
 	*message.mutable_attributes() =
 	    attachmentToUAttributes(sample.get_attachment());
-	std::string payload(sample.get_payload().deserialize<std::string>());
+	std::string payload(
+	    zenoh::ext::deserialize<std::string>(sample.get_payload()));
 	message.set_payload(payload);
 
 	return message;
@@ -168,8 +174,11 @@ v1::UMessage ZenohUTransport::queryToUMessage(const zenoh::Query& query) {
 	v1::UMessage message;
 	*message.mutable_attributes() =
 	    attachmentToUAttributes(query.get_attachment());
-	std::string payload(query.get_payload().deserialize<std::string>());
-	message.set_payload(payload);
+	if (query.get_payload().has_value()) {
+		std::string payload(zenoh::ext::deserialize<std::string>(
+		    query.get_payload().value().get()));
+		message.set_payload(payload);
+	}
 
 	return message;
 }
@@ -218,9 +227,9 @@ v1::UStatus ZenohUTransport::sendPublishNotification_(
 		zenoh::Session::PutOptions options;
 		options.priority = priority;
 		options.encoding = zenoh::Encoding("app/custom");
-		options.attachment = attachment;
-		session_.put(zenoh::KeyExpr(zenoh_key),
-		             zenoh::Bytes::serialize(payload), std::move(options));
+		options.attachment = zenoh::ext::serialize(attachment);
+		session_.put(zenoh::KeyExpr(zenoh_key), zenoh::ext::serialize(payload),
+		             std::move(options));
 	} catch (const zenoh::ZException& e) {
 		return uError(v1::UCode::INTERNAL, e.what());
 	}
