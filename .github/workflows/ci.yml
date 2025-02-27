@@ -9,19 +9,19 @@ on:
 jobs:
   build:
     name: Build up-transport-zenoh-cpp and dependencies
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
+      - name: Fetch up-transport-zenoh-cpp
+        uses: actions/checkout@v4
+        with:
+          path: up-transport-zenoh-cpp
+
       - name: Install Conan
         id: conan
         uses: turtlebrowser/get-conan@main
         with:
           version: 2.3.2
-
-      - name: Fetch up-transport-zenoh-cpp
-        uses: actions/checkout@v4
-        with:
-          path: up-transport-zenoh-cpp
         
       - name: Install conan CI profile
         shell: bash
@@ -89,7 +89,7 @@ jobs:
 
   test:
     name: Run up-transport-zenoh-cpp tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
 
     steps:
@@ -115,7 +115,7 @@ jobs:
 
   lint:
     name: Lint C++ sources
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
 
     steps:
@@ -159,7 +159,7 @@ jobs:
           style: 'file' # read .clang-format for configuration
           tidy-checks: '' # Read .clang-tidy for configuration
           database: compile_commands.json
-          version: 17
+          version: 12
 
 
       - name: Run linters on tests
@@ -173,7 +173,7 @@ jobs:
           style: 'file' # read .clang-format for configuration
           tidy-checks: '' # Read .clang-tidy for configuration
           database: compile_commands.json
-          version: 17
+          version: 12
 
       - name: Report lint failure
         if: steps.source-linter.outputs.checks-failed > 0 || steps.test-linter.outputs.checks-failed > 0
@@ -182,7 +182,7 @@ jobs:
 
   memcheck:
       name: Run Valgrind Memcheck
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-22.04
       needs: build
 
       steps:
@@ -250,7 +250,7 @@ jobs:
 
   threadcheck:
     name: Run Valgrind ThreadCheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
   
     steps:
@@ -320,7 +320,7 @@ jobs:
           
   helgrind:
     name: Run Valgrind Helgrind
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
   
     steps:
@@ -390,7 +390,7 @@ jobs:
           
   dhat:
     name: Run Valgrind DHAT
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
 
     steps:
@@ -464,7 +464,7 @@ jobs:
   # job to signal whether all CI checks have passed.
   ci:
     name: CI status checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build, test, memcheck, threadcheck, helgrind, dhat]
     if: always()
     steps:
