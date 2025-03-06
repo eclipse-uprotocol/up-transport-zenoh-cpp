@@ -99,15 +99,9 @@ ZenohUTransport::uattributesToAttachment(const v1::UAttributes& attributes) {
 }
 
 v1::UAttributes ZenohUTransport::attachmentToUAttributes(
-    const std::optional<std::reference_wrapper<const zenoh::Bytes>>&
-        attachment) {
-	if (!attachment.has_value()) {
-		spdlog::error("attachmentToUAttributes: attachment has no value");
-		// TODO: error report, exception?
-	}
+    const zenoh::Bytes& attachment) {
 	auto attachment_vec = zenoh::ext::deserialize<
-	    std::vector<std::pair<std::string, std::string>>>(
-	    attachment.value().get());
+	    std::vector<std::pair<std::string, std::string>>>(attachment);
 
 	if (attachment_vec.size() != 2) {
 		spdlog::error("attachmentToUAttributes: attachment size != 2");
@@ -161,8 +155,14 @@ zenoh::Priority ZenohUTransport::mapZenohPriority(v1::UPriority upriority) {
 
 v1::UMessage ZenohUTransport::sampleToUMessage(const zenoh::Sample& sample) {
 	v1::UMessage message;
-	*message.mutable_attributes() =
-	    attachmentToUAttributes(sample.get_attachment());
+	const auto attachment = sample.get_attachment();
+	if (attachment.has_value()) {
+		*message.mutable_attributes() =
+		    attachmentToUAttributes(attachment.value());
+	} else {
+		spdlog::error("sampleToUMessage: empty attachment");
+		// TODO: error report? attachments are optional, attributes are not
+	}
 	std::string payload(
 	    zenoh::ext::deserialize<std::string>(sample.get_payload()));
 	message.set_payload(payload);
@@ -172,8 +172,14 @@ v1::UMessage ZenohUTransport::sampleToUMessage(const zenoh::Sample& sample) {
 
 v1::UMessage ZenohUTransport::queryToUMessage(const zenoh::Query& query) {
 	v1::UMessage message;
-	*message.mutable_attributes() =
-	    attachmentToUAttributes(query.get_attachment());
+	const auto attachment = query.get_attachment();
+	if (attachment.has_value()) {
+		*message.mutable_attributes() =
+		    attachmentToUAttributes(attachment.value());
+	} else {
+		spdlog::error("sampleToUMessage: empty attachment");
+		// TODO: report error? attachments are optional, attributes are not
+	}
 	if (query.get_payload().has_value()) {
 		std::string payload(zenoh::ext::deserialize<std::string>(
 		    query.get_payload().value().get()));

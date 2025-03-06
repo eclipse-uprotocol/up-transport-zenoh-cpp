@@ -106,8 +106,7 @@ private:
 	uattributesToAttachment(const v1::UAttributes& attributes);
 
 	static v1::UAttributes attachmentToUAttributes(
-	    const std::optional<std::reference_wrapper<const zenoh::Bytes>>&
-	        attachment);
+	    const zenoh::Bytes& attachment);
 
 	static zenoh::Priority mapZenohPriority(v1::UPriority upriority);
 
