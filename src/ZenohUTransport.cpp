@@ -11,6 +11,7 @@
 
 #include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
+#include <base64.h>
 #include <spdlog/spdlog.h>
 #include <up-cpp/datamodel/serializer/UUri.h>
 #include <up-cpp/datamodel/serializer/Uuid.h>
@@ -92,9 +93,10 @@ ZenohUTransport::uattributesToAttachment(const v1::UAttributes& attributes) {
 
 	std::string data;
 	attributes.SerializeToString(&data);
+	std::string data_b64 = base64::to_base64(data);
 
 	res.emplace_back("", version);
-	res.emplace_back("", data);
+	res.emplace_back("", data_b64);
 	return res;
 }
 
@@ -115,7 +117,7 @@ v1::UAttributes ZenohUTransport::attachmentToUAttributes(
 		}
 	};
 	v1::UAttributes res;
-	res.ParseFromString(attachment_vec[1].second);
+	res.ParseFromString(base64::from_base64(attachment_vec[1].second));
 	return res;
 }
 
