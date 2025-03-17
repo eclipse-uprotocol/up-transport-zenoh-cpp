@@ -155,15 +155,17 @@ zenoh::Priority ZenohUTransport::mapZenohPriority(v1::UPriority upriority) {
 	}
 }
 
-v1::UMessage ZenohUTransport::sampleToUMessage(const zenoh::Sample& sample) {
+std::optional<v1::UMessage> ZenohUTransport::sampleToUMessage(
+    const zenoh::Sample& sample) {
 	v1::UMessage message;
 	const auto attachment = sample.get_attachment();
 	if (attachment.has_value()) {
 		*message.mutable_attributes() =
 		    attachmentToUAttributes(attachment.value());
 	} else {
-		spdlog::error("sampleToUMessage: empty attachment");
-		// TODO: error report? attachments are optional, attributes are not
+		spdlog::error(
+		    "sampleToUMessage: empty attachment, cannot read uAttributes");
+		return std::nullopt;
 	}
 	std::string payload(
 	    zenoh::ext::deserialize<std::string>(sample.get_payload()));
@@ -172,15 +174,17 @@ v1::UMessage ZenohUTransport::sampleToUMessage(const zenoh::Sample& sample) {
 	return message;
 }
 
-v1::UMessage ZenohUTransport::queryToUMessage(const zenoh::Query& query) {
+std::optional<v1::UMessage> ZenohUTransport::queryToUMessage(
+    const zenoh::Query& query) {
 	v1::UMessage message;
 	const auto attachment = query.get_attachment();
 	if (attachment.has_value()) {
 		*message.mutable_attributes() =
 		    attachmentToUAttributes(attachment.value());
 	} else {
-		spdlog::error("sampleToUMessage: empty attachment");
-		// TODO: report error? attachments are optional, attributes are not
+		spdlog::error(
+		    "queryToUMessage: empty attachment, cannot read uAttributes");
+		return std::nullopt;
 	}
 	if (query.get_payload().has_value()) {
 		std::string payload(zenoh::ext::deserialize<std::string>(
@@ -209,7 +213,12 @@ v1::UStatus ZenohUTransport::registerPublishNotificationListener_(
 	// NOTE: listener is captured by copy here so that it does not go out
 	// of scope when this function returns.
 	auto on_sample = [this, listener](const zenoh::Sample& sample) mutable {
-		listener(sampleToUMessage(sample));
+		auto maybeMessage = sampleToUMessage(sample);
+		if (maybeMessage.has_value()) {
+			listener(maybeMessage.value());
+		} else {
+			spdlog::error("on_sample: failed to retrieve uMessage");
+		}
 	};
 
 	auto on_drop = []() {};

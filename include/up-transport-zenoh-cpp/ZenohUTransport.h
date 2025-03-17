@@ -110,8 +110,10 @@ private:
 
 	static zenoh::Priority mapZenohPriority(v1::UPriority upriority);
 
-	static v1::UMessage sampleToUMessage(const zenoh::Sample& sample);
-	static v1::UMessage queryToUMessage(const zenoh::Query& query);
+	static std::optional<v1::UMessage> sampleToUMessage(
+	    const zenoh::Sample& sample);
+	static std::optional<v1::UMessage> queryToUMessage(
+	    const zenoh::Query& query);
 
 	v1::UStatus registerPublishNotificationListener_(
 	    const std::string& zenoh_key, CallableConn listener);
