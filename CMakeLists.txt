@@ -57,13 +57,6 @@ target_include_directories(${PROJECT_NAME}
 	${protobuf_INCLUDE_DIR}
 	${spdlog_INCLUDE_DIR})
 
-# base64 library
-add_library(Base64 INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
-target_include_directories(Base64
-	INTERFACE
-	${CMAKE_CURRENT_SOURCE_DIR}/thirdparty)
-
-
 set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(${PROJECT_NAME}
@@ -73,7 +66,6 @@ target_link_libraries(${PROJECT_NAME}
 	up-core-api::up-core-api
 	protobuf::libprotobuf
 	spdlog::spdlog
-	Base64
 	)
 
 enable_testing()

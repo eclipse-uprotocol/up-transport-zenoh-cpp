@@ -11,7 +11,6 @@
 
 #include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
-#include <base64.h>
 #include <spdlog/spdlog.h>
 #include <up-cpp/datamodel/serializer/UUri.h>
 #include <up-cpp/datamodel/serializer/Uuid.h>
@@ -85,25 +84,24 @@ std::string ZenohUTransport::toZenohKeyString(
 	return zenoh_key.str();
 }
 
-std::vector<std::pair<std::string, std::string>>
+std::vector<std::pair<std::string, std::vector<uint8_t>>>
 ZenohUTransport::uattributesToAttachment(const v1::UAttributes& attributes) {
-	std::vector<std::pair<std::string, std::string>> res;
+	std::vector<std::pair<std::string, std::vector<uint8_t>>> res;
 
-	std::string version(&UATTRIBUTE_VERSION, 1);
+	std::vector<uint8_t> version = {UATTRIBUTE_VERSION};
 
-	std::string data;
-	attributes.SerializeToString(&data);
-	std::string data_b64 = base64::to_base64(data);
+	std::vector<uint8_t> data(attributes.ByteSizeLong());
+	attributes.SerializeToArray(data.data(), static_cast<int>(data.size()));
 
 	res.emplace_back("", version);
-	res.emplace_back("", data_b64);
+	res.emplace_back("", data);
 	return res;
 }
 
 v1::UAttributes ZenohUTransport::attachmentToUAttributes(
     const zenoh::Bytes& attachment) {
 	auto attachment_vec = zenoh::ext::deserialize<
-	    std::vector<std::pair<std::string, std::string>>>(attachment);
+	    std::vector<std::pair<std::string, std::vector<uint8_t>>>>(attachment);
 
 	if (attachment_vec.size() != 2) {
 		spdlog::error("attachmentToUAttributes: attachment size != 2");
@@ -117,7 +115,8 @@ v1::UAttributes ZenohUTransport::attachmentToUAttributes(
 		}
 	};
 	v1::UAttributes res;
-	res.ParseFromString(base64::from_base64(attachment_vec[1].second));
+	const std::vector<uint8_t> data = attachment_vec[1].second;
+	res.ParseFromArray(data.data(), static_cast<int>(data.size()));
 	return res;
 }
 
