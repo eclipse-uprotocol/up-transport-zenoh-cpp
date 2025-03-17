@@ -470,11 +470,7 @@ jobs:
   ci:
     name: CI status checks
     runs-on: ubuntu-22.04
-    #needs: [build, test]
-    # NOTE tests are currently known failing. At this early stage, we will allow
-    # some PRs to merge without fixing those tests. This will be reverted in the
-    # near future.
-    needs: [build]
+    needs: [build, test, memcheck, threadcheck, helgrind, dhat]
     if: always()
     steps:
       - name: Check whether all jobs pass
