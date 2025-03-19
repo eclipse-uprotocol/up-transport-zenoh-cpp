@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ['main']
   pull_request:
-    branches: ["**"]
+    branches: ['**']
 
 jobs:
   build:
@@ -22,13 +22,13 @@ jobs:
         uses: turtlebrowser/get-conan@main
         with:
           version: 2.3.2
-        
+
       - name: Install conan CI profile
         shell: bash
         run: |
           conan profile detect
           cp up-transport-zenoh-cpp/.github/workflows/ci_conan_profile "$(conan profile path default)"
-          conan profile show 
+          conan profile show
 
       - name: Fetch up-core-api conan recipe
         uses: actions/checkout@v4
@@ -49,8 +49,8 @@ jobs:
       - name: Build zenohcpp conan package
         shell: bash
         run: |
-          conan create --version 1.0.0-rc5 up-conan-recipes/zenohc-tmp/prebuilt
-          conan create --version 1.0.0-rc5 up-conan-recipes/zenohcpp-tmp/from-source
+          conan create --version 1.2.1 up-conan-recipes/zenohc-tmp/prebuilt
+          conan create --version 1.2.1 up-conan-recipes/zenohcpp-tmp/from-source
 
       - name: Build up-transport-zenoh-cpp with tests
         shell: bash
@@ -119,6 +119,11 @@ jobs:
     needs: build
 
     steps:
+      - name: Fetch up-transport-zenoh-cpp
+        uses: actions/checkout@v4
+        with:
+          path: up-transport-zenoh-cpp
+
       - name: Get build commands
         uses: actions/download-artifact@v4
         with:
@@ -130,8 +135,12 @@ jobs:
         with:
           version: 2.3.2
 
-      - name: Create default Conan profile
-        run: conan profile detect
+      - name: Install conan CI profile
+        shell: bash
+        run: |
+          conan profile detect
+          cp up-transport-zenoh-cpp/.github/workflows/ci_conan_profile "$(conan profile path default)"
+          conan profile show
 
       - name: Get conan cache
         uses: actions/download-artifact@v4
@@ -142,11 +151,6 @@ jobs:
         shell: bash
         run: |
           conan cache restore conan-cache.tgz
-
-      - name: Fetch up-transport-zenoh-cpp
-        uses: actions/checkout@v4
-        with:
-          path: up-transport-zenoh-cpp
 
       - name: Run linters on source
         id: source-linter
@@ -160,7 +164,6 @@ jobs:
           tidy-checks: '' # Read .clang-tidy for configuration
           database: compile_commands.json
           version: 12
-
 
       - name: Run linters on tests
         id: test-linter
@@ -176,95 +179,97 @@ jobs:
           version: 12
 
       - name: Report lint failure
-        if: steps.source-linter.outputs.checks-failed > 0 || steps.test-linter.outputs.checks-failed > 0
+        if:
+          steps.source-linter.outputs.checks-failed > 0 ||
+          steps.test-linter.outputs.checks-failed > 0
         run: |
           exit 1
 
   memcheck:
-      name: Run Valgrind Memcheck
-      runs-on: ubuntu-22.04
-      needs: build
-
-      steps:
-        - name: Get build artifacts
-          uses: actions/download-artifact@v4
-          with:
-            name: build-artifacts
-            path: up-transport-zenoh-cpp 
-
-        - name: Install Valgrind
-          run: |
-            sudo apt-get update
-            sudo apt-get install -y valgrind
-
-        - name: Run Valgrind Memcheck
-          continue-on-error: true
-          run: |
-            cd up-transport-zenoh-cpp/build/Release
-            touch valgrind_exclude_test_memcheck.txt
-            chmod +x bin/*
-            mkdir -p valgrind_logs
-            : > valgrind_logs/valgrind_memcheck_summary.log
-            declare -A EXCLUDE_TESTS
-            while IFS= read -r line; do
-              test_binary=$(echo $line | cut -d'.' -f1)
-              test_suite=$(echo $line | cut -d'.' -f2)
-              test_name=$(echo $line | cut -d'.' -f3)
-              if [[ -z "${EXCLUDE_TESTS["$test_binary"]}" ]]; then
-                EXCLUDE_TESTS["$test_binary"]="-"
-              else
-                EXCLUDE_TESTS["$test_binary"]+=":"
-              fi
-              EXCLUDE_TESTS["$test_binary"]+="$test_suite.$test_name"
-            done < valgrind_exclude_test_memcheck.txt
-
-            for test_binary in bin/*Test; do
-              test_binary_name=$(basename $test_binary)
-              echo "Running Valgrind on $test_binary_name"
-              if [[ -n "${EXCLUDE_TESTS[$test_binary_name]}" ]]; then
-                exclude_pattern="${EXCLUDE_TESTS[$test_binary_name]}"
-                valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file="valgrind_logs/$test_binary_name.log" ./$test_binary --gtest_filter="$exclude_pattern" || true
-              else
-                valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file="valgrind_logs/$test_binary_name.log" ./$test_binary || true
-              fi
-
-              cat "valgrind_logs/$test_binary_name.log" >> valgrind_logs/valgrind_complete_memcheck_log.log
-
-              if grep -q "ERROR SUMMARY: [^0]" "valgrind_logs/$test_binary_name.log"; then
-                echo "Valgrind errors found in $test_binary_name:"
-                grep -A1 "ERROR SUMMARY:" "valgrind_logs/$test_binary_name.log" >> valgrind_logs/valgrind_memcheck_summary.log
-                echo "Valgrind log for $test_binary_name:"
-                cat "valgrind_logs/$test_binary_name.log"
-                echo "------------------------"
-              fi
-            done
-            echo "Valgrind Memcheck Summary:"
-            cat valgrind_logs/valgrind_memcheck_summary.log
-
-        - name: Upload Valgrind Memcheck logs
-          uses: actions/upload-artifact@v4
-          if: success() || failure()
-          with:
-            name: valgrind-memcheck-log
-            path: up-transport-zenoh-cpp/build/Release/valgrind_logs/valgrind_complete_memcheck_log.log
-
-  threadcheck:
-    name: Run Valgrind ThreadCheck
+    name: Run Valgrind Memcheck
     runs-on: ubuntu-22.04
     needs: build
-  
+
     steps:
       - name: Get build artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts
-          path: up-transport-zenoh-cpp 
-  
+          path: up-transport-zenoh-cpp
+
       - name: Install Valgrind
         run: |
           sudo apt-get update
           sudo apt-get install -y valgrind
-  
+
+      - name: Run Valgrind Memcheck
+        continue-on-error: true
+        run: |
+          cd up-transport-zenoh-cpp/build/Release
+          touch valgrind_exclude_test_memcheck.txt
+          chmod +x bin/*
+          mkdir -p valgrind_logs
+          : > valgrind_logs/valgrind_memcheck_summary.log
+          declare -A EXCLUDE_TESTS
+          while IFS= read -r line; do
+            test_binary=$(echo $line | cut -d'.' -f1)
+            test_suite=$(echo $line | cut -d'.' -f2)
+            test_name=$(echo $line | cut -d'.' -f3)
+            if [[ -z "${EXCLUDE_TESTS["$test_binary"]}" ]]; then
+              EXCLUDE_TESTS["$test_binary"]="-"
+            else
+              EXCLUDE_TESTS["$test_binary"]+=":"
+            fi
+            EXCLUDE_TESTS["$test_binary"]+="$test_suite.$test_name"
+          done < valgrind_exclude_test_memcheck.txt
+
+          for test_binary in bin/*Test; do
+            test_binary_name=$(basename $test_binary)
+            echo "Running Valgrind on $test_binary_name"
+            if [[ -n "${EXCLUDE_TESTS[$test_binary_name]}" ]]; then
+              exclude_pattern="${EXCLUDE_TESTS[$test_binary_name]}"
+              valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file="valgrind_logs/$test_binary_name.log" ./$test_binary --gtest_filter="$exclude_pattern" || true
+            else
+              valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --log-file="valgrind_logs/$test_binary_name.log" ./$test_binary || true
+            fi
+
+            cat "valgrind_logs/$test_binary_name.log" >> valgrind_logs/valgrind_complete_memcheck_log.log
+
+            if grep -q "ERROR SUMMARY: [^0]" "valgrind_logs/$test_binary_name.log"; then
+              echo "Valgrind errors found in $test_binary_name:"
+              grep -A1 "ERROR SUMMARY:" "valgrind_logs/$test_binary_name.log" >> valgrind_logs/valgrind_memcheck_summary.log
+              echo "Valgrind log for $test_binary_name:"
+              cat "valgrind_logs/$test_binary_name.log"
+              echo "------------------------"
+            fi
+          done
+          echo "Valgrind Memcheck Summary:"
+          cat valgrind_logs/valgrind_memcheck_summary.log
+
+      - name: Upload Valgrind Memcheck logs
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: valgrind-memcheck-log
+          path: up-transport-zenoh-cpp/build/Release/valgrind_logs/valgrind_complete_memcheck_log.log
+
+  threadcheck:
+    name: Run Valgrind ThreadCheck
+    runs-on: ubuntu-22.04
+    needs: build
+
+    steps:
+      - name: Get build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: up-transport-zenoh-cpp
+
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+
       - name: Run Valgrind ThreadCheck
         continue-on-error: true
         run: |
@@ -286,7 +291,7 @@ jobs:
             fi
             EXCLUDE_TESTS["$test_binary"]+="$test_suite.$test_name"
           done < valgrind_exclude_test_threadcheck.txt
-  
+
           for test_binary in bin/*Test; do
             test_binary_name=$(basename $test_binary)
             echo "Running Valgrind ThreadCheck on $test_binary_name"
@@ -296,9 +301,9 @@ jobs:
             else
               valgrind --tool=drd --log-file="valgrind_logs/$test_binary_name_threadcheck.log" ./$test_binary || true
             fi
-  
+
             cat "valgrind_logs/$test_binary_name_threadcheck.log" >> valgrind_logs/valgrind_complete_threadcheck_log.log
-  
+
             if grep -q "ERROR SUMMARY: [^0]" "valgrind_logs/$test_binary_name_threadcheck.log"; then
               echo "Valgrind ThreadCheck errors found in $test_binary_name:"
               grep -A1 "ERROR SUMMARY:" "valgrind_logs/$test_binary_name_threadcheck.log" >> valgrind_logs/valgrind_threadcheck_summary.log
@@ -307,34 +312,34 @@ jobs:
               echo "------------------------"
             fi
           done
-  
+
           echo "Valgrind ThreadCheck Summary:"
           cat valgrind_logs/valgrind_threadcheck_summary.log
-  
+
       - name: Upload Valgrind ThreadCheck logs
         uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
           name: valgrind-threadcheck-log
-          path: up-transport-zenoh-cpp/build/Release/valgrind_logs/valgrind_complete_threadcheck_log.log        
-          
+          path: up-transport-zenoh-cpp/build/Release/valgrind_logs/valgrind_complete_threadcheck_log.log
+
   helgrind:
     name: Run Valgrind Helgrind
     runs-on: ubuntu-22.04
     needs: build
-  
+
     steps:
       - name: Get build artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts
-          path: up-transport-zenoh-cpp 
-  
+          path: up-transport-zenoh-cpp
+
       - name: Install Valgrind
         run: |
           sudo apt-get update
           sudo apt-get install -y valgrind
-  
+
       - name: Run Valgrind Helgrind
         continue-on-error: true
         run: |
@@ -356,7 +361,7 @@ jobs:
             fi
             EXCLUDE_TESTS["$test_binary"]+="$test_suite.$test_name"
           done < valgrind_exclude_test_helgrind.txt
-  
+
           for test_binary in bin/*Test; do
             test_binary_name=$(basename $test_binary)
             echo "Running Valgrind Helgrind on $test_binary_name"
@@ -366,9 +371,9 @@ jobs:
             else
               valgrind --tool=helgrind --log-file="valgrind_logs/$test_binary_name_helgrind.log" ./$test_binary || true
             fi
-  
+
             cat "valgrind_logs/$test_binary_name_helgrind.log" >> valgrind_logs/valgrind_complete_helgrind_log.log
-  
+
             if grep -q "ERROR SUMMARY: [^0]" "valgrind_logs/$test_binary_name_helgrind.log"; then
               echo "Valgrind Helgrind errors found in $test_binary_name:"
               grep -A1 "ERROR SUMMARY:" "valgrind_logs/$test_binary_name_helgrind.log" >> valgrind_logs/valgrind_helgrind_summary.log
@@ -377,17 +382,17 @@ jobs:
               echo "------------------------"
             fi
           done
-  
+
           echo "Valgrind Helgrind Summary:"
           cat valgrind_logs/valgrind_helgrind_summary.log
-  
+
       - name: Upload Valgrind Helgrind logs
         uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
           name: valgrind-helgrind-log
-          path: up-transport-zenoh-cpp/build/Release/valgrind_logs/valgrind_complete_helgrind_log.log    
-          
+          path: up-transport-zenoh-cpp/build/Release/valgrind_logs/valgrind_complete_helgrind_log.log
+
   dhat:
     name: Run Valgrind DHAT
     runs-on: ubuntu-22.04

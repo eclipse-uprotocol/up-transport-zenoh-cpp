@@ -102,7 +102,7 @@ protected:
 private:
 	static v1::UStatus uError(v1::UCode code, std::string_view message);
 
-	static std::vector<std::pair<std::string, std::string>>
+	static std::vector<std::pair<std::string, std::vector<uint8_t>>>
 	uattributesToAttachment(const v1::UAttributes& attributes);
 
 	static v1::UAttributes attachmentToUAttributes(
@@ -110,8 +110,10 @@ private:
 
 	static zenoh::Priority mapZenohPriority(v1::UPriority upriority);
 
-	static v1::UMessage sampleToUMessage(const zenoh::Sample& sample);
-	static v1::UMessage queryToUMessage(const zenoh::Query& query);
+	static std::optional<v1::UMessage> sampleToUMessage(
+	    const zenoh::Sample& sample);
+	static std::optional<v1::UMessage> queryToUMessage(
+	    const zenoh::Query& query);
 
 	v1::UStatus registerPublishNotificationListener_(
 	    const std::string& zenoh_key, CallableConn listener);

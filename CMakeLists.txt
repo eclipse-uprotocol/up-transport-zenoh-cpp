@@ -65,7 +65,8 @@ target_link_libraries(${PROJECT_NAME}
 	up-cpp::up-cpp
 	up-core-api::up-core-api
 	protobuf::libprotobuf
-	spdlog::spdlog)
+	spdlog::spdlog
+	)
 
 enable_testing()
 add_subdirectory(test)

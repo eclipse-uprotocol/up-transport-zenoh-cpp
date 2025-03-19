@@ -37,7 +37,7 @@ protected:
 
 	// Run once per execution of the test application.
 	// Used for setup of all tests. Has access to this instance.
-	PublisherSubscriberTest() { zenoh::init_logger(); }
+	PublisherSubscriberTest() { zenoh::init_log_from_env_or("error"); }
 	~PublisherSubscriberTest() = default;
 
 	// Run once per execution of the test application.
