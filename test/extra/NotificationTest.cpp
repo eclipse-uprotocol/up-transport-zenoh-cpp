@@ -17,9 +17,7 @@
 
 #include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
-namespace {
-
-using namespace uprotocol;
+namespace uprotocol {
 
 constexpr std::string_view ZENOH_CONFIG_FILE = BUILD_REALPATH_ZENOH_CONF;
 
@@ -33,18 +31,21 @@ protected:
 	// Run once per execution of the test application.
 	// Used for setup of all tests. Has access to this instance.
 	NotificationTest() = default;
-	~NotificationTest() = default;
 
 	// Run once per execution of the test application.
 	// Used only for global setup outside of tests.
 	static void SetUpTestSuite() {}
 	static void TearDownTestSuite() {}
+
+public:
+	~NotificationTest() override = default;
 };
 
 v1::UUri getUUri(uint16_t resource) {
+	constexpr uint32_t DEFAULT_UE_ID = 0x10001;
 	v1::UUri uuri;
 	uuri.set_authority_name(static_cast<std::string>("test0"));
-	uuri.set_ue_id(0x10001);
+	uuri.set_ue_id(DEFAULT_UE_ID);
 	uuri.set_ue_version_major(1);
 	uuri.set_resource_id(resource);
 	return uuri;
@@ -56,16 +57,18 @@ std::shared_ptr<transport::UTransport> getTransport(
 	                                                    ZENOH_CONFIG_FILE);
 }
 
-TEST_F(NotificationTest, BasicNotificationTestWithPayload) {
+TEST_F(NotificationTest, BasicNotificationTestWithPayload) {  // NOLINT
+	constexpr uint16_t RESOURCE1_ID = 0x8000;
+	constexpr uint16_t RESOURCE2_ID = 0x8001;
 	zenoh::init_log_from_env_or("error");
 
 	auto transport = getTransport();
-	auto source = getUUri(0x8000);
+	auto source = getUUri(RESOURCE1_ID);
 	auto sink = getUUri(0);
 	auto source_filter = source;
-	constexpr int num_messages = 25;
+	constexpr int NUM_MESSAGES = 25;
 
-	auto notificationSource = communication::NotificationSource(
+	auto notification_source = communication::NotificationSource(
 	    transport, std::move(source), std::move(sink),
 	    v1::UPAYLOAD_FORMAT_TEXT);
 
@@ -74,44 +77,46 @@ TEST_F(NotificationTest, BasicNotificationTestWithPayload) {
 	std::queue<v1::UMessage> rx_queue;
 	auto on_rx = [&rx_queue_mtx, &rx_queue](const v1::UMessage& message) {
 		std::lock_guard<std::mutex> lock(rx_queue_mtx);
-		rx_queue.push(std::move(message));
+		rx_queue.push(message);
 	};
 	auto maybe_sink = communication::NotificationSink::create(
-	    transport, std::move(on_rx), std::move(source_filter));
+	    transport, std::move(on_rx), source_filter);
 	EXPECT_TRUE(maybe_sink.has_value());
 
 	// Create a second sink with a different source filter to verify messages
 	// arrive at the right sink
-	auto source_filter2 = getUUri(0x8001);
-	auto on_rx2 = [](const v1::UMessage& message) { FAIL(); };
+	auto source_filter2 = getUUri(RESOURCE2_ID);
+	auto on_rx2 = [](const v1::UMessage& /*message*/) { FAIL(); };
 	auto maybe_sink2 = communication::NotificationSink::create(
-	    transport, std::move(on_rx2), std::move(source_filter2));
+	    transport, std::move(on_rx2), source_filter2);
 	EXPECT_TRUE(maybe_sink2.has_value());
 
 	// Send the notification messages
 	if (maybe_sink.has_value()) {
-		for (auto remaining = num_messages; remaining > 0; --remaining) {
+		for (auto remaining = NUM_MESSAGES; remaining > 0; --remaining) {
 			std::string message = "Hello, world!";
 			datamodel::builder::Payload payload(message,
 			                                    v1::UPAYLOAD_FORMAT_TEXT);
-			auto status = notificationSource.notify(std::move(payload));
+			auto status = notification_source.notify(std::move(payload));
 			EXPECT_EQ(status.code(), v1::UCode::OK);
 		}
 	}
 
-	EXPECT_EQ(rx_queue.size(), num_messages);
+	EXPECT_EQ(rx_queue.size(), NUM_MESSAGES);
 }
 
-TEST_F(NotificationTest, BasicNotificationTestWithoutPayload) {
+TEST_F(NotificationTest, BasicNotificationTestWithoutPayload) {  // NOLINT
+	constexpr uint16_t RESOURCE1_ID = 0x8000;
+	constexpr uint16_t RESOURCE2_ID = 0x8001;
 	zenoh::init_log_from_env_or("error");
 
 	auto transport = getTransport();
-	auto source = getUUri(0x8000);
+	auto source = getUUri(RESOURCE1_ID);
 	auto sink = getUUri(0);
 	auto source_filter = source;
-	constexpr int num_messages = 25;
+	constexpr int NUM_MESSAGES = 25;
 
-	auto notificationSource = communication::NotificationSource(
+	auto notification_source = communication::NotificationSource(
 	    transport, std::move(source), std::move(sink));
 
 	// Create the intended sink for the notifications
@@ -119,29 +124,29 @@ TEST_F(NotificationTest, BasicNotificationTestWithoutPayload) {
 	std::queue<v1::UMessage> rx_queue;
 	auto on_rx = [&rx_queue_mtx, &rx_queue](const v1::UMessage& message) {
 		std::lock_guard<std::mutex> lock(rx_queue_mtx);
-		rx_queue.push(std::move(message));
+		rx_queue.push(message);
 	};
 	auto maybe_sink = communication::NotificationSink::create(
-	    transport, std::move(on_rx), std::move(source_filter));
+	    transport, std::move(on_rx), source_filter);
 	EXPECT_TRUE(maybe_sink.has_value());
 
 	// Create a second sink with a different source filter to verify messages
 	// arrive at the right sink
-	auto source_filter2 = getUUri(0x8001);
-	auto on_rx2 = [](const v1::UMessage& message) { FAIL(); };
+	auto source_filter2 = getUUri(RESOURCE2_ID);
+	auto on_rx2 = [](const v1::UMessage& /*message*/) { FAIL(); };
 	auto maybe_sink2 = communication::NotificationSink::create(
-	    transport, std::move(on_rx2), std::move(source_filter2));
+	    transport, std::move(on_rx2), source_filter2);
 	EXPECT_TRUE(maybe_sink2.has_value());
 
 	// Send the notification messages
 	if (maybe_sink.has_value()) {
-		for (auto remaining = num_messages; remaining > 0; --remaining) {
-			auto status = notificationSource.notify();
+		for (auto remaining = NUM_MESSAGES; remaining > 0; --remaining) {
+			auto status = notification_source.notify();
 			EXPECT_EQ(status.code(), v1::UCode::OK);
 		}
 	}
 
-	EXPECT_EQ(rx_queue.size(), num_messages);
+	EXPECT_EQ(rx_queue.size(), NUM_MESSAGES);
 }
 
-}  // namespace
+}  // namespace uprotocol

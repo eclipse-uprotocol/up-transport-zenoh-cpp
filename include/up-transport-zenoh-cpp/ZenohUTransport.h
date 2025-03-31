@@ -15,9 +15,7 @@
 #include <up-cpp/transport/UTransport.h>
 
 #include <filesystem>
-#include <mutex>
 #include <optional>
-#include <unordered_map>
 
 #define ZENOHCXX_ZENOHC
 #include <zenoh.hxx>
@@ -46,14 +44,14 @@ namespace uprotocol::transport {
 struct ZenohUTransport : public UTransport {
 	/// @brief Constructor
 	///
-	/// @param defaultUri Default Authority and Entity (as a UUri) for
+	/// @param default_uri Default Authority and Entity (as a UUri) for
 	///                   clients using this transport instance.
-	/// @param configFile Path to a configuration file containing the Zenoh
+	/// @param config_file Path to a configuration file containing the Zenoh
 	///                   transport configuration.
-	ZenohUTransport(const v1::UUri& defaultUri,
-	                const std::filesystem::path& configFile);
+	ZenohUTransport(const v1::UUri& default_uri,
+	                const std::filesystem::path& config_file);
 
-	virtual ~ZenohUTransport() = default;
+	~ZenohUTransport() override = default;
 
 protected:
 	/// @brief Send a message.
@@ -63,8 +61,7 @@ protected:
 	/// @returns * OKSTATUS if the payload has been successfully
 	///            sent (ACK'ed)
 	///          * FAILSTATUS with the appropriate failure otherwise.
-	[[nodiscard]] virtual v1::UStatus sendImpl(
-	    const v1::UMessage& message) override;
+	[[nodiscard]] v1::UStatus sendImpl(const v1::UMessage& message) override;
 
 	/// @brief Represents the callable end of a callback connection.
 	using CallableConn = typename UTransport::CallableConn;
@@ -81,7 +78,7 @@ protected:
 	///
 	/// @returns * OKSTATUS if the listener was registered successfully.
 	///          * FAILSTATUS with the appropriate failure otherwise.
-	[[nodiscard]] virtual v1::UStatus registerListenerImpl(
+	[[nodiscard]] v1::UStatus registerListenerImpl(
 	    CallableConn&& listener, const v1::UUri& source_filter,
 	    std::optional<v1::UUri>&& sink_filter) override;
 
@@ -93,7 +90,7 @@ protected:
 	/// @note The default implementation does nothing.
 	///
 	/// @param listener shared_ptr of the Connection that has been broken.
-	virtual void cleanupListener(CallableConn listener) override;
+	void cleanupListener(CallableConn listener) override;
 
 	static std::string toZenohKeyString(
 	    const std::string& default_authority_name, const v1::UUri& source,
