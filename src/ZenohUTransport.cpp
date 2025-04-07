@@ -277,7 +277,7 @@ v1::UStatus ZenohUTransport::registerListenerImpl(
 	std::string zenoh_key = toZenohKeyString(getEntityUri().authority_name(),
 	                                         source_filter, sink_filter);
 
-	return registerPublishNotificationListener_(zenoh_key, listener);
+	return registerPublishNotificationListener_(zenoh_key, std::move(listener));
 }
 
 void ZenohUTransport::cleanupListener(CallableConn listener) {
