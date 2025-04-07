@@ -37,7 +37,7 @@ std::string ZenohUTransport::toZenohKeyString(
     const std::optional<v1::UUri>& sink) {
 	std::ostringstream zenoh_key;
 
-	auto writeUUri = [&](const v1::UUri& uuri) {
+	auto write_u_uri = [&](const v1::UUri& uuri) {
 		zenoh_key << "/";
 
 		// authority_name
@@ -74,10 +74,10 @@ std::string ZenohUTransport::toZenohKeyString(
 
 	zenoh_key << "up";
 
-	writeUUri(source);
+	write_u_uri(source);
 
 	if (sink.has_value()) {
-		writeUUri(*sink);
+		write_u_uri(*sink);
 	} else {
 		zenoh_key << "/{}/{}/{}/{}";
 	}
@@ -105,13 +105,13 @@ v1::UAttributes ZenohUTransport::attachmentToUAttributes(
 
 	if (attachment_vec.size() != 2) {
 		spdlog::error("attachmentToUAttributes: attachment size != 2");
-		// TODO: error report, exception?
+		// TODO(unknown) error report, exception?
 	}
 
 	if (attachment_vec[0].second.size() == 1) {
 		if (attachment_vec[0].second[0] != UATTRIBUTE_VERSION) {
 			spdlog::error("attachmentToUAttributes: incorrect version");
-			// TODO: error report, exception?
+			// TODO(unknown) error report, exception?
 		}
 	};
 	v1::UAttributes res;
@@ -166,8 +166,7 @@ std::optional<v1::UMessage> ZenohUTransport::sampleToUMessage(
 		    "sampleToUMessage: empty attachment, cannot read uAttributes");
 		return std::nullopt;
 	}
-	std::string payload(
-	    zenoh::ext::deserialize<std::string>(sample.get_payload()));
+	auto payload(zenoh::ext::deserialize<std::string>(sample.get_payload()));
 	message.set_payload(payload);
 
 	return message;
@@ -186,7 +185,7 @@ std::optional<v1::UMessage> ZenohUTransport::queryToUMessage(
 		return std::nullopt;
 	}
 	if (query.get_payload().has_value()) {
-		std::string payload(zenoh::ext::deserialize<std::string>(
+		auto payload(zenoh::ext::deserialize<std::string>(
 		    query.get_payload().value().get()));
 		message.set_payload(payload);
 	}
@@ -194,12 +193,12 @@ std::optional<v1::UMessage> ZenohUTransport::queryToUMessage(
 	return message;
 }
 
-ZenohUTransport::ZenohUTransport(const v1::UUri& defaultUri,
-                                 const std::filesystem::path& configFile)
-    : UTransport(defaultUri),
+ZenohUTransport::ZenohUTransport(const v1::UUri& default_uri,
+                                 const std::filesystem::path& config_file)
+    : UTransport(default_uri),
       session_(zenoh::Session::open(
-          std::move(zenoh::Config::from_file(configFile.string().c_str())))) {
-	// TODO: add to setup or remove
+          zenoh::Config::from_file(config_file.string()))) {
+	// TODO(unknown) add to setup or remove
 	spdlog::set_level(spdlog::level::debug);
 
 	spdlog::info("ZenohUTransport init");
@@ -211,10 +210,10 @@ v1::UStatus ZenohUTransport::registerPublishNotificationListener_(
 
 	// NOTE: listener is captured by copy here so that it does not go out
 	// of scope when this function returns.
-	auto on_sample = [this, listener](const zenoh::Sample& sample) mutable {
-		auto maybeMessage = sampleToUMessage(sample);
-		if (maybeMessage.has_value()) {
-			listener(maybeMessage.value());
+	auto on_sample = [listener](const zenoh::Sample& sample) mutable {
+		auto maybe_message = sampleToUMessage(sample);
+		if (maybe_message.has_value()) {
+			listener(maybe_message.value());
 		} else {
 			spdlog::error("on_sample: failed to retrieve uMessage");
 		}
@@ -225,7 +224,7 @@ v1::UStatus ZenohUTransport::registerPublishNotificationListener_(
 	auto subscriber = session_.declare_subscriber(
 	    zenoh_key, std::move(on_sample), std::move(on_drop));
 	subscriber_map_.emplace(listener, std::move(subscriber));
-	return v1::UStatus();
+	return {};
 }
 
 v1::UStatus ZenohUTransport::sendPublishNotification_(
@@ -250,7 +249,7 @@ v1::UStatus ZenohUTransport::sendPublishNotification_(
 		return uError(v1::UCode::INTERNAL, e.what());
 	}
 
-	return v1::UStatus();
+	return {};
 }
 
 // NOTE: Messages have already been validated by the base class. It does not
@@ -278,7 +277,7 @@ v1::UStatus ZenohUTransport::registerListenerImpl(
 	std::string zenoh_key = toZenohKeyString(getEntityUri().authority_name(),
 	                                         source_filter, sink_filter);
 
-	return registerPublishNotificationListener_(zenoh_key, listener);
+	return registerPublishNotificationListener_(zenoh_key, std::move(listener));
 }
 
 void ZenohUTransport::cleanupListener(CallableConn listener) {

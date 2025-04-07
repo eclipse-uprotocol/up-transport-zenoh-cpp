@@ -59,7 +59,7 @@ up-transport-zenoh-cpp, follow the steps in the
 ### With Conan for dependencies
 
 ```
-cd up-client-zenoh-cpp
+cd up-transport-zenoh-cpp
 conan install . --build=missing
 cmake --preset conan-release
 cd build/Release

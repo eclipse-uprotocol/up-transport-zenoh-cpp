@@ -17,10 +17,9 @@
 
 #include "up-transport-zenoh-cpp/ZenohUTransport.h"
 
-namespace {
-constexpr size_t num_publish_messages = 25;
+constexpr size_t NUM_PUBLISH_MESSAGES = 25;
 
-using namespace uprotocol;
+namespace uprotocol {
 
 constexpr std::string_view ZENOH_CONFIG_FILE = BUILD_REALPATH_ZENOH_CONF;
 
@@ -38,18 +37,21 @@ protected:
 	// Run once per execution of the test application.
 	// Used for setup of all tests. Has access to this instance.
 	PublisherSubscriberTest() { zenoh::init_log_from_env_or("error"); }
-	~PublisherSubscriberTest() = default;
 
 	// Run once per execution of the test application.
 	// Used only for global setup outside of tests.
 	static void SetUpTestSuite() {}
 	static void TearDownTestSuite() {}
+
+public:
+	~PublisherSubscriberTest() override = default;
 };
 
 v1::UUri makeUUri(uint16_t resource_id) {
+	constexpr uint32_t DEFAULT_UE_ID = 0x10001;
 	v1::UUri uuri;
 	uuri.set_authority_name(static_cast<std::string>("test0"));
-	uuri.set_ue_id((0x10001));
+	uuri.set_ue_id((DEFAULT_UE_ID));
 	uuri.set_ue_version_major(1);
 	uuri.set_resource_id(resource_id);
 	return uuri;
@@ -85,7 +87,7 @@ void ValidateMessages(std::queue<v1::UMessage>& rx_queue, size_t num_messages,
 
 // TODO(sashacmc): config generation
 
-TEST_F(PublisherSubscriberTest, SinglePubSingleSub) {
+TEST_F(PublisherSubscriberTest, SinglePubSingleSub) {  // NOLINT
 	auto transport = getTransport();
 
 	communication::Publisher pub(transport, makeUUri(TOPIC_URI),
@@ -103,7 +105,7 @@ TEST_F(PublisherSubscriberTest, SinglePubSingleSub) {
 	EXPECT_TRUE(maybe_sub);
 
 	if (maybe_sub) {
-		for (auto remaining = num_publish_messages; remaining > 0;
+		for (auto remaining = NUM_PUBLISH_MESSAGES; remaining > 0;
 		     --remaining) {
 			std::ostringstream message;
 			message << "Message number: " << remaining;
@@ -115,11 +117,11 @@ TEST_F(PublisherSubscriberTest, SinglePubSingleSub) {
 		}
 	}
 
-	ValidateMessages(rx_queue, num_publish_messages, "Message number: ");
+	ValidateMessages(rx_queue, NUM_PUBLISH_MESSAGES, "Message number: ");
 }
 
 // Single publisher, multiple subscribers (2) on the same topic.
-TEST_F(PublisherSubscriberTest, SinglePubMultipleSub) {
+TEST_F(PublisherSubscriberTest, SinglePubMultipleSub) {  // NOLINT
 	auto transport = getTransport();
 
 	communication::Publisher pub(transport, makeUUri(TOPIC_URI),
@@ -148,7 +150,7 @@ TEST_F(PublisherSubscriberTest, SinglePubMultipleSub) {
 	EXPECT_TRUE(maybe_sub2);
 
 	if (maybe_sub && maybe_sub2) {
-		for (auto remaining = num_publish_messages; remaining > 0;
+		for (auto remaining = NUM_PUBLISH_MESSAGES; remaining > 0;
 		     --remaining) {
 			std::ostringstream message;
 			message << "Message number: " << remaining;
@@ -160,12 +162,13 @@ TEST_F(PublisherSubscriberTest, SinglePubMultipleSub) {
 		}
 	}
 
-	ValidateMessages(rx_queue, num_publish_messages, "Message number: ");
-	ValidateMessages(rx_queue2, num_publish_messages, "Message number: ");
+	ValidateMessages(rx_queue, NUM_PUBLISH_MESSAGES, "Message number: ");
+	ValidateMessages(rx_queue2, NUM_PUBLISH_MESSAGES, "Message number: ");
 }
 
 // Single publisher, two subscribers on different topics
-TEST_F(PublisherSubscriberTest, SinglePubMultipleSubDifferentTopics) {
+TEST_F(PublisherSubscriberTest,  // NOLINT
+       SinglePubMultipleSubDifferentTopics) {
 	auto transport = getTransport();
 
 	communication::Publisher pub(transport, makeUUri(TOPIC_URI),
@@ -183,13 +186,13 @@ TEST_F(PublisherSubscriberTest, SinglePubMultipleSubDifferentTopics) {
 	EXPECT_TRUE(maybe_sub);
 
 	// subscribe to a different topic (non-existent topic)
-	auto on_rx2 = [](const v1::UMessage& message) { FAIL(); };
+	auto on_rx2 = [](const v1::UMessage& /*message*/) { FAIL(); };
 	auto maybe_sub2 = communication::Subscriber::subscribe(
 	    transport, makeUUri(TOPIC_URI2), std::move(on_rx2));
 	EXPECT_TRUE(maybe_sub2);
 
 	if (maybe_sub && maybe_sub2) {
-		for (auto remaining = num_publish_messages; remaining > 0;
+		for (auto remaining = NUM_PUBLISH_MESSAGES; remaining > 0;
 		     --remaining) {
 			std::ostringstream message;
 			message << "Message number: " << remaining;
@@ -201,11 +204,12 @@ TEST_F(PublisherSubscriberTest, SinglePubMultipleSubDifferentTopics) {
 		}
 	}
 
-	ValidateMessages(rx_queue, num_publish_messages, "Message number: ");
+	ValidateMessages(rx_queue, NUM_PUBLISH_MESSAGES, "Message number: ");
 }
 
 // Two publishers, two subscribers, two topics
-TEST_F(PublisherSubscriberTest, MultiplePubMultipleSubDifferentTopics) {
+TEST_F(PublisherSubscriberTest,  // NOLINT
+       MultiplePubMultipleSubDifferentTopics) {
 	auto transport = getTransport();
 
 	communication::Publisher pub(transport, makeUUri(TOPIC_URI),
@@ -236,7 +240,7 @@ TEST_F(PublisherSubscriberTest, MultiplePubMultipleSubDifferentTopics) {
 	EXPECT_TRUE(maybe_sub2);
 
 	if (maybe_sub && maybe_sub2) {
-		for (auto remaining = num_publish_messages; remaining > 0;
+		for (auto remaining = NUM_PUBLISH_MESSAGES; remaining > 0;
 		     --remaining) {
 			std::ostringstream message;
 			message << "Pub 1 - Message number: " << remaining;
@@ -254,10 +258,10 @@ TEST_F(PublisherSubscriberTest, MultiplePubMultipleSubDifferentTopics) {
 		}
 	}
 
-	ValidateMessages(rx_queue, num_publish_messages,
+	ValidateMessages(rx_queue, NUM_PUBLISH_MESSAGES,
 	                 "Pub 1 - Message number: ");
-	ValidateMessages(rx_queue2, num_publish_messages,
+	ValidateMessages(rx_queue2, NUM_PUBLISH_MESSAGES,
 	                 "Pub 2 - Message number: ");
 }
 
-}  // namespace
+}  // namespace uprotocol

@@ -163,7 +163,7 @@ jobs:
           style: 'file' # read .clang-format for configuration
           tidy-checks: '' # Read .clang-tidy for configuration
           database: compile_commands.json
-          version: 12
+          version: 13
 
       - name: Run linters on tests
         id: test-linter
@@ -176,7 +176,7 @@ jobs:
           style: 'file' # read .clang-format for configuration
           tidy-checks: '' # Read .clang-tidy for configuration
           database: compile_commands.json
-          version: 12
+          version: 13
 
       - name: Report lint failure
         if:
