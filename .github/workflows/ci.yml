@@ -39,12 +39,12 @@ jobs:
       - name: Build up-core-api conan package
         shell: bash
         run: |
-          conan create --version 1.6.0-alpha2 up-conan-recipes/up-core-api/release
+          conan create --version 1.6.0-alpha4 up-conan-recipes/up-core-api/release
 
       - name: Build up-cpp conan package
         shell: bash
         run: |
-          conan create --version 1.0.1 --build=missing up-conan-recipes/up-cpp/release
+          conan create --version 1.0.1-dev --build=missing up-conan-recipes/up-cpp/developer
 
       - name: Build zenohcpp conan package
         shell: bash

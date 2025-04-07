@@ -1,9 +1,9 @@
 [requires]
-up-cpp/[^1.0.1]
+up-cpp/[^1.0.1, include_prerelease]
 zenohcpp/1.2.1
 zenohc/1.2.1
 spdlog/[~1.13]
-up-core-api/[~1.6, include_prerelease]
+up-core-api/1.6.0-alpha4
 protobuf/[~3.21]
 
 [test_requires]
