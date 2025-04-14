@@ -235,9 +235,9 @@ v1::UStatus ZenohUTransport::registerPublishNotificationListener_(
 v1::UStatus ZenohUTransport::sendPublishNotification_(
     const std::string& zenoh_key, const std::string& payload,
     const v1::UAttributes& attributes) {
-	spdlog::debug("sendPublishNotification_: {}: {}", zenoh_key, payload);
 	auto attachment = uattributesToAttachment(attributes);
 	auto priority = mapZenohPriority(attributes.priority());
+	spdlog::debug("Sending publish notification: {}: {}", zenoh_key, payload);
 
 	try {
 		// -Wpedantic disallows named member initialization until C++20,
