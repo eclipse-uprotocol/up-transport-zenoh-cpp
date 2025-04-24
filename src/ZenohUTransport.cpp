@@ -235,9 +235,9 @@ v1::UStatus ZenohUTransport::registerPublishNotificationListener_(
 v1::UStatus ZenohUTransport::sendPublishNotification_(
     const std::string& zenoh_key, const std::string& payload,
     const v1::UAttributes& attributes) {
+	spdlog::debug("sendPublishNotification_: {}: {}", zenoh_key, payload);
 	auto attachment = uattributesToAttachment(attributes);
 	auto priority = mapZenohPriority(attributes.priority());
-	spdlog::debug("Sending publish notification: {}: {}", zenoh_key, payload);
 
 	try {
 		// -Wpedantic disallows named member initialization until C++20,
@@ -248,14 +248,16 @@ v1::UStatus ZenohUTransport::sendPublishNotification_(
 		options.encoding = zenoh::Encoding("app/custom");
 		options.attachment = zenoh::ext::serialize(attachment);
 
-		std::vector<uint8_t> const payload_as_bytes(payload.begin(),
+		const std::vector<uint8_t> payload_as_bytes(payload.begin(),
 		                                            payload.end());
 		session_.put(zenoh::KeyExpr(zenoh_key),
 		             zenoh::ext::serialize(payload_as_bytes),
 		             std::move(options));
-		spdlog::debug("Sent successfully.");
+		spdlog::debug("sendPublishNotification_: sent successfully.");
 	} catch (const zenoh::ZException& e) {
-		spdlog::error("Error when sending message: {}", e.what());
+		spdlog::error(
+		    "sendPublishNotification_: Error when sending message: {}",
+		    e.what());
 		return uError(v1::UCode::INTERNAL, e.what());
 	}
 
