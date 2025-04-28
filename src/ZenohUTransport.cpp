@@ -166,8 +166,13 @@ std::optional<v1::UMessage> ZenohUTransport::sampleToUMessage(
 		    "sampleToUMessage: empty attachment, cannot read uAttributes");
 		return std::nullopt;
 	}
-	auto payload(zenoh::ext::deserialize<std::string>(sample.get_payload()));
-	message.set_payload(payload);
+	auto payload(
+	    zenoh::ext::deserialize<std::vector<uint8_t>>(sample.get_payload()));
+
+	if (!payload.empty()) {
+		std::string payload_as_string(payload.begin(), payload.end());
+		message.set_payload(std::move(payload_as_string));
+	}
 
 	return message;
 }
@@ -232,7 +237,6 @@ v1::UStatus ZenohUTransport::sendPublishNotification_(
     const v1::UAttributes& attributes) {
 	spdlog::debug("sendPublishNotification_: {}: {}", zenoh_key, payload);
 	auto attachment = uattributesToAttachment(attributes);
-
 	auto priority = mapZenohPriority(attributes.priority());
 
 	try {
@@ -243,9 +247,17 @@ v1::UStatus ZenohUTransport::sendPublishNotification_(
 		options.priority = priority;
 		options.encoding = zenoh::Encoding("app/custom");
 		options.attachment = zenoh::ext::serialize(attachment);
-		session_.put(zenoh::KeyExpr(zenoh_key), zenoh::ext::serialize(payload),
+
+		const std::vector<uint8_t> payload_as_bytes(payload.begin(),
+		                                            payload.end());
+		session_.put(zenoh::KeyExpr(zenoh_key),
+		             zenoh::ext::serialize(payload_as_bytes),
 		             std::move(options));
+		spdlog::debug("sendPublishNotification_: sent successfully.");
 	} catch (const zenoh::ZException& e) {
+		spdlog::error(
+		    "sendPublishNotification_: Error when sending message: {}",
+		    e.what());
 		return uError(v1::UCode::INTERNAL, e.what());
 	}
 
