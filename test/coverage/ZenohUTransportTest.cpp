@@ -93,10 +93,10 @@ TEST_F(TestZenohUTransport, toZenohKeyString) {  // NOLINT
 	              std::nullopt),
 	          "up/192.168.1.100/10AB/0/3/80CD/{}/{}/{}/{}/{}");
 	// Send Notification
-	EXPECT_EQ(ExposeKeyString::(  // send notification
-	              "", create_uuri("192.168.1.100", {0x10AB, 3}, 0x80CD),
-	              create_uuri("192.168.1.101", {0x300EF, 4}, 0)),
-	          "up/192.168.1.100/10AB/0/3/80CD/192.168.1.101/EF/3/4/0");
+	EXPECT_EQ(
+	    ExposeKeyString::("", create_uuri("192.168.1.100", {0x10AB, 3}, 0x80CD),
+	                      create_uuri("192.168.1.101", {0x300EF, 4}, 0)),
+	    "up/192.168.1.100/10AB/0/3/80CD/192.168.1.101/EF/3/4/0");
 	// Receive all Notifications
 	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
 	              "", create_uuri("*", {0xFFFFFFFF, 0xFF}, 0xFFFF),
