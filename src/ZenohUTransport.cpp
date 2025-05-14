@@ -48,11 +48,20 @@ std::string ZenohUTransport::toZenohKeyString(
 		}
 		zenoh_key << "/";
 
-		// ue_id
-		if (uuri.ue_id() == WILDCARD_ENTITY_ID) {
+		// ue_id -> type id & instance id
+		if (has_wildcard_service_instance_id(uuri)) {
 			zenoh_key << "*";
 		} else {
-			zenoh_key << std::uppercase << std::hex << uuri.ue_id();
+			uint16_t service_instance_id = (uuri.ue_id() >> 16) & 0xFFFF;
+			zenoh_key << std::uppercase << std::hex << service_instance_id;
+		}
+		zenoh_key << "/";
+
+		if (has_wildcard_service_id(uuri)) {
+			zenoh_key << "*";
+		} else {
+			uint16_t service_id = uuri.ue_id() & 0xFFFF;
+			zenoh_key << std::uppercase << std::hex << service_id;
 		}
 		zenoh_key << "/";
 
