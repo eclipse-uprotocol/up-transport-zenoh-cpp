@@ -105,7 +105,7 @@ TEST_F(TestZenohUTransport, toZenohKeyString) {  // NOLINT
 	// Send Request
 	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
 	              "", create_uuri("my-host1", {0x403AB, 3}, 0),
-	              create_uuri("my-host2", {0x20CD, 4}, 0xB)),
+	              create_uuri("my-host2", {0xCD, 4}, 0xB)),
 	          "up/my-host1/3AB/4/3/0/my-host2/CD/0/4/B");
 	// Receive all Requests
 	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
