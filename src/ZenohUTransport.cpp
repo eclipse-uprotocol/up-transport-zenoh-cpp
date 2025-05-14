@@ -49,7 +49,7 @@ std::string ZenohUTransport::toZenohKeyString(
 		zenoh_key << "/";
 
 		// ue_id -> type id & instance id
-		if (has_wildcard_service_instance_id(uuri)) {
+		if (UUri::has_wildcard_service_instance_id(uuri)) {
 			zenoh_key << "*";
 		} else {
 			uint16_t service_instance_id = (uuri.ue_id() >> 16) & 0xFFFF;
@@ -57,7 +57,7 @@ std::string ZenohUTransport::toZenohKeyString(
 		}
 		zenoh_key << "/";
 
-		if (has_wildcard_service_id(uuri)) {
+		if (UUri::has_wildcard_service_id(uuri)) {
 			zenoh_key << "*";
 		} else {
 			uint16_t service_id = uuri.ue_id() & 0xFFFF;
@@ -66,7 +66,7 @@ std::string ZenohUTransport::toZenohKeyString(
 		zenoh_key << "/";
 
 		// ue_version_major
-		if (uuri.ue_version_major() == WILDCARD_ENTITY_VERSION) {
+		if (UUri::has_wildcard_version(uuri)) {
 			zenoh_key << "*";
 		} else {
 			zenoh_key << std::uppercase << std::hex << uuri.ue_version_major();
@@ -74,7 +74,7 @@ std::string ZenohUTransport::toZenohKeyString(
 		zenoh_key << "/";
 
 		// resource_id
-		if (uuri.resource_id() == WILDCARD_RESOURCE_ID) {
+		if (UUri::has_wildcard_resource_id(uuid)) {
 			zenoh_key << "*";
 		} else {
 			zenoh_key << std::uppercase << std::hex << uuri.resource_id();
