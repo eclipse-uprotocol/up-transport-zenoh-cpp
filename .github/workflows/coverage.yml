@@ -1,0 +1,124 @@
+name: Test and Coverage
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  test:
+    name: Generate Test Coverage Report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Fetch up-transport-zenoh-cpp
+        uses: actions/checkout@v4
+        with:
+          path: up-transport-zenoh-cpp
+
+      - name: Install Conan
+        id: conan
+        uses: turtlebrowser/get-conan@main
+        with:
+          version: 2.3.2
+
+      - name: Install conan CI profile
+        shell: bash
+        run: |
+          conan profile detect
+          cp up-transport-zenoh-cpp/.github/workflows/ci_conan_profile "$(conan profile path default)"
+          conan profile show
+
+      - name: Fetch up-core-api conan recipe
+        uses: actions/checkout@v4
+        with:
+          path: up-conan-recipes
+          repository: eclipse-uprotocol/up-conan-recipes
+
+      - name: Build up-core-api conan package
+        shell: bash
+        run: |
+          conan create --version 1.6.0-alpha4 up-conan-recipes/up-core-api/release
+
+      - name: Build up-cpp conan package
+        shell: bash
+        run: |
+          conan create --version 1.0.1-dev --build=missing up-conan-recipes/up-cpp/developer
+
+      - name: Build zenohcpp conan package
+        shell: bash
+        run: |
+          conan create --version 1.2.1 up-conan-recipes/zenohc-tmp/prebuilt
+          conan create --version 1.2.1 up-conan-recipes/zenohcpp-tmp/from-source
+
+      - name: Build up-transport-zenoh-cpp with tests and coverage
+        shell: bash
+        run: |
+          cd up-transport-zenoh-cpp
+          conan install --build=missing . --deployer=full_deploy 
+          cd build/Release
+          cmake -S ../../ --preset conan-release -DCMAKE_EXPORT_COMPILE_COMMANDS=yes -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Coverage
+          cmake --build . -- -j
+
+      - name: Run all tests
+        shell: bash
+        run: |
+          cd up-transport-zenoh-cpp/build/Release
+          chmod +x bin/*
+          ctest || true
+
+      - name: Install gcovr
+        run: sudo apt-get install -y gcovr
+
+      - name: Run Coverage report
+        shell: bash
+        run: |
+          cd up-transport-zenoh-cpp/build/Release
+          mkdir -p ../Coverage
+          gcovr -r ../../ --html --html-details -o ../Coverage/index.html -e '.*test.*' --gcov-ignore-parse-errors negative_hits.warn_once_per_file
+          cd ..
+          echo "Coverage report can be found here: ../Coverage/index.html"
+
+      - name: Extract and Print Coverage Percentage
+        shell: bash
+        run: |
+          cd up-transport-zenoh-cpp/build/Coverage
+          COVERAGE_PERCENTAGE=$(grep -oP '>\K[0-9.]+(?=%)' index.html | head -n 1)
+          export COVERAGE_PERCENTAGE=$(printf "%.2f" "$COVERAGE_PERCENTAGE")
+          echo "COVERAGE_PERCENTAGE= $COVERAGE_PERCENTAGE" >> $GITHUB_ENV
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: coverage-report
+          path: 'up-transport-zenoh-cpp/build/Coverage'
+
+      - name: Generate coverage comment
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+
+            fs.mkdirSync('./pr-comment', { recursive: true });
+
+            const COVERAGE_PERCENTAGE = `${{ env.COVERAGE_PERCENTAGE }}`;
+
+            const COVERAGE_REPORT_PATH = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/`;
+
+            var pr_number = `${{ github.event.number }}`;
+            var body = `
+              Code coverage report is ready! :chart_with_upwards_trend:
+
+              - **Code Coverage Percentage:** ${COVERAGE_PERCENTAGE}%
+              - **Code Coverage Report:** [View Coverage Report](${COVERAGE_REPORT_PATH})
+              `;
+
+            fs.writeFileSync('./pr-comment/pr-number.txt', pr_number);
+            fs.writeFileSync('./pr-comment/body.txt', body);
+
+      - uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+        with:
+          name: pr-comment
+          path: pr-comment/
