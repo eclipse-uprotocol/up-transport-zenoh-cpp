@@ -18,8 +18,18 @@ find_package(up-core-api REQUIRED)
 find_package(up-cpp REQUIRED)
 find_package(zenohcpp REQUIRED)
 
-# TODO NEEDED?
-#add_definitions(-DSPDLOG_FMT_EXTERNAL)
+message("* Adding build types...")
+list(APPEND CMAKE_CONFIGURATION_TYPES Release Coverage)
+list(REMOVE_DUPLICATES CMAKE_CONFIGURATION_TYPES)
+message("* Available build types are now: ${CMAKE_CONFIGURATION_TYPES}")
+message("* Current build type is: ${CMAKE_BUILD_TYPE}")
+
+# Modify settings for build type Coverage
+if(CMAKE_BUILD_TYPE STREQUAL Coverage)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+message("* Current Compiler Flags: ${CMAKE_CXX_FLAGS}")
 
 # This is the root CMakeLists.txt file; We can set project wide settings here
 # TODO: Is this needed?
@@ -30,16 +40,6 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 endif()
-
-add_compile_options(
-	-Wall;
-	-Wswitch-enum;
-	-Wcast-qual;
-	-Wuninitialized;
-	-Wconversion;
-	-Wpedantic;
-	-Werror;
-)
 
 file(GLOB_RECURSE SRC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
@@ -58,6 +58,16 @@ target_include_directories(${PROJECT_NAME}
 	${spdlog_INCLUDE_DIR})
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+target_compile_options(${PROJECT_NAME} PUBLIC
+	-Wall
+	-Wswitch-enum
+	-Wcast-qual
+	-Wuninitialized
+	-Wconversion
+	-pedantic
+	-Werror
+)
 
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
