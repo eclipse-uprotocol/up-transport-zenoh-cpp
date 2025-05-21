@@ -116,6 +116,11 @@ TEST_F(TestZenohUTransport, toZenohKeyString) {  // NOLINT
 	              "", create_uuri("*", {0xFFFF, 0xFF}, 0xFFFF),
 	              create_uuri("[::1]", {0xFFFF, 0xFF}, 0xFFFF)),
 	          "up/*/*/*/*/[::1]/*/*/*");
+
+	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
+	              "my-default-authority", create_uuri("", {0x10AB, 3}, 0x80CD),
+	              std::nullopt),
+	          "up/my-default-authority/10AB/3/80CD/{}/{}/{}/{}");
 }
 
 }  // namespace uprotocol
