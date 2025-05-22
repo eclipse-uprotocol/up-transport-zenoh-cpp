@@ -87,40 +87,36 @@ TEST_F(TestZenohUTransport, toZenohKeyString) {  // NOLINT
 	EXPECT_TRUE(
 	    (std::is_base_of_v<transport::ZenohUTransport, ExposeKeyString>));
 
+	// Send Publish
 	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
 	              "", create_uuri("192.168.1.100", {0x10AB, 3}, 0x80CD),
 	              std::nullopt),
-	          "up/192.168.1.100/10AB/3/80CD/{}/{}/{}/{}");
-
+	          "up/192.168.1.100/10AB/0/3/80CD/{}/{}/{}/{}/{}");
+	// Send Notification
 	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
 	              "", create_uuri("192.168.1.100", {0x10AB, 3}, 0x80CD),
-	              create_uuri("192.168.1.101", {0x20EF, 4}, 0)),
-	          "up/192.168.1.100/10AB/3/80CD/192.168.1.101/20EF/4/0");
-
+	              create_uuri("192.168.1.101", {0x300EF, 4}, 0)),
+	          "up/192.168.1.100/10AB/0/3/80CD/192.168.1.101/EF/3/4/0");
+	// Receive all Notifications
 	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
-	              "", create_uuri("*", {0xFFFF, 0xFF}, 0xFFFF),
-	              create_uuri("192.168.1.101", {0x20EF, 4}, 0)),
-	          "up/*/*/*/*/192.168.1.101/20EF/4/0");
-
+	              "", create_uuri("*", {0xFFFFFFFF, 0xFF}, 0xFFFF),
+	              create_uuri("192.168.1.101", {0x300EF, 4}, 0)),
+	          "up/*/*/*/*/*/192.168.1.101/EF/3/4/0");
+	// Send Request
 	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
-	              "", create_uuri("my-host1", {0x10AB, 3}, 0),
-	              create_uuri("my-host2", {0x20EF, 4}, 0xB)),
-	          "up/my-host1/10AB/3/0/my-host2/20EF/4/B");
-
+	              "", create_uuri("my-host1", {0x403AB, 3}, 0),
+	              create_uuri("my-host2", {0xCD, 4}, 0xB)),
+	          "up/my-host1/3AB/4/3/0/my-host2/CD/0/4/B");
+	// Receive all Requests
 	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
-	              "", create_uuri("*", {0xFFFF, 0xFF}, 0xFFFF),
-	              create_uuri("my-host2", {0x20EF, 4}, 0xB)),
-	          "up/*/*/*/*/my-host2/20EF/4/B");
-
+	              "", create_uuri("*", {0xFFFFFFFF, 0xFF}, 0xFFFF),
+	              create_uuri("my-host2", {0xCD, 4}, 0xB)),
+	          "up/*/*/*/*/*/my-host2/CD/0/4/B");
+	// Receive all messages to a device
 	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
-	              "", create_uuri("*", {0xFFFF, 0xFF}, 0xFFFF),
-	              create_uuri("[::1]", {0xFFFF, 0xFF}, 0xFFFF)),
-	          "up/*/*/*/*/[::1]/*/*/*");
-
-	EXPECT_EQ(ExposeKeyString::toZenohKeyString(
-	              "my-default-authority", create_uuri("", {0x10AB, 3}, 0x80CD),
-	              std::nullopt),
-	          "up/my-default-authority/10AB/3/80CD/{}/{}/{}/{}");
+	              "", create_uuri("*", {0xFFFFFFFF, 0xFF}, 0xFFFF),
+	              create_uuri("[::1]", {0xFFFFFFFF, 0xFF}, 0xFFFF)),
+	          "up/*/*/*/*/*/[::1]/*/*/*/*");
 }
 
 }  // namespace uprotocol

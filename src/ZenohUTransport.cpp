@@ -14,6 +14,7 @@
 #include <spdlog/spdlog.h>
 #include <up-cpp/datamodel/serializer/UUri.h>
 #include <up-cpp/datamodel/serializer/Uuid.h>
+#include <up-cpp/datamodel/validator/UUri.h>
 
 #include <stdexcept>
 
@@ -48,16 +49,27 @@ std::string ZenohUTransport::toZenohKeyString(
 		}
 		zenoh_key << "/";
 
-		// ue_id
-		if (uuri.ue_id() == WILDCARD_ENTITY_ID) {
+		// ue_id -> type id & instance id
+		if (uprotocol::datamodel::validator::uri::has_wildcard_service_id(
+		        uuri)) {
 			zenoh_key << "*";
 		} else {
-			zenoh_key << std::uppercase << std::hex << uuri.ue_id();
+			uint16_t service_id = uuri.ue_id() & 0xFFFF;
+			zenoh_key << std::uppercase << std::hex << service_id;
+		}
+		zenoh_key << "/";
+
+		if (uprotocol::datamodel::validator::uri::
+		        has_wildcard_service_instance_id(uuri)) {
+			zenoh_key << "*";
+		} else {
+			uint16_t service_instance_id = (uuri.ue_id() >> 16) & 0xFFFF;
+			zenoh_key << std::uppercase << std::hex << service_instance_id;
 		}
 		zenoh_key << "/";
 
 		// ue_version_major
-		if (uuri.ue_version_major() == WILDCARD_ENTITY_VERSION) {
+		if (uprotocol::datamodel::validator::uri::has_wildcard_version(uuri)) {
 			zenoh_key << "*";
 		} else {
 			zenoh_key << std::uppercase << std::hex << uuri.ue_version_major();
@@ -65,7 +77,8 @@ std::string ZenohUTransport::toZenohKeyString(
 		zenoh_key << "/";
 
 		// resource_id
-		if (uuri.resource_id() == WILDCARD_RESOURCE_ID) {
+		if (uprotocol::datamodel::validator::uri::has_wildcard_resource_id(
+		        uuri)) {
 			zenoh_key << "*";
 		} else {
 			zenoh_key << std::uppercase << std::hex << uuri.resource_id();
@@ -79,7 +92,7 @@ std::string ZenohUTransport::toZenohKeyString(
 	if (sink.has_value()) {
 		write_u_uri(*sink);
 	} else {
-		zenoh_key << "/{}/{}/{}/{}";
+		zenoh_key << "/{}/{}/{}/{}/{}";
 	}
 	return zenoh_key.str();
 }
