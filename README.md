@@ -41,7 +41,7 @@ Building Zenoh Packages - with zenoh-c backend
 2. [zenoh-cpp][zenoh-repo] -
    `conan create --version 1.5.0 zenoh-cpp -o backend=zenoh-c`
 
-Building Zenoh Packages - with proper zenoh-pico backend
+Building Zenoh Packages - with zenoh-pico backend
 1. [zenoh-pico][zenoh-repo] - `conan create --version 1.5.0 zenoh-pico`
 2. [zenoh-cpp][zenoh-repo] -
    `conan create --version 1.5.0 zenoh-cpp -o backend=zenoh-pico`
