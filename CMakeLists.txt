@@ -16,7 +16,20 @@ find_package(protobuf REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(up-core-api REQUIRED)
 find_package(up-cpp REQUIRED)
-find_package(zenohcpp REQUIRED)
+
+option(WITH_ZENOH_PICO "Build based on zenoh-pico backend" OFF)
+option(WITH_ZENOH_C "Build based on zenoh-c backend" OFF)
+
+if(WITH_ZENOH_PICO)
+	find_package(zenohpico REQUIRED)
+	find_package(zenohcxx REQUIRED)
+elseif(WITH_ZENOH_C)
+	find_package(zenohc REQUIRED)
+	find_package(zenohcxx REQUIRED)
+else()
+	find_package(zenohcpp REQUIRED)
+	add_compile_definitions(ZENOHCXX_ZENOHC)
+endif()
 
 message("* Adding build types...")
 list(APPEND CMAKE_CONFIGURATION_TYPES Release Coverage)
@@ -51,11 +64,27 @@ target_include_directories(${PROJECT_NAME}
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 	$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
-	${zenohcpp_INCLUDE_DIR}
 	${up-cpp_INCLUDE_DIR}
 	${up-core-api_INCLUDE_DIR}
 	${protobuf_INCLUDE_DIR}
 	${spdlog_INCLUDE_DIR})
+
+if(WITH_ZENOH_PICO)
+	target_include_directories(${PROJECT_NAME}
+		PUBLIC
+		${zenohpico_INCLUDE_DIR}
+		${zenohcxx_zenohpico_INCLUDE_DIR})
+elseif(WITH_ZENOH_C)
+	target_include_directories(${PROJECT_NAME}
+		PUBLIC
+		${zenohc_INCLUDE_DIR}
+		${zenohcxx_zenohc_INCLUDE_DIR})
+else()
+	target_include_directories(${PROJECT_NAME}
+		PUBLIC
+		${zenohcpp_INCLUDE_DIR})
+endif()
+
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
@@ -71,12 +100,27 @@ target_compile_options(${PROJECT_NAME} PUBLIC
 
 target_link_libraries(${PROJECT_NAME}
 	PRIVATE
-	zenohcpp::lib
 	up-cpp::up-cpp
 	up-core-api::up-core-api
 	protobuf::libprotobuf
 	spdlog::spdlog
 	)
+
+if(WITH_ZENOH_PICO)
+	target_link_libraries(${PROJECT_NAME}
+		PRIVATE
+		zenohpico::lib
+		zenohcxx::zenohpico)
+elseif(WITH_ZENOH_C)
+	target_link_libraries(${PROJECT_NAME}
+		PRIVATE
+		zenohc::lib
+		zenohcxx::zenohc)
+else()
+	target_link_libraries(${PROJECT_NAME}
+		PRIVATE
+		zenohcpp::lib)
+endif()
 
 enable_testing()
 add_subdirectory(test)

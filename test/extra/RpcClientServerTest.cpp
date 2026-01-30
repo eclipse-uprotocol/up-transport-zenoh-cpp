@@ -89,8 +89,12 @@ protected:
 	// Used to set up clean environments per test.
 	void SetUp() override {
 		const MyUUri ident{"me_authority", {65538, 1}, 0};
+#ifdef ZENOHCXX_ZENOHPICO
+		transport_ = std::make_shared<Transport>(static_cast<v1::UUri>(ident));
+#else
 		transport_ = std::make_shared<Transport>(static_cast<v1::UUri>(ident),
 		                                         ZENOH_CONFIG_FILE);
+#endif
 		EXPECT_NE(nullptr, transport_);
 	}
 

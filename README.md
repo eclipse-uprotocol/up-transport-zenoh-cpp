@@ -16,7 +16,7 @@ from [up-cpp][cpp-api-repo].
 - Compiler: GCC/G++ 11 or Clang 13
 - Conan : 1.59 or latest 2.X
 
-#### Conan packages
+#### Basic Conan packages
 
 Using the recipes found in [up-conan-recipes][conan-recipe-repo], build these
 Conan packages:
@@ -24,10 +24,27 @@ Conan packages:
 1. [up-core-api][spec-repo] -
    `conan create --version 1.6.0-alpha4 --build=missing up-core-api/release`
 2. [up-cpp][cpp-api-repo] -
-   `conan create --version 1.0.1 --build=missing up-cpp/release`
-3. [zenoh-c][zenoh-repo] - `conan create --version 1.2.1 zenohc-tmp/prebuilt`
-4. [zenoh-c][zenoh-repo] -
-   `conan create --version 1.2.1 zenohcpp-tmp/from-source`
+   `conan create --version 1.0.1-dev --build=missing up-cpp/developer -o commitish=af55b7899fb8d2e30de1b11f975750e9d1135bbd -o fork=qnx-ports/up-cpp`
+
+#### Zenoh Conan packages
+
+We support two basic zenoh backend (zenoh-c/zenoh-pico),
+also to have backward compatibility support temporary zenoh-c packaging.
+
+Building (Temporary) Zenoh Packages
+1. [zenoh-c][zenoh-repo] - `conan create --version 1.5.0 zenohc-tmp/prebuilt`
+2. [zenoh-cpp][zenoh-repo] -
+   `conan create --version 1.5.0 zenohcpp-tmp/from-source`
+
+Building Zenoh Packages - with zenoh-c backend
+1. [zenoh-c][zenoh-repo] - `conan create --version 1.5.0 zenoh-c/prebuilt`
+2. [zenoh-cpp][zenoh-repo] -
+   `conan create --version 1.5.0 zenoh-cpp -o backend=zenoh-c`
+
+Building Zenoh Packages - with zenoh-pico backend
+1. [zenoh-pico][zenoh-repo] - `conan create --version 1.5.0 zenoh-pico`
+2. [zenoh-cpp][zenoh-repo] -
+   `conan create --version 1.5.0 zenoh-cpp -o backend=zenoh-pico`
 
 **NOTE:** all `conan` commands in this document use Conan 2.x syntax. Please
 adjust accordingly when using Conan 1.x.
@@ -64,13 +81,45 @@ up-transport-zenoh-cpp, follow the steps in the
 
 ```bash
 cd up-transport-zenoh-cpp
+
+# Default is (Temporary) Zenoh Packages
 conan install . --build=missing
+# OR explicit zenoh-c backend
+conan install . --build=missing -o backend=zenoh-c
+# OR explicit zenoh-pico backend
+conan install . --build=missing -o backend=zenoh-pico
+
 cmake --preset conan-release
 cd build/Release
 cmake --build . -- -j
 ```
 
 Once the build completes, tests can be run with `ctest`.
+
+**NOTE:** If you want to test with zenoh-pico backend you have to run
+zenoh-router. Please look at [up-conan-readme][conan-recipe-docs]
+
+### QNX build with conan
+```bash
+cd up-conan-recipes
+conan create --version=3.21.12 --build=missing protobuf
+conan config install tools/qnx-8.0-extension/settings_user.yml
+conan create -pr:h=tools/profiles/nto-8.0-x86_64 --version=3.21.12 --build=missing protobuf
+conan create -pr:h=tools/profiles/nto-8.0-x86_64 --version=1.6.0-alpha4 up-core-api/release/
+conan create -pr:h=tools/profiles/nto-8.0-x86_64 --version=1.14.0 gtest
+
+conan create -pr:h=tools/profiles/nto-8.0-x86_64 --version=1.0.1-dev --build=missing up-cpp/developer -o commitish=af55b7899fb8d2e30de1b11f975750e9d1135bbd -o fork=qnx-ports/up-cpp
+
+conan create -pr:h=tools/profiles/nto-8.0-x86_64 --version=1.5.0 zenoh-pico
+conan create -pr:h=tools/profiles/nto-8.0-x86_64 --version=1.5.0 -o backend=zenoh-pico zenoh-cpp
+
+cd ../up-transport-zenoh-cpp
+conan install -pr:h=../up-conan-recipes/tools/profiles/nto-8.0-x86_64 --build=missing -o backend=zenoh-pico .
+cmake --preset conan-release
+cd build/Release
+cmake --build . -- -j
+```
+
 
 ### With dependencies installed as system libraries
 
@@ -106,3 +155,4 @@ Give a ⭐️ if this project helped you!
 [cpp-api-repo]: https://github.com/eclipse-uprotocol/up-cpp
 [zenoh-repo]: https://github.com/eclipse-zenoh/zenoh-cpp
 [conan-abi-docs]: https://docs.conan.io/en/1.60/howtos/manage_gcc_abi.html
+[conan-recipe-docs]: https://github.com/eclipse-uprotocol/up-conan-recipes/blob/main/README.md

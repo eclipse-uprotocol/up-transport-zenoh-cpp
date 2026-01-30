@@ -36,7 +36,11 @@ protected:
 
 	// Run once per execution of the test application.
 	// Used for setup of all tests. Has access to this instance.
+#ifdef ZENOHCXX_ZENOHPICO
+	PublisherSubscriberTest() {}
+#else
 	PublisherSubscriberTest() { zenoh::init_log_from_env_or("error"); }
+#endif
 
 	// Run once per execution of the test application.
 	// Used only for global setup outside of tests.
@@ -59,8 +63,12 @@ v1::UUri makeUUri(uint16_t resource_id) {
 
 std::shared_ptr<transport::UTransport> getTransport(
     const v1::UUri& uuri = makeUUri(ENTITY_URI)) {
+#ifdef ZENOHCXX_ZENOHPICO
+	return std::make_shared<transport::ZenohUTransport>(uuri);
+#else
 	return std::make_shared<transport::ZenohUTransport>(uuri,
 	                                                    ZENOH_CONFIG_FILE);
+#endif
 }
 
 // ValidateMessages

@@ -211,6 +211,17 @@ std::optional<v1::UMessage> ZenohUTransport::queryToUMessage(
 	return message;
 }
 
+#ifdef ZENOHCXX_ZENOHPICO
+ZenohUTransport::ZenohUTransport(const v1::UUri& default_uri)
+    : UTransport(default_uri),
+      session_(zenoh::Session::open(
+          zenoh::Config::create_default())) {
+	// TODO(unknown) add to setup or remove
+	spdlog::set_level(spdlog::level::debug);
+
+	spdlog::info("ZenohUTransport init");
+}
+#else
 ZenohUTransport::ZenohUTransport(const v1::UUri& default_uri,
                                  const std::filesystem::path& config_file)
     : UTransport(default_uri),
@@ -221,6 +232,7 @@ ZenohUTransport::ZenohUTransport(const v1::UUri& default_uri,
 
 	spdlog::info("ZenohUTransport init");
 }
+#endif
 
 v1::UStatus ZenohUTransport::registerPublishNotificationListener_(
     const std::string& zenoh_key, CallableConn listener) {

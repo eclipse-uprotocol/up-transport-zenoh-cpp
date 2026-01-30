@@ -53,15 +53,21 @@ v1::UUri getUUri(uint16_t resource) {
 
 std::shared_ptr<transport::UTransport> getTransport(
     const v1::UUri& uuri = getUUri(0)) {
+#ifdef ZENOHCXX_ZENOHPICO
+	return std::make_shared<transport::ZenohUTransport>(uuri);
+#else
 	return std::make_shared<transport::ZenohUTransport>(uuri,
 	                                                    ZENOH_CONFIG_FILE);
+#endif
 }
 
 TEST_F(NotificationTest, BasicNotificationTestWithPayload) {  // NOLINT
 	constexpr uint16_t RESOURCE1_ID = 0x8000;
 	constexpr uint16_t RESOURCE2_ID = 0x8001;
+#ifdef ZENOHCXX_ZENOHC
 	zenoh::init_log_from_env_or("error");
 
+#endif
 	auto transport = getTransport();
 	auto source = getUUri(RESOURCE1_ID);
 	auto sink = getUUri(0);
@@ -108,8 +114,10 @@ TEST_F(NotificationTest, BasicNotificationTestWithPayload) {  // NOLINT
 TEST_F(NotificationTest, BasicNotificationTestWithoutPayload) {  // NOLINT
 	constexpr uint16_t RESOURCE1_ID = 0x8000;
 	constexpr uint16_t RESOURCE2_ID = 0x8001;
+#ifdef ZENOHCXX_ZENOHC
 	zenoh::init_log_from_env_or("error");
 
+#endif
 	auto transport = getTransport();
 	auto source = getUUri(RESOURCE1_ID);
 	auto sink = getUUri(0);
