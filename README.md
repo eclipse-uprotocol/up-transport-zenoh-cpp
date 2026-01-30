@@ -84,7 +84,7 @@ cd up-transport-zenoh-cpp
 
 # Default is (Temporary) Zenoh Packages
 conan install . --build=missing
-# OR explicite zenoh-c backend
+# OR explicit zenoh-c backend
 conan install . --build=missing -o backend=zenoh-c
 # OR explicite zenoh-pico backend
 conan install . --build=missing -o backend=zenoh-pico
