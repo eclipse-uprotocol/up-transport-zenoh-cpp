@@ -86,7 +86,7 @@ cd up-transport-zenoh-cpp
 conan install . --build=missing
 # OR explicit zenoh-c backend
 conan install . --build=missing -o backend=zenoh-c
-# OR explicite zenoh-pico backend
+# OR explicit zenoh-pico backend
 conan install . --build=missing -o backend=zenoh-pico
 
 cmake --preset conan-release
