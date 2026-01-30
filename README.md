@@ -36,7 +36,7 @@ Building (Temporary) Zenoh Packages
 2. [zenoh-cpp][zenoh-repo] -
    `conan create --version 1.5.0 zenohcpp-tmp/from-source`
 
-Building Zenoh Packages - with proper zenoh-c backend
+Building Zenoh Packages - with zenoh-c backend
 1. [zenoh-c][zenoh-repo] - `conan create --version 1.5.0 zenoh-c/prebuilt`
 2. [zenoh-cpp][zenoh-repo] -
    `conan create --version 1.5.0 zenoh-cpp -o backend=zenoh-c`
