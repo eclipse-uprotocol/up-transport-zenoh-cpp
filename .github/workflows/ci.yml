@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Fetch up-transport-zenoh-cpp
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: up-transport-zenoh-cpp
 
@@ -31,7 +31,7 @@ jobs:
           conan profile show
 
       - name: Fetch up-core-api conan recipe
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: up-conan-recipes
           repository: eclipse-uprotocol/up-conan-recipes
@@ -62,7 +62,7 @@ jobs:
           cmake --build . -- -j
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build-artifacts
           path: |
@@ -71,7 +71,7 @@ jobs:
             up-transport-zenoh-cpp/full_deploy
 
       - name: Upload compile commands
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: compile-commands
           path: up-transport-zenoh-cpp/build/Release/compile_commands.json
@@ -82,7 +82,7 @@ jobs:
           conan cache save --file ./conan-cache.tgz '*'
 
       - name: Upload conan cache for linting
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: conan-cache
           path: ./conan-cache.tgz
@@ -94,7 +94,7 @@ jobs:
 
     steps:
       - name: Get build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: build-artifacts
           path: up-transport-zenoh-cpp
@@ -107,7 +107,7 @@ jobs:
           ctest
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: success() || failure()
         with:
           name: test-results
@@ -120,12 +120,12 @@ jobs:
 
     steps:
       - name: Fetch up-transport-zenoh-cpp
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           path: up-transport-zenoh-cpp
 
       - name: Get build commands
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: compile-commands
 
@@ -143,7 +143,7 @@ jobs:
           conan profile show
 
       - name: Get conan cache
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: conan-cache
 
@@ -154,7 +154,7 @@ jobs:
 
       - name: Run linters on source
         id: source-linter
-        uses: cpp-linter/cpp-linter-action@v2
+        uses: cpp-linter/cpp-linter-action@77c390c5ba9c947ebc185a3e49cc754f1558abb5 # v2.18.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -167,7 +167,7 @@ jobs:
 
       - name: Run linters on tests
         id: test-linter
-        uses: cpp-linter/cpp-linter-action@v2
+        uses: cpp-linter/cpp-linter-action@77c390c5ba9c947ebc185a3e49cc754f1558abb5 # v2.18.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -192,7 +192,7 @@ jobs:
 
     steps:
       - name: Get build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: build-artifacts
           path: up-transport-zenoh-cpp
@@ -247,7 +247,7 @@ jobs:
           cat valgrind_logs/valgrind_memcheck_summary.log
 
       - name: Upload Valgrind Memcheck logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: success() || failure()
         with:
           name: valgrind-memcheck-log
@@ -260,7 +260,7 @@ jobs:
 
     steps:
       - name: Get build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: build-artifacts
           path: up-transport-zenoh-cpp
@@ -317,7 +317,7 @@ jobs:
           cat valgrind_logs/valgrind_threadcheck_summary.log
 
       - name: Upload Valgrind ThreadCheck logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: success() || failure()
         with:
           name: valgrind-threadcheck-log
@@ -330,7 +330,7 @@ jobs:
 
     steps:
       - name: Get build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: build-artifacts
           path: up-transport-zenoh-cpp
@@ -387,7 +387,7 @@ jobs:
           cat valgrind_logs/valgrind_helgrind_summary.log
 
       - name: Upload Valgrind Helgrind logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: success() || failure()
         with:
           name: valgrind-helgrind-log
@@ -400,7 +400,7 @@ jobs:
 
     steps:
       - name: Get build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: build-artifacts
           path: up-transport-zenoh-cpp
@@ -457,7 +457,7 @@ jobs:
           cat valgrind_logs/valgrind_dhat_summary.log
 
       - name: Upload Valgrind DHAT logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: success() || failure()
         with:
           name: valgrind-dhat-log
