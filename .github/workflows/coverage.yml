@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Fetch up-transport-zenoh-cpp
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: up-transport-zenoh-cpp
 
@@ -31,7 +31,7 @@ jobs:
           conan profile show
 
       - name: Fetch up-core-api conan recipe
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: up-conan-recipes
           repository: eclipse-uprotocol/up-conan-recipes
